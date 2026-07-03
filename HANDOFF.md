@@ -6,6 +6,8 @@ Last updated: 2026-07-03 (Europe/Amsterdam)
 
 Provide a public, low-cost, read-only dashboard for the private Airco Tracker NL inventory snapshot. The first production version is complete: it lists the available-product count for all tracked retailers, uses a glacier-blue responsive UI, and reads live inventory through a same-origin API backed by Managed Identity.
 
+A 2026-07-03 quality round improved the frontend with: client-side polling driven by `refresh_interval_seconds` plus `visibilitychange` refetch, a shared `shared/inventory.ts` type module eliminating client/server type duplication, deepened server validation (products, timestamps, `site_count` cross-check), BlobServiceClient reuse at startup, removal of the hard-coded `27` magic number from the verify script, sample JSON moved out of the production build, expanded test coverage (3 → 14 tests), and a `if: success()` gate on the deploy summary step.
+
 No active blocker exists. The next agent should first confirm what the user wants to add rather than assuming that every candidate item below is authorized.
 
 ## Repository and production
@@ -35,22 +37,25 @@ The Git branch history uses the repository-local GitHub noreply author. A tempor
 - Stale sites use a dashed, muted card state.
 - Responsive grid: six columns on wide desktop, five below 1180px, three below 900px, two below 620px, one below 400px.
 - Reduced-motion support and no horizontal overflow at the 1440×900 target.
+- **Polling**: the UI refetches `/api/inventory` on an interval driven by the snapshot's `refresh_interval_seconds` (clamped to ≥ 60s), and immediately on `visibilitychange` when the tab becomes visible again. This replaces the previous fetch-once-on-mount behavior.
 
 ### Same-origin API
 
 - `server/server.ts` serves both the Vite output and `/api/inventory` on port 3000.
 - Production reads the private Blob with `DefaultAzureCredential` and the assigned runtime identity.
+- The `BlobServiceClient` is constructed once at startup and reused across cache misses, avoiding repeated credential-chain probes.
 - Blob reads are cached for 30 seconds and concurrent cache misses share one in-flight read.
 - `/health` provides the deployment health check.
 - Security headers include CSP, frame denial, MIME sniffing protection, no-referrer, and restricted browser permissions.
-- The API validates snapshot version, totals, site status, stale flags, counts, and products arrays before returning data.
-- Local production mode uses `INVENTORY_FILE=public/inventory.sample.json`; this override is not configured in Azure.
+- The API validates snapshot version, totals, `refresh_interval_seconds`, `updated_at` timestamp, site status, stale flags, counts, products arrays (including individual product fields), and cross-checks `site_count` against the actual number of site entries before returning data.
+- Local production mode uses `INVENTORY_FILE=test-fixtures/inventory.sample.json`; this override is not configured in Azure.
+- Shared data contract: `shared/inventory.ts` is the single source of truth for the inventory types, used by both `src/types.ts` (browser) and `server/inventory.ts` (API).
 
 ### Azure and CI/CD
 
 - Chosen host: Azure Container Apps Consumption, because the app needs a server-side Managed Identity API as well as static assets.
 - The app reuses the backend project's Container Apps Environment, ACR, Storage Account, and runtime UAMI. No second environment, registry, database, Function App, Storage Account, or Key Vault was created.
-- External HTTPS ingress targets port 3000. Minimum replicas are 0 and maximum replicas are 2.
+- External HTTPS ingress targets port 3000. Minimum replicas are 0 and maximum replicas are 2. Scale-to-zero means the first request after idle has a multi-second cold start; this is an accepted tradeoff for the low-traffic dashboard. If latency becomes an issue, set `minReplicas: 1` in `infra/app.bicep`.
 - Runtime identity reads the existing private `airco-tracker/inventory.json` Blob and pulls the private ACR image without passwords.
 - The new GitHub repository has its own branch-restricted federated credential on the existing `airco-github-deployer` identity.
 - GitHub stores only non-secret Azure identifiers as Actions Variables. No `AZURE_CREDENTIALS` secret or Client Secret exists for this workflow.
@@ -65,29 +70,24 @@ The Git branch history uses the repository-local GitHub noreply author. A tempor
 - Snapshot schema version: `1`.
 - Frontend runtime validation: `server/inventory.ts`.
 - Browser types: `src/types.ts`.
-- Local fixture: `public/inventory.sample.json`.
+- Local fixture: `test-fixtures/inventory.sample.json`.
 - The API currently returns the whole snapshot, including product arrays, although the first UI uses only aggregate and per-site counts.
 - Any producer/schema change must be coordinated across both repositories. Do not make the Blob public and do not replace the API with a browser-side SAS URL.
 
 ## Verification evidence
 
-Before the first production deployment:
+After the 2026-07-03 quality round:
 
-- `pnpm test`: 3/3 inventory-contract tests passed.
+- `pnpm test`: 14/14 inventory-contract tests passed (was 3; now covers products validation, timestamp validation, site_count cross-check, stale/status branches, malformed JSON, and array top-level rejection).
 - `pnpm typecheck`: browser and server TypeScript passed.
 - `pnpm build`: Node server and Vite production bundles passed.
-- Both Bicep templates compiled successfully.
 - All shell scripts passed `bash -n`.
 - `git diff --check`: clean.
-- Local production verification: 27 sites and 19 available products from the non-sensitive fixture.
-- Browser QA at 1440×900: 27 cards, 6 stocked cards, total 19, no horizontal overflow, no console warnings or errors.
+- Sample JSON moved from `public/` to `test-fixtures/`; no longer ships in the production image.
+- `verify-deployment.mjs` no longer hard-codes `27`; it validates `site_count === Object.keys(sites).length` dynamically.
+- Deploy summary step gated with `if: success()`.
 
-Production deployment evidence:
-
-- Actions run `28681867269`: succeeded.
-- Image: `airco-tracking-web:039ea44845af806883021dbc2fb14da3e45aa74e`.
-- Azure provisioning: `Succeeded`.
-- Verification script read the private live Blob through the deployed API: 27 sites and 15 available products at that moment.
+Prior production deployment evidence (run `28681867269`, commit `039ea44`): succeeded, 27 sites and 15 available products at that moment. Inventory totals are time-sensitive; re-run `scripts/verify-deployment.mjs` or query the live API before citing a current count.
 - Inventory totals are time-sensitive; re-run `scripts/verify-deployment.mjs` or query the live API before citing a current count.
 
 ## Known limitations and candidate next work

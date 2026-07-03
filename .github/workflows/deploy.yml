@@ -62,6 +62,7 @@ jobs:
         run: ./scripts/deploy.sh
 
       - name: Write deployment summary
+        if: success()
         env:
           AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
         run: |

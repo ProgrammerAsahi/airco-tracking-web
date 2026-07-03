@@ -17,6 +17,20 @@ const accountUrl = process.env.AZURE_STORAGE_ACCOUNT_URL?.trim();
 const containerName = process.env.AZURE_STORAGE_CONTAINER?.trim() || "airco-tracker";
 const blobName = process.env.AZURE_INVENTORY_BLOB?.trim() || "inventory.json";
 
+// Construct the Blob client once at startup; DefaultAzureCredential does
+// multiple network probes on first use and should not be re-instantiated
+// on every cache miss.
+let blobClient: BlobServiceClient | undefined;
+function getBlobClient(): BlobServiceClient {
+  if (!blobClient) {
+    const credential = new DefaultAzureCredential({
+      managedIdentityClientId: process.env.AZURE_CLIENT_ID?.trim() || undefined,
+    });
+    blobClient = new BlobServiceClient(accountUrl!, credential);
+  }
+  return blobClient;
+}
+
 let cachedInventory: { expiresAt: number; snapshot: InventorySnapshot } | undefined;
 let inFlightRead: Promise<InventorySnapshot> | undefined;
 
@@ -56,10 +70,7 @@ async function readInventorySource(): Promise<InventorySnapshot> {
     throw new Error("AZURE_STORAGE_ACCOUNT_URL is not configured");
   }
 
-  const credential = new DefaultAzureCredential({
-    managedIdentityClientId: process.env.AZURE_CLIENT_ID?.trim() || undefined,
-  });
-  const blob = new BlobServiceClient(accountUrl, credential)
+  const blob = getBlobClient()
     .getContainerClient(containerName)
     .getBlobClient(blobName);
   const content = await blob.downloadToBuffer();

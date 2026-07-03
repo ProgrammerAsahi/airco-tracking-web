@@ -12,15 +12,17 @@ while (Date.now() < deadline) {
     const health = await fetch(`${appUrl}/health`);
     if (!health.ok) throw new Error(`health returned ${health.status}`);
 
-    const response = await fetch(`${appUrl}/api/inventory`);
+    const response = await fetch(`${appUrl}/api/inventory`, { signal: AbortSignal.timeout(15_000) });
     if (!response.ok) throw new Error(`inventory returned ${response.status}`);
     const inventory = await response.json();
     if (
       inventory.version !== 1
       || typeof inventory.sites !== "object"
       || inventory.sites === null
+      || Array.isArray(inventory.sites)
       || !Number.isInteger(inventory.site_count)
-      || inventory.site_count < 27
+      || inventory.site_count < 1
+      || inventory.site_count !== Object.keys(inventory.sites).length
       || !Number.isInteger(inventory.available_product_count)
     ) {
       throw new Error("inventory response failed schema checks");

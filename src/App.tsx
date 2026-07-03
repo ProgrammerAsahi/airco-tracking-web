@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getBrand } from "./brands";
 import type { InventorySnapshot, SiteInventory } from "./types";
 import "./styles.css";
 
-const inventoryUrl = import.meta.env.VITE_INVENTORY_URL
-  ?? (import.meta.env.DEV ? "/inventory.sample.json" : "/api/inventory");
+const inventoryUrl = import.meta.env.VITE_INVENTORY_URL ?? "/api/inventory";
 
 function formatUpdatedAt(value: string | null): string {
   if (!value) return "等待第一次更新";
@@ -28,7 +27,7 @@ function StoreCard({ name, inventory }: { name: string; inventory: SiteInventory
       className={`store-card${hasStock ? " store-card--stocked" : ""}${inventory.stale ? " store-card--stale" : ""}`}
       href={brand.url}
       target="_blank"
-      rel="noreferrer"
+      rel="noopener noreferrer"
       style={{ "--brand": brand.color, "--brand-tint": brand.tint } as React.CSSProperties}
       aria-label={`${brand.name}，${count} 台有货`}
     >
@@ -52,21 +51,49 @@ function StoreCard({ name, inventory }: { name: string; inventory: SiteInventory
 export default function App() {
   const [snapshot, setSnapshot] = useState<InventorySnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
-  useEffect(() => {
+  const fetchInventory = useCallback(() => {
+    abortRef.current?.abort();
     const controller = new AbortController();
+    abortRef.current = controller;
     fetch(inventoryUrl, { signal: controller.signal })
       .then((response) => {
         if (!response.ok) throw new Error(`库存数据请求失败（${response.status}）`);
         return response.json() as Promise<InventorySnapshot>;
       })
-      .then(setSnapshot)
+      .then((data) => {
+        setSnapshot(data);
+        setError(null);
+      })
       .catch((reason: unknown) => {
         if (reason instanceof DOMException && reason.name === "AbortError") return;
         setError(reason instanceof Error ? reason.message : "无法读取库存数据");
       });
-    return () => controller.abort();
   }, []);
+
+  useEffect(() => {
+    fetchInventory();
+
+    // Poll using the snapshot's refresh interval (clamped to at least 60s
+    // so a misconfigured value cannot hammer the API).
+    const intervalMs = Math.max(60, (snapshot?.refresh_interval_seconds ?? 600)) * 1000;
+    const timer = setInterval(fetchInventory, intervalMs);
+
+    // Refetch immediately when the tab becomes visible again.
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") fetchInventory();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisibility);
+      abortRef.current?.abort();
+    };
+    // Re-create the timer when the refresh interval changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchInventory, snapshot?.refresh_interval_seconds]);
 
   const sites = useMemo(() => {
     if (!snapshot) return [];

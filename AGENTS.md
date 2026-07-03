@@ -54,7 +54,8 @@ Browser
 - Node HTTP service: `server/server.ts`
 - Runtime contract validation: `server/inventory.ts`
 - Contract tests: `server/inventory.test.ts`
-- Non-sensitive local fixture: `public/inventory.sample.json`
+- Non-sensitive local fixture: `test-fixtures/inventory.sample.json`
+- Shared data contract: `shared/inventory.ts`
 - Container image: `Dockerfile`
 - Container App definition: `infra/app.bicep`
 - Repository-specific OIDC credential: `infra/github-oidc.bicep`
@@ -67,7 +68,7 @@ The frontend repo reuses the backend project's resource group, Container Apps En
 
 - Current schema version: `1`.
 - The producer is the backend repository's `updated_inventory()` output.
-- Production reads the private Blob through `/api/inventory`; development reads `/inventory.sample.json`.
+- Production reads the private Blob through `/api/inventory`; development proxies `/api` to a local Node server that reads `test-fixtures/inventory.sample.json`.
 - Required top-level fields include `version`, `updated_at`, `refresh_interval_seconds`, aggregate counts, and `sites`.
 - Each site includes `status`, `stale`, attempt/success timestamps, `available_product_count`, and `products`.
 - The server validates the shape before returning it. Do not silently accept an unknown schema version.
@@ -75,7 +76,7 @@ The frontend repo reuses the backend project's resource group, Container Apps En
   1. Backend snapshot producer and tests.
   2. `server/inventory.ts` and its tests.
   3. `src/types.ts` and UI behavior.
-  4. `public/inventory.sample.json`.
+  4. `test-fixtures/inventory.sample.json`.
   5. README and handoff documentation in both repositories.
 
 ## Standard local workflow
@@ -90,9 +91,13 @@ pnpm build
 git diff --check
 ```
 
-Development preview:
+Development preview (requires two terminals):
 
 ```bash
+# Terminal 1: start the API server with sample data
+PORT=4174 INVENTORY_FILE=test-fixtures/inventory.sample.json pnpm start
+
+# Terminal 2: start Vite dev server (proxies /api to :4174)
 pnpm dev
 # http://127.0.0.1:4173
 ```
@@ -100,7 +105,7 @@ pnpm dev
 Production-mode integration check:
 
 ```bash
-PORT=4174 INVENTORY_FILE=public/inventory.sample.json pnpm start
+PORT=4174 INVENTORY_FILE=test-fixtures/inventory.sample.json pnpm start
 node scripts/verify-deployment.mjs http://127.0.0.1:4174
 ```
 

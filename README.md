@@ -27,14 +27,14 @@ pnpm install
 pnpm dev
 ```
 
-Open <http://127.0.0.1:4173>. Development reads `public/inventory.sample.json`.
+Open <http://127.0.0.1:4173>. Development proxies `/api` to a local Node server.
 
 To test the production server locally:
 
 ```bash
 pnpm test
 pnpm build
-PORT=4174 INVENTORY_FILE=public/inventory.sample.json pnpm start
+PORT=4174 INVENTORY_FILE=test-fixtures/inventory.sample.json pnpm start
 node scripts/verify-deployment.mjs http://127.0.0.1:4174
 ```
 

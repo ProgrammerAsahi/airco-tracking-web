@@ -9,6 +9,7 @@ RUN pnpm install --frozen-lockfile
 COPY index.html vite.config.ts tsconfig*.json ./
 COPY public ./public
 COPY src ./src
+COPY shared ./shared
 COPY server ./server
 
 RUN pnpm build && pnpm prune --prod
@@ -27,4 +28,4 @@ COPY --from=build --chown=node:node /app/server-dist ./server-dist
 USER node
 EXPOSE 3000
 
-CMD ["node", "server-dist/server.js"]
+CMD ["node", "server-dist/server/server.js"]
