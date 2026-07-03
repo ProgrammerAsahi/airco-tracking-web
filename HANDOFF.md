@@ -23,6 +23,15 @@ Public, read-only inventory overview for the private `airco-tracking-nl` snapsho
 - GitHub Actions authenticates with OIDC through the existing `airco-github-deployer` identity and a repository-specific federated credential.
 - No Storage Key, SAS token, client secret, email address, or Key Vault secret belongs in this repository.
 
+## Production status
+
+- Live URL: `https://airco-tracking-web.livelystone-5966d837.westeurope.azurecontainerapps.io`
+- Feature commit/image: `039ea44845af806883021dbc2fb14da3e45aa74e`
+- GitHub Actions run: `28681867269` — succeeded.
+- Azure provisioning state: `Succeeded`.
+- Production verification: 27 sites and 15 available products returned from the private live Blob snapshot.
+- Scale: 0–2 replicas.
+
 ## Data contract
 
 - Production: same-origin `/api/inventory` reads `airco-tracker/inventory.json`.

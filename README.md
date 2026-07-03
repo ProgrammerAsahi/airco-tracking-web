@@ -2,6 +2,8 @@
 
 Ice-blue TypeScript/React dashboard for the [Airco Tracker NL](https://github.com/ProgrammerAsahi/airco-tracking-nl) live inventory snapshot.
 
+**Live:** [airco-tracking-web.livelystone-5966d837.westeurope.azurecontainerapps.io](https://airco-tracking-web.livelystone-5966d837.westeurope.azurecontainerapps.io)
+
 The page shows the current available-product count for all 27 tracked retailers. Production uses a same-origin TypeScript API to read the private Azure Blob snapshot through Managed Identity; no Storage Key, SAS token, or secret reaches the browser.
 
 ## Architecture
