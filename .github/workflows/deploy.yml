@@ -1,0 +1,74 @@
+name: Deploy to Azure
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+jobs:
+  test-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.7.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - name: Install, test, and build
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm test
+          pnpm typecheck
+          pnpm build
+          bash -n scripts/*.sh
+
+      - name: Compile Bicep templates
+        run: |
+          az bicep install
+          for template in infra/*.bicep; do
+            az bicep build --file "$template" --stdout >/dev/null
+          done
+
+      - name: Log in to Azure with OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build and deploy immutable image
+        env:
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: ./scripts/deploy.sh
+
+      - name: Write deployment summary
+        env:
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+        run: |
+          APP_FQDN="$(az containerapp show -n airco-tracking-web -g "$AZURE_RESOURCE_GROUP" --query properties.configuration.ingress.fqdn -o tsv)"
+          {
+            echo "## Azure deployment"
+            echo "- Commit: \`${GITHUB_SHA}\`"
+            echo "- App: [airco-tracking-web](https://${APP_FQDN})"
+            echo "- Resource group: \`${AZURE_RESOURCE_GROUP}\`"
+          } >> "$GITHUB_STEP_SUMMARY"

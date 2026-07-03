@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.7.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Test and build
+        run: |
+          pnpm test
+          pnpm typecheck
+          pnpm build
+          docker build --tag airco-tracking-web:test .
+
+      - name: Compile Bicep templates
+        run: |
+          az bicep install
+          for template in infra/*.bicep; do
+            az bicep build --file "$template" --stdout >/dev/null
+          done
+
+      - name: Validate shell scripts
+        run: bash -n scripts/*.sh

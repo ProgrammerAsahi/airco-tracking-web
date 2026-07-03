@@ -1,0 +1,34 @@
+{
+  "name": "airco-tracking-web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "pnpm build:server && pnpm build:web",
+    "build:server": "tsc -p tsconfig.server.json",
+    "build:web": "tsc -b && vite build",
+    "typecheck": "tsc -b --pretty false && tsc -p tsconfig.server.json --noEmit --pretty false",
+    "test": "pnpm build:server && node --test server-dist/*.test.js",
+    "start": "node server-dist/server.js",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@azure/identity": "4.13.1",
+    "@azure/storage-blob": "12.33.0",
+    "react": "19.2.7",
+    "react-dom": "19.2.7"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.13",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.3",
+    "typescript": "6.0.3",
+    "vite": "8.1.3"
+  },
+  "packageManager": "pnpm@11.7.0",
+  "engines": {
+    "node": ">=22.12"
+  }
+}
