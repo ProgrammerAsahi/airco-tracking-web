@@ -7,7 +7,9 @@ import { BlobServiceClient } from "@azure/storage-blob";
 import { parseInventory, type InventorySnapshot } from "./inventory.js";
 
 const currentDirectory = dirname(fileURLToPath(import.meta.url));
-const projectDirectory = resolve(currentDirectory, "..");
+// Compiled server.js lives at <root>/server-dist/server/server.js, so go up
+// two levels to reach the project root that contains dist/.
+const projectDirectory = resolve(currentDirectory, "..", "..");
 const staticDirectory = join(projectDirectory, "dist");
 const port = Number.parseInt(process.env.PORT ?? "3000", 10);
 const inventoryFile = process.env.INVENTORY_FILE?.trim();
