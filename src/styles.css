@@ -483,6 +483,65 @@ h1 {
   background: #20a9d5;
 }
 
+.product-delivery-dot--presale {
+  background: #3b82f6;
+}
+
+/* --- Detail tabs --- */
+
+.detail-tabs {
+  display: flex;
+  gap: 8px;
+  width: min(100%, 1200px);
+  margin: 14px auto 0;
+  padding: 0 42px;
+}
+
+.detail-tab {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 18px;
+  border: 1px solid rgba(22, 87, 122, 0.12);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.7);
+  color: #698391;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background 180ms ease, color 180ms ease, border-color 180ms ease;
+}
+
+.detail-tab:hover {
+  border-color: rgba(22, 87, 122, 0.25);
+}
+
+.detail-tab--active {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}
+
+.detail-tab--presale.detail-tab--active {
+  background: #3b82f6;
+  border-color: #3b82f6;
+  color: #fff;
+}
+
+.detail-tab-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.detail-tab-dot--immediate { background: #20a9d5; }
+.detail-tab-dot--presale { background: #3b82f6; }
+
+.detail-tab--active .detail-tab-dot--immediate,
+.detail-tab--active .detail-tab-dot--presale {
+  background: #fff;
+}
+
 .product-card-footer {
   display: flex;
   align-items: center;

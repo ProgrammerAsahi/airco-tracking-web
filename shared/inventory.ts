@@ -15,6 +15,7 @@ export interface InventoryProduct {
   price_eur: number | null;
   delivery: string | null;
   btu: number | null;
+  presale: boolean;
 }
 
 export interface SiteInventory {

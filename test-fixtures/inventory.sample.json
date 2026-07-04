@@ -4,61 +4,452 @@
   "refresh_interval_seconds": 600,
   "site_count": 27,
   "stale_site_count": 0,
-  "available_product_count": 19,
+  "available_product_count": 22,
   "sites": {
-    "Coolblue": { "status": "ok", "stale": false, "last_attempt_at": "2026-07-03T15:51:05.399426+00:00", "last_success_at": "2026-07-03T15:51:05.399426+00:00", "available_product_count": 0, "products": [] },
-    "MediaMarkt": { "status": "ok", "stale": false, "last_attempt_at": "2026-07-03T15:51:05.399426+00:00", "last_success_at": "2026-07-03T15:51:05.399426+00:00", "available_product_count": 0, "products": [] },
-    "EP.nl": { "status": "ok", "stale": false, "last_attempt_at": "2026-07-03T15:51:05.399426+00:00", "last_success_at": "2026-07-03T15:51:05.399426+00:00", "available_product_count": 0, "products": [] },
-    "Electro World": { "status": "ok", "stale": false, "last_attempt_at": "2026-07-03T15:51:05.399426+00:00", "last_success_at": "2026-07-03T15:51:05.399426+00:00", "available_product_count": 0, "products": [] },
-    "Wehkamp": { "status": "ok", "stale": false, "last_attempt_at": "2026-07-03T15:51:05.399426+00:00", "last_success_at": "2026-07-03T15:51:05.399426+00:00", "available_product_count": 1, "products": [
-      { "site": "Wehkamp", "name": "Eurom airconditioner PAC 7.3 Compact - 60 m³ - 7.000 BTU", "url": "https://www.wehkamp.nl/eurom-airconditioner-pac-7-3-compact-60-m-7-000-btu-17537598/", "available": true, "price_eur": 225.0, "delivery": "morgen in huis", "btu": 7000 }
-    ] },
-    "Lidl": { "status": "ok", "stale": false, "last_attempt_at": "2026-07-03T15:51:05.399426+00:00", "last_success_at": "2026-07-03T15:51:05.399426+00:00", "available_product_count": 0, "products": [] },
-    "GAMMA": { "status": "ok", "stale": false, "last_attempt_at": "2026-07-03T15:51:05.399426+00:00", "last_success_at": "2026-07-03T15:51:05.399426+00:00", "available_product_count": 0, "products": [] },
-    "KARWEI": { "status": "ok", "stale": false, "last_attempt_at": "2026-07-03T15:51:05.399426+00:00", "last_success_at": "2026-07-03T15:51:05.399426+00:00", "available_product_count": 0, "products": [] },
-    "Praxis": { "status": "ok", "stale": false, "last_attempt_at": "2026-07-03T15:51:05.399426+00:00", "last_success_at": "2026-07-03T15:51:05.399426+00:00", "available_product_count": 0, "products": [] },
-    "Alternate.nl": { "status": "ok", "stale": false, "last_attempt_at": "2026-07-03T15:51:05.399426+00:00", "last_success_at": "2026-07-03T15:51:05.399426+00:00", "available_product_count": 0, "products": [] },
-    "Trotec": { "status": "ok", "stale": false, "last_attempt_at": "2026-07-03T15:51:05.399426+00:00", "last_success_at": "2026-07-03T15:51:05.399426+00:00", "available_product_count": 0, "products": [] },
-    "Klarstein": { "status": "ok", "stale": false, "last_attempt_at": "2026-07-03T15:51:05.399426+00:00", "last_success_at": "2026-07-03T15:51:05.399426+00:00", "available_product_count": 0, "products": [] },
-    "FlinQ": { "status": "ok", "stale": false, "last_attempt_at": "2026-07-03T15:51:05.399426+00:00", "last_success_at": "2026-07-03T15:51:05.399426+00:00", "available_product_count": 0, "products": [] },
-    "Action Webshop": { "status": "ok", "stale": false, "last_attempt_at": "2026-07-03T15:51:05.399426+00:00", "last_success_at": "2026-07-03T15:51:05.399426+00:00", "available_product_count": 0, "products": [] },
-    "Expert.nl": { "status": "ok", "stale": false, "last_attempt_at": "2026-07-03T15:51:05.399426+00:00", "last_success_at": "2026-07-03T15:51:05.399426+00:00", "available_product_count": 0, "products": [] },
-    "De'Longhi NL": { "status": "ok", "stale": false, "last_attempt_at": "2026-07-03T15:51:05.399426+00:00", "last_success_at": "2026-07-03T15:51:05.399426+00:00", "available_product_count": 0, "products": [] },
-    "Obelink": { "status": "ok", "stale": false, "last_attempt_at": "2026-07-03T15:51:05.399426+00:00", "last_success_at": "2026-07-03T15:51:05.399426+00:00", "available_product_count": 1, "products": [
-      { "site": "Obelink", "name": "Tweedekans Ttulpe CampCool AC-10 mobiele airco", "url": "https://www.obelink.nl/tweedekans-ttulpe-campcool-ac-10-mobiele-airco-765783.html", "available": true, "price_eur": 325.0, "delivery": "Online op voorraad", "btu": 3412 }
-    ] },
-    "Kampeerwereld": { "status": "ok", "stale": false, "last_attempt_at": "2026-07-03T15:51:05.399426+00:00", "last_success_at": "2026-07-03T15:51:05.399426+00:00", "available_product_count": 1, "products": [
-      { "site": "Kampeerwereld", "name": "Mestic - Spa-3100 Split Airco Caravan", "url": "https://www.kampeerwereld.nl/mestic-spa-3100-split-airco-caravan-1503030/", "available": true, "price_eur": 479.0, "delivery": "Op voorraad", "btu": 3200 }
-    ] },
-    "Create NL": { "status": "ok", "stale": false, "last_attempt_at": "2026-07-03T15:51:05.399426+00:00", "last_success_at": "2026-07-03T15:51:05.399426+00:00", "available_product_count": 0, "products": [] },
-    "Costway NL": { "status": "ok", "stale": false, "last_attempt_at": "2026-07-03T15:51:05.399426+00:00", "last_success_at": "2026-07-03T15:51:05.399426+00:00", "available_product_count": 4, "products": [
-      { "site": "Costway NL", "name": "Mobiele Airconditioner met Afvoerslang 7000 BTU 3-in-1", "url": "https://nl.costway.com/mobiele-airconditioner-met-afvoerslang-7000-btu-3-in-1-airconditioner-voor-koeling-ventilatie-en-luchtontvochtiging.html", "available": true, "price_eur": 599.99, "delivery": "Op voorraad", "btu": 7000 },
-      { "site": "Costway NL", "name": "Mobiele Airconditioner met Afvoerslang 9000 BTU 3-in-1", "url": "https://nl.costway.com/mobiele-airconditioner-met-afvoerslang-9000-btu-3-in-1-airconditioner-voor-koeling-ventilatie-en-luchtontvochtiging.html", "available": true, "price_eur": 704.99, "delivery": "Op voorraad", "btu": 9000 },
-      { "site": "Costway NL", "name": "Mobiele Airconditioning 105m³ /35 m² 12000 BTU WiFi/App", "url": "https://nl.costway.com/mobiele-airconditioning-105m-35-m-12000-btu-koelen-ontvochtigen-airconditioning-wifi-app-afstandsbediening.html", "available": true, "price_eur": 1599.99, "delivery": "Op voorraad", "btu": 12000 },
-      { "site": "Costway NL", "name": "Verwarming/Koeling Airconditioner Draagbare 5 in 1 14000 BTU", "url": "https://nl.costway.com/airconditioner-draagbare-5-in-1-airconditioner-met-afstandsbediening-14000-btu-voor-40-44-5-x-39-x-77-cm-wit.html", "available": true, "price_eur": 1699.99, "delivery": "Op voorraad", "btu": 14000 }
-    ] },
-    "Evolarshop": { "status": "ok", "stale": false, "last_attempt_at": "2026-07-03T15:51:05.399426+00:00", "last_success_at": "2026-07-03T15:51:05.399426+00:00", "available_product_count": 7, "products": [
-      { "site": "Evolarshop", "name": "Haier AM25EA1GAA TR - Mobiele Airco - 12000 BTU", "url": "https://www.evolarshop.nl/12k-btu-top-discharge-fixed-speed-portable-air-conditioner", "available": true, "price_eur": 779.0, "delivery": "InStock", "btu": 12000 },
-      { "site": "Evolarshop", "name": "Midea PortaSplit Mobiele Split Airco - 8.000 BTU - Koelen - Met Wifi", "url": "https://www.evolarshop.nl/midea-portasplit-mobiele-split-airco-8000btu-koelen", "available": true, "price_eur": 1399.0, "delivery": "InStock", "btu": 8000 },
-      { "site": "Evolarshop", "name": "Sinclair AMC 11P - Mobiele Airco - 11000 BTU", "url": "https://www.evolarshop.nl/sinclair-amc-11p-mobiele-airco", "available": true, "price_eur": 1380.0, "delivery": "InStock", "btu": 11000 },
-      { "site": "Evolarshop", "name": "Sinclair AMC 14P - Mobiele Airco - 14000 BTU", "url": "https://www.evolarshop.nl/sinclair-amc-14p-mobiele-airco", "available": true, "price_eur": 1499.0, "delivery": "InStock", "btu": 14000 },
-      { "site": "Evolarshop", "name": "TCL TAC 12CPB MZWS - Mobiele Airco - 12000 BTU", "url": "https://www.evolarshop.nl/tac-12cpb-mzws", "available": true, "price_eur": 779.0, "delivery": "InStock", "btu": 12000 },
-      { "site": "Evolarshop", "name": "Evolar EVO-22000C Professionele Mobiele Airco", "url": "https://www.evolarshop.nl/evolar-evo-22000c-mobiele-airco-6-5kw-22000btu-koelen-blauw", "available": true, "price_eur": 2399.0, "delivery": "InStock", "btu": 22000 },
-      { "site": "Evolarshop", "name": "Evolar EVO-14000C Mobiele Airco", "url": "https://www.evolarshop.nl/evolar-evo-14000c-mobiele-airco", "available": true, "price_eur": 1099.0, "delivery": "InStock", "btu": 14000 }
-    ] },
-    "Airco voor in huis": { "status": "ok", "stale": false, "last_attempt_at": "2026-07-03T15:51:05.399426+00:00", "last_success_at": "2026-07-03T15:51:05.399426+00:00", "available_product_count": 1, "products": [
-      { "site": "Airco voor in huis", "name": "Climate King A011D1 Mobiele airco voor koelen & verwarmen [2,9KW]", "url": "https://www.aircovoorinhuis.nl/climate-king-a011d1-mobiele-airco-voor-koelen-verwarmen-29kw/", "available": true, "price_eur": 449.0, "delivery": "Op voorraad", "btu": 9895 }
-    ] },
-    "Solago": { "status": "ok", "stale": false, "last_attempt_at": "2026-07-03T15:51:05.399426+00:00", "last_success_at": "2026-07-03T15:51:05.399426+00:00", "available_product_count": 0, "products": [] },
-    "Hubo": { "status": "ok", "stale": false, "last_attempt_at": "2026-07-03T15:51:05.399426+00:00", "last_success_at": "2026-07-03T15:51:05.399426+00:00", "available_product_count": 5, "products": [
-      { "site": "Hubo", "name": "Mobiele airco PAC 9.3 compact", "url": "https://www.hubo.nl/products/mobiele-airco-pac-9-3-compact", "available": true, "price_eur": 179.0, "delivery": "Op voorraad", "btu": 8900 },
-      { "site": "Hubo", "name": "Mobiele airco PAC 12.3 compact", "url": "https://www.hubo.nl/products/mobiele-airco-pac-12-3-compact", "available": true, "price_eur": 249.0, "delivery": "Op voorraad", "btu": 12000 },
-      { "site": "Hubo", "name": "Eurom Coolsilent 90 Wifi mobiele airco 9000BTU", "url": "https://www.hubo.nl/products/eurom-coolsilent-90-wifi-mobiele-airco-9000btu", "available": true, "price_eur": 369.0, "delivery": "Op voorraad", "btu": 9000 },
-      { "site": "Hubo", "name": "Qlima P 522 mobiele airconditioner met verwarming 7000BTU", "url": "https://www.hubo.nl/products/qlima-p-522-mobiele-airconditioner-met-verwarming-7000btu", "available": true, "price_eur": 399.0, "delivery": "Op voorraad", "btu": 7000 },
-      { "site": "Hubo", "name": "Qlima P 534 mobiele airconditioner 10000BTU", "url": "https://www.hubo.nl/products/qlima-p-534-mobiele-airconditioner-10000btu", "available": true, "price_eur": 529.0, "delivery": "Op voorraad", "btu": 10000 }
-    ] },
-    "Vrijbuiter": { "status": "ok", "stale": false, "last_attempt_at": "2026-07-03T15:51:05.399426+00:00", "last_success_at": "2026-07-03T15:51:05.399426+00:00", "available_product_count": 0, "products": [] },
-    "Klimaatshop": { "status": "ok", "stale": false, "last_attempt_at": "2026-07-03T15:51:05.399426+00:00", "last_success_at": "2026-07-03T15:51:05.399426+00:00", "available_product_count": 0, "products": [] },
-    "Airco-Webwinkel": { "status": "ok", "stale": false, "last_attempt_at": "2026-07-03T15:51:05.399426+00:00", "last_success_at": "2026-07-03T15:51:05.399426+00:00", "available_product_count": 0, "products": [] }
+    "Coolblue": {
+      "status": "ok",
+      "stale": false,
+      "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
+      "last_success_at": "2026-07-03T15:51:05.399426+00:00",
+      "available_product_count": 0,
+      "products": []
+    },
+    "MediaMarkt": {
+      "status": "ok",
+      "stale": false,
+      "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
+      "last_success_at": "2026-07-03T15:51:05.399426+00:00",
+      "available_product_count": 0,
+      "products": []
+    },
+    "EP.nl": {
+      "status": "ok",
+      "stale": false,
+      "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
+      "last_success_at": "2026-07-03T15:51:05.399426+00:00",
+      "available_product_count": 0,
+      "products": []
+    },
+    "Electro World": {
+      "status": "ok",
+      "stale": false,
+      "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
+      "last_success_at": "2026-07-03T15:51:05.399426+00:00",
+      "available_product_count": 0,
+      "products": []
+    },
+    "Wehkamp": {
+      "status": "ok",
+      "stale": false,
+      "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
+      "last_success_at": "2026-07-03T15:51:05.399426+00:00",
+      "available_product_count": 1,
+      "products": [
+        {
+          "site": "Wehkamp",
+          "name": "Eurom airconditioner PAC 7.3 Compact - 60 m³ - 7.000 BTU",
+          "url": "https://www.wehkamp.nl/eurom-airconditioner-pac-7-3-compact-60-m-7-000-btu-17537598/",
+          "available": true,
+          "price_eur": 225.0,
+          "delivery": "morgen in huis",
+          "btu": 7000,
+          "presale": false
+        }
+      ]
+    },
+    "Lidl": {
+      "status": "ok",
+      "stale": false,
+      "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
+      "last_success_at": "2026-07-03T15:51:05.399426+00:00",
+      "available_product_count": 0,
+      "products": []
+    },
+    "GAMMA": {
+      "status": "ok",
+      "stale": false,
+      "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
+      "last_success_at": "2026-07-03T15:51:05.399426+00:00",
+      "available_product_count": 0,
+      "products": []
+    },
+    "KARWEI": {
+      "status": "ok",
+      "stale": false,
+      "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
+      "last_success_at": "2026-07-03T15:51:05.399426+00:00",
+      "available_product_count": 0,
+      "products": []
+    },
+    "Praxis": {
+      "status": "ok",
+      "stale": false,
+      "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
+      "last_success_at": "2026-07-03T15:51:05.399426+00:00",
+      "available_product_count": 0,
+      "products": []
+    },
+    "Alternate.nl": {
+      "status": "ok",
+      "stale": false,
+      "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
+      "last_success_at": "2026-07-03T15:51:05.399426+00:00",
+      "available_product_count": 0,
+      "products": []
+    },
+    "Trotec": {
+      "status": "ok",
+      "stale": false,
+      "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
+      "last_success_at": "2026-07-03T15:51:05.399426+00:00",
+      "available_product_count": 1,
+      "products": [
+        {
+          "site": "Trotec",
+          "name": "PAC 2010 X mobiele airco",
+          "url": "https://nl.trotec.com/shop/pac-2010-x.html",
+          "available": true,
+          "price_eur": 349.99,
+          "delivery": "Levertijd: 3-4 weken",
+          "btu": 7000,
+          "presale": true
+        }
+      ]
+    },
+    "Klarstein": {
+      "status": "ok",
+      "stale": false,
+      "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
+      "last_success_at": "2026-07-03T15:51:05.399426+00:00",
+      "available_product_count": 0,
+      "products": []
+    },
+    "FlinQ": {
+      "status": "ok",
+      "stale": false,
+      "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
+      "last_success_at": "2026-07-03T15:51:05.399426+00:00",
+      "available_product_count": 0,
+      "products": []
+    },
+    "Action Webshop": {
+      "status": "ok",
+      "stale": false,
+      "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
+      "last_success_at": "2026-07-03T15:51:05.399426+00:00",
+      "available_product_count": 0,
+      "products": []
+    },
+    "Expert.nl": {
+      "status": "ok",
+      "stale": false,
+      "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
+      "last_success_at": "2026-07-03T15:51:05.399426+00:00",
+      "available_product_count": 0,
+      "products": []
+    },
+    "De'Longhi NL": {
+      "status": "ok",
+      "stale": false,
+      "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
+      "last_success_at": "2026-07-03T15:51:05.399426+00:00",
+      "available_product_count": 0,
+      "products": []
+    },
+    "Obelink": {
+      "status": "ok",
+      "stale": false,
+      "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
+      "last_success_at": "2026-07-03T15:51:05.399426+00:00",
+      "available_product_count": 1,
+      "products": [
+        {
+          "site": "Obelink",
+          "name": "Tweedekans Ttulpe CampCool AC-10 mobiele airco",
+          "url": "https://www.obelink.nl/tweedekans-ttulpe-campcool-ac-10-mobiele-airco-765783.html",
+          "available": true,
+          "price_eur": 325.0,
+          "delivery": "Online op voorraad",
+          "btu": 3412,
+          "presale": false
+        }
+      ]
+    },
+    "Kampeerwereld": {
+      "status": "ok",
+      "stale": false,
+      "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
+      "last_success_at": "2026-07-03T15:51:05.399426+00:00",
+      "available_product_count": 1,
+      "products": [
+        {
+          "site": "Kampeerwereld",
+          "name": "Mestic - Spa-3100 Split Airco Caravan",
+          "url": "https://www.kampeerwereld.nl/mestic-spa-3100-split-airco-caravan-1503030/",
+          "available": true,
+          "price_eur": 479.0,
+          "delivery": "Op voorraad",
+          "btu": 3200,
+          "presale": false
+        }
+      ]
+    },
+    "Create NL": {
+      "status": "ok",
+      "stale": false,
+      "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
+      "last_success_at": "2026-07-03T15:51:05.399426+00:00",
+      "available_product_count": 0,
+      "products": []
+    },
+    "Costway NL": {
+      "status": "ok",
+      "stale": false,
+      "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
+      "last_success_at": "2026-07-03T15:51:05.399426+00:00",
+      "available_product_count": 4,
+      "products": [
+        {
+          "site": "Costway NL",
+          "name": "Mobiele Airconditioner met Afvoerslang 7000 BTU 3-in-1",
+          "url": "https://nl.costway.com/mobiele-airconditioner-met-afvoerslang-7000-btu-3-in-1-airconditioner-voor-koeling-ventilatie-en-luchtontvochtiging.html",
+          "available": true,
+          "price_eur": 599.99,
+          "delivery": "Op voorraad",
+          "btu": 7000,
+          "presale": false
+        },
+        {
+          "site": "Costway NL",
+          "name": "Mobiele Airconditioner met Afvoerslang 9000 BTU 3-in-1",
+          "url": "https://nl.costway.com/mobiele-airconditioner-met-afvoerslang-9000-btu-3-in-1-airconditioner-voor-koeling-ventilatie-en-luchtontvochtiging.html",
+          "available": true,
+          "price_eur": 704.99,
+          "delivery": "Op voorraad",
+          "btu": 9000,
+          "presale": false
+        },
+        {
+          "site": "Costway NL",
+          "name": "Mobiele Airconditioning 105m³ /35 m² 12000 BTU WiFi/App",
+          "url": "https://nl.costway.com/mobiele-airconditioning-105m-35-m-12000-btu-koelen-ontvochtigen-airconditioning-wifi-app-afstandsbediening.html",
+          "available": true,
+          "price_eur": 1599.99,
+          "delivery": "Op voorraad",
+          "btu": 12000,
+          "presale": false
+        },
+        {
+          "site": "Costway NL",
+          "name": "Verwarming/Koeling Airconditioner Draagbare 5 in 1 14000 BTU",
+          "url": "https://nl.costway.com/airconditioner-draagbare-5-in-1-airconditioner-met-afstandsbediening-14000-btu-voor-40-44-5-x-39-x-77-cm-wit.html",
+          "available": true,
+          "price_eur": 1699.99,
+          "delivery": "Op voorraad",
+          "btu": 14000,
+          "presale": false
+        }
+      ]
+    },
+    "Evolarshop": {
+      "status": "ok",
+      "stale": false,
+      "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
+      "last_success_at": "2026-07-03T15:51:05.399426+00:00",
+      "available_product_count": 7,
+      "products": [
+        {
+          "site": "Evolarshop",
+          "name": "Haier AM25EA1GAA TR - Mobiele Airco - 12000 BTU",
+          "url": "https://www.evolarshop.nl/12k-btu-top-discharge-fixed-speed-portable-air-conditioner",
+          "available": true,
+          "price_eur": 779.0,
+          "delivery": "InStock",
+          "btu": 12000,
+          "presale": false
+        },
+        {
+          "site": "Evolarshop",
+          "name": "Midea PortaSplit Mobiele Split Airco - 8.000 BTU - Koelen - Met Wifi",
+          "url": "https://www.evolarshop.nl/midea-portasplit-mobiele-split-airco-8000btu-koelen",
+          "available": true,
+          "price_eur": 1399.0,
+          "delivery": "InStock",
+          "btu": 8000,
+          "presale": false
+        },
+        {
+          "site": "Evolarshop",
+          "name": "Sinclair AMC 11P - Mobiele Airco - 11000 BTU",
+          "url": "https://www.evolarshop.nl/sinclair-amc-11p-mobiele-airco",
+          "available": true,
+          "price_eur": 1380.0,
+          "delivery": "InStock",
+          "btu": 11000,
+          "presale": false
+        },
+        {
+          "site": "Evolarshop",
+          "name": "Sinclair AMC 14P - Mobiele Airco - 14000 BTU",
+          "url": "https://www.evolarshop.nl/sinclair-amc-14p-mobiele-airco",
+          "available": true,
+          "price_eur": 1499.0,
+          "delivery": "InStock",
+          "btu": 14000,
+          "presale": false
+        },
+        {
+          "site": "Evolarshop",
+          "name": "TCL TAC 12CPB MZWS - Mobiele Airco - 12000 BTU",
+          "url": "https://www.evolarshop.nl/tac-12cpb-mzws",
+          "available": true,
+          "price_eur": 779.0,
+          "delivery": "InStock",
+          "btu": 12000,
+          "presale": false
+        },
+        {
+          "site": "Evolarshop",
+          "name": "Evolar EVO-22000C Professionele Mobiele Airco",
+          "url": "https://www.evolarshop.nl/evolar-evo-22000c-mobiele-airco-6-5kw-22000btu-koelen-blauw",
+          "available": true,
+          "price_eur": 2399.0,
+          "delivery": "InStock",
+          "btu": 22000,
+          "presale": false
+        },
+        {
+          "site": "Evolarshop",
+          "name": "Evolar EVO-14000C Mobiele Airco",
+          "url": "https://www.evolarshop.nl/evolar-evo-14000c-mobiele-airco",
+          "available": true,
+          "price_eur": 1099.0,
+          "delivery": "InStock",
+          "btu": 14000,
+          "presale": false
+        }
+      ]
+    },
+    "Airco voor in huis": {
+      "status": "ok",
+      "stale": false,
+      "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
+      "last_success_at": "2026-07-03T15:51:05.399426+00:00",
+      "available_product_count": 1,
+      "products": [
+        {
+          "site": "Airco voor in huis",
+          "name": "Climate King A011D1 Mobiele airco voor koelen & verwarmen [2,9KW]",
+          "url": "https://www.aircovoorinhuis.nl/climate-king-a011d1-mobiele-airco-voor-koelen-verwarmen-29kw/",
+          "available": true,
+          "price_eur": 449.0,
+          "delivery": "Op voorraad",
+          "btu": 9895,
+          "presale": false
+        }
+      ]
+    },
+    "Solago": {
+      "status": "ok",
+      "stale": false,
+      "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
+      "last_success_at": "2026-07-03T15:51:05.399426+00:00",
+      "available_product_count": 1,
+      "products": [
+        {
+          "site": "Solago",
+          "name": "Midea PortaSplit-airconditioner",
+          "url": "https://solago.nl/products/midea-portasplit-airconditioning",
+          "available": true,
+          "price_eur": 1699.99,
+          "delivery": "Voorbestelling",
+          "btu": 8000,
+          "presale": true
+        }
+      ]
+    },
+    "Hubo": {
+      "status": "ok",
+      "stale": false,
+      "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
+      "last_success_at": "2026-07-03T15:51:05.399426+00:00",
+      "available_product_count": 5,
+      "products": [
+        {
+          "site": "Hubo",
+          "name": "Mobiele airco PAC 9.3 compact",
+          "url": "https://www.hubo.nl/products/mobiele-airco-pac-9-3-compact",
+          "available": true,
+          "price_eur": 179.0,
+          "delivery": "Op voorraad",
+          "btu": 8900,
+          "presale": false
+        },
+        {
+          "site": "Hubo",
+          "name": "Mobiele airco PAC 12.3 compact",
+          "url": "https://www.hubo.nl/products/mobiele-airco-pac-12-3-compact",
+          "available": true,
+          "price_eur": 249.0,
+          "delivery": "Op voorraad",
+          "btu": 12000,
+          "presale": false
+        },
+        {
+          "site": "Hubo",
+          "name": "Eurom Coolsilent 90 Wifi mobiele airco 9000BTU",
+          "url": "https://www.hubo.nl/products/eurom-coolsilent-90-wifi-mobiele-airco-9000btu",
+          "available": true,
+          "price_eur": 369.0,
+          "delivery": "Op voorraad",
+          "btu": 9000,
+          "presale": false
+        },
+        {
+          "site": "Hubo",
+          "name": "Qlima P 522 mobiele airconditioner met verwarming 7000BTU",
+          "url": "https://www.hubo.nl/products/qlima-p-522-mobiele-airconditioner-met-verwarming-7000btu",
+          "available": true,
+          "price_eur": 399.0,
+          "delivery": "Op voorraad",
+          "btu": 7000,
+          "presale": false
+        },
+        {
+          "site": "Hubo",
+          "name": "Qlima P 534 mobiele airconditioner 10000BTU",
+          "url": "https://www.hubo.nl/products/qlima-p-534-mobiele-airconditioner-10000btu",
+          "available": true,
+          "price_eur": 529.0,
+          "delivery": "Op voorraad",
+          "btu": 10000,
+          "presale": false
+        }
+      ]
+    },
+    "Vrijbuiter": {
+      "status": "ok",
+      "stale": false,
+      "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
+      "last_success_at": "2026-07-03T15:51:05.399426+00:00",
+      "available_product_count": 0,
+      "products": []
+    },
+    "Klimaatshop": {
+      "status": "ok",
+      "stale": false,
+      "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
+      "last_success_at": "2026-07-03T15:51:05.399426+00:00",
+      "available_product_count": 0,
+      "products": []
+    },
+    "Airco-Webwinkel": {
+      "status": "ok",
+      "stale": false,
+      "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
+      "last_success_at": "2026-07-03T15:51:05.399426+00:00",
+      "available_product_count": 0,
+      "products": []
+    }
   }
 }

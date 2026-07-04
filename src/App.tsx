@@ -87,7 +87,7 @@ function ProductCard({ product }: { product: InventoryProduct }) {
       </div>
       {product.delivery && (
         <div className="product-delivery">
-          <span className="product-delivery-dot" />
+          <span className={`product-delivery-dot${product.presale ? " product-delivery-dot--presale" : ""}`} />
           {product.delivery}
         </div>
       )}
@@ -101,14 +101,30 @@ function ProductCard({ product }: { product: InventoryProduct }) {
 
 function RetailerDetail({ name, inventory, onBack }: { name: string; inventory: SiteInventory; onBack: () => void }) {
   const brand = getBrand(name);
-  const products = useMemo(
-    () => [...inventory.products].sort((a, b) => {
+  const [activeTab, setActiveTab] = useState<"immediate" | "presale">("immediate");
+
+  const { immediate, presale } = useMemo(() => {
+    const sorted = [...inventory.products].sort((a, b) => {
       const priceA = a.price_eur ?? Number.MAX_SAFE_INTEGER;
       const priceB = b.price_eur ?? Number.MAX_SAFE_INTEGER;
       return priceA - priceB;
-    }),
-    [inventory.products],
-  );
+    });
+    return {
+      immediate: sorted.filter((p) => !p.presale),
+      presale: sorted.filter((p) => p.presale),
+    };
+  }, [inventory.products]);
+
+  // Default to presale tab if there are no immediate products.
+  useEffect(() => {
+    if (immediate.length === 0 && presale.length > 0) {
+      setActiveTab("presale");
+    } else {
+      setActiveTab("immediate");
+    }
+  }, [immediate.length, presale.length]);
+
+  const displayed = activeTab === "immediate" ? immediate : presale;
 
   return (
     <div className="detail-overlay" style={{ "--brand": brand.color, "--brand-tint": brand.tint } as React.CSSProperties}>
@@ -128,8 +144,26 @@ function RetailerDetail({ name, inventory, onBack }: { name: string; inventory: 
       {inventory.stale && (
         <div className="detail-stale-notice">该网站数据暂时过期，以下为最近一次成功检查的结果</div>
       )}
+      {(immediate.length > 0 && presale.length > 0) && (
+        <div className="detail-tabs">
+          <button
+            className={`detail-tab${activeTab === "immediate" ? " detail-tab--active" : ""}`}
+            onClick={() => setActiveTab("immediate")}
+          >
+            <span className="detail-tab-dot detail-tab-dot--immediate" />
+            现货 {immediate.length}
+          </button>
+          <button
+            className={`detail-tab detail-tab--presale${activeTab === "presale" ? " detail-tab--active" : ""}`}
+            onClick={() => setActiveTab("presale")}
+          >
+            <span className="detail-tab-dot detail-tab-dot--presale" />
+            预售 {presale.length}
+          </button>
+        </div>
+      )}
       <div className="product-grid">
-        {products.map((product) => (
+        {displayed.map((product) => (
           <ProductCard key={product.url} product={product} />
         ))}
       </div>

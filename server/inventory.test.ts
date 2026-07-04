@@ -10,6 +10,7 @@ const validProduct = {
   price_eur: 399.0,
   delivery: "Morgen in huis",
   btu: 9000,
+  presale: false,
 };
 
 const validSnapshot = {

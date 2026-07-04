@@ -30,6 +30,7 @@ function isValidProduct(value: unknown): value is InventoryProduct {
     && (value.price_eur === null || typeof value.price_eur === "number")
     && isNullableString(value.delivery)
     && (value.btu === null || (typeof value.btu === "number" && Number.isInteger(value.btu)))
+    && typeof value.presale === "boolean"
   );
 }
 
