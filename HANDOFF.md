@@ -8,6 +8,8 @@ Provide a public, low-cost, read-only dashboard for the private Airco Tracker NL
 
 A 2026-07-03 quality round improved the frontend with: client-side polling driven by `refresh_interval_seconds` plus `visibilitychange` refetch, a shared `shared/inventory.ts` type module eliminating client/server type duplication, deepened server validation (products, timestamps, `site_count` cross-check), BlobServiceClient reuse at startup, removal of the hard-coded `27` magic number from the verify script, sample JSON moved out of the production build, expanded test coverage (3 → 14 tests), and a `if: success()` gate on the deploy summary step.
 
+A 2026-07-04 feature round added a retailer product detail page: clicking a stocked retailer card opens a full-screen overlay listing all in-stock products (name, price, BTU, delivery) sorted by price ascending, each linking directly to the retailer's product page. Hash-based routing (`#/RetailerName`) supports browser back and shareable URLs. No backend changes were needed; `inventory.json` already contains product arrays.
+
 No active blocker exists. The next agent should first confirm what the user wants to add rather than assuming that every candidate item below is authorized.
 
 ## Repository and production
@@ -16,8 +18,8 @@ No active blocker exists. The next agent should first confirm what the user want
 - Branch: `main`
 - Local path: `~/airco-tracking-web`
 - Live URL: `https://airco-tracking-web.livelystone-5966d837.westeurope.azurecontainerapps.io`
-- Feature commit and deployed image tag: `039ea44845af806883021dbc2fb14da3e45aa74e`
-- Successful deployment workflow: GitHub Actions run `28681867269`
+- Feature commit and deployed image tag: `d8fcc49e2867685e71ec87eea8dfa8c143c50c87`
+- Successful deployment workflow: GitHub Actions run `28703023049`
 - Azure resource group: `airco-tracker-nl-rg`
 - Container App: `airco-tracking-web`
 - Provisioning state after first deployment: `Succeeded`
@@ -38,6 +40,7 @@ The Git branch history uses the repository-local GitHub noreply author. A tempor
 - Responsive grid: six columns on wide desktop, five below 1180px, three below 900px, two below 620px, one below 400px.
 - Reduced-motion support and no horizontal overflow at the 1440×900 target.
 - **Polling**: the UI refetches `/api/inventory` on an interval driven by the snapshot's `refresh_interval_seconds` (clamped to ≥ 60s), and immediately on `visibilitychange` when the tab becomes visible again. This replaces the previous fetch-once-on-mount behavior.
+- **Retailer detail page**: clicking a stocked retailer card opens a full-screen overlay (`RetailerDetail` component) listing all in-stock products for that retailer. Products are sorted by price ascending. Each product card links directly to the retailer's product page (`product.url`, `target="_blank"`). Hash-based routing (`#/RetailerName`) supports browser back button and shareable URLs. Unstocked cards remain non-interactive.
 
 ### Same-origin API
 
@@ -87,7 +90,13 @@ After the 2026-07-03 quality round:
 - `verify-deployment.mjs` no longer hard-codes `27`; it validates `site_count === Object.keys(sites).length` dynamically.
 - Deploy summary step gated with `if: success()`.
 
-Prior production deployment evidence (run `28681867269`, commit `039ea44`): succeeded, 27 sites and 15 available products at that moment. Inventory totals are time-sensitive; re-run `scripts/verify-deployment.mjs` or query the live API before citing a current count.
+Prior production deployment evidence (run `28681867269`, commit `039ea44`): succeeded, 27 sites and 15 available products at that moment.
+
+2026-07-04 feature deployment:
+- Actions run `28703023049` for commit `d8fcc49`: succeeded in 2m55s.
+- Production image: `airco-tracking-web:d8fcc49e2867685e71ec87eea8dfa8c143c50c87`.
+- `/health`: ok. `/api/inventory`: 27 sites, 17 available. `/`: HTML served. `verify-deployment.mjs`: passed.
+- Sample fixture now includes real product data for local testing of the detail page.
 - Inventory totals are time-sensitive; re-run `scripts/verify-deployment.mjs` or query the live API before citing a current count.
 
 ## Known limitations and candidate next work
