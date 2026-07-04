@@ -186,6 +186,8 @@ function RetailerDetail({ name, inventory, onBack, t }: { name: string; inventor
 
 export default function App() {
   const { lang, setLang, t } = useTranslation();
+  const tRef = useRef(t);
+  tRef.current = t;
   const [snapshot, setSnapshot] = useState<InventorySnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedRetailer, setSelectedRetailer] = useState<string | null>(selectedRetailFromHash);
@@ -196,9 +198,10 @@ export default function App() {
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
+    const tr = tRef.current;
     fetch(inventoryUrl, { signal: controller.signal })
       .then((response) => {
-        if (!response.ok) throw new Error(t("error_fetch", { status: response.status }));
+        if (!response.ok) throw new Error(tr("error_fetch", { status: response.status }));
         return response.json() as Promise<InventorySnapshot>;
       })
       .then((data) => {
@@ -207,9 +210,9 @@ export default function App() {
       })
       .catch((reason: unknown) => {
         if (reason instanceof DOMException && reason.name === "AbortError") return;
-        setError(reason instanceof Error ? reason.message : t("error_generic"));
+        setError(reason instanceof Error ? reason.message : tr("error_generic"));
       });
-  }, [t]);
+  }, []);
 
   useEffect(() => {
     fetchInventory();
