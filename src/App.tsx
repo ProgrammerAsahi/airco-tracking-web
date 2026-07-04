@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getBrand } from "./brands";
 import type { InventoryProduct, InventorySnapshot, SiteInventory } from "./types";
+import { useTranslation } from "./i18n";
+import { LanguageSwitcher } from "./LanguageSwitcher";
 import "./styles.css";
 
 const inventoryUrl = import.meta.env.VITE_INVENTORY_URL ?? "/api/inventory";
 
-function formatUpdatedAt(value: string | null): string {
-  if (!value) return "等待第一次更新";
+function formatUpdatedAt(value: string | null, t: (k: string) => string): string {
+  if (!value) return t("waiting_first_update");
   return new Intl.DateTimeFormat("zh-CN", {
     timeZone: "Europe/Amsterdam",
     month: "short",
@@ -17,8 +19,8 @@ function formatUpdatedAt(value: string | null): string {
   }).format(new Date(value));
 }
 
-function formatPrice(value: number | null): string {
-  if (value === null) return "价格未知";
+function formatPrice(value: number | null, t: (k: string) => string): string {
+  if (value === null) return t("price_unknown");
   return `€${value.toLocaleString("nl-NL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
@@ -41,7 +43,7 @@ function selectedRetailFromHash(): string | null {
   return decodeURIComponent(hash.slice(2));
 }
 
-function StoreCard({ name, inventory, onSelect, presaleView }: { name: string; inventory: SiteInventory; onSelect: (name: string) => void; presaleView: boolean }) {
+function StoreCard({ name, inventory, onSelect, presaleView, t }: { name: string; inventory: SiteInventory; onSelect: (name: string) => void; presaleView: boolean; t: (k: string, p?: Record<string, string | number>) => string }) {
   const brand = getBrand(name);
   const count = inventory.available_product_count;
   const hasStock = count > 0;
@@ -61,7 +63,7 @@ function StoreCard({ name, inventory, onSelect, presaleView }: { name: string; i
       rel={hasStock ? undefined : "noopener noreferrer"}
       onClick={handleClick}
       style={{ "--brand": brand.color, "--brand-tint": brand.tint } as React.CSSProperties}
-      aria-label={`${brand.name}，${count} 台${presaleView ? "预售" : "有货"}`}
+      aria-label={`${brand.name}，${count} ${t(presaleView ? "units_presale" : "units_in_stock")}`}
     >
       <div className="brand-lockup">
         <span className="brand-mark" aria-hidden="true">{brand.shortMark}</span>
@@ -69,18 +71,18 @@ function StoreCard({ name, inventory, onSelect, presaleView }: { name: string; i
       </div>
       <div className="stock-block">
         <strong className="stock-number">{count}</strong>
-        <span className="stock-label">{presaleView ? "台预售" : "台有货"}</span>
+        <span className="stock-label">{t(presaleView ? "units_presale" : "units_in_stock")}</span>
       </div>
       <div className="card-footer">
         <span className={`status-dot${hasStock ? (presaleView ? " status-dot--presale" : " status-dot--live") : ""}`} />
-        {inventory.stale ? "数据暂时过期" : hasStock ? "点击查看型号" : "暂时无货"}
+        {inventory.stale ? t("card_stale") : hasStock ? t("card_click_to_view") : t("card_out_of_stock")}
         <span className="card-arrow" aria-hidden="true">{hasStock ? "→" : ""}</span>
       </div>
     </a>
   );
 }
 
-function ProductCard({ product }: { product: InventoryProduct }) {
+function ProductCard({ product, t }: { product: InventoryProduct; t: (k: string, p?: Record<string, string | number>) => string }) {
   return (
     <a
       className="product-card"
@@ -90,7 +92,7 @@ function ProductCard({ product }: { product: InventoryProduct }) {
     >
       <div className="product-card-name">{product.name}</div>
       <div className="product-card-specs">
-        <span className="product-price">{formatPrice(product.price_eur)}</span>
+        <span className="product-price">{formatPrice(product.price_eur, t)}</span>
         {product.btu !== null && <span className="product-btu">{formatBtu(product.btu)}</span>}
       </div>
       {product.delivery && (
@@ -100,14 +102,14 @@ function ProductCard({ product }: { product: InventoryProduct }) {
         </div>
       )}
       <div className="product-card-footer">
-        <span>去商品页下单</span>
+        <span>{t("product_order_cta")}</span>
         <span className="product-card-arrow" aria-hidden="true">↗</span>
       </div>
     </a>
   );
 }
 
-function RetailerDetail({ name, inventory, onBack }: { name: string; inventory: SiteInventory; onBack: () => void }) {
+function RetailerDetail({ name, inventory, onBack, t }: { name: string; inventory: SiteInventory; onBack: () => void; t: (k: string, p?: Record<string, string | number>) => string }) {
   const brand = getBrand(name);
   const [activeTab, setActiveTab] = useState<"immediate" | "presale">("immediate");
 
@@ -136,8 +138,8 @@ function RetailerDetail({ name, inventory, onBack }: { name: string; inventory: 
   return (
     <div className="detail-overlay" style={{ "--brand": brand.color, "--brand-tint": brand.tint } as React.CSSProperties}>
       <div className="detail-header">
-        <button className="detail-back" onClick={onBack} aria-label="返回">
-          <span aria-hidden="true">←</span> 返回
+        <button className="detail-back" onClick={onBack} aria-label={t("detail_back")}>
+          <span aria-hidden="true">←</span> {t("detail_back")}
         </button>
         <div className="detail-brand-lockup">
           <span className="brand-mark" aria-hidden="true">{brand.shortMark}</span>
@@ -145,11 +147,11 @@ function RetailerDetail({ name, inventory, onBack }: { name: string; inventory: 
         </div>
         <div className="detail-count">
           <strong>{inventory.available_product_count}</strong>
-          <span>台有货</span>
+          <span>{t("detail_units_in_stock")}</span>
         </div>
       </div>
       {inventory.stale && (
-        <div className="detail-stale-notice">该网站数据暂时过期，以下为最近一次成功检查的结果</div>
+        <div className="detail-stale-notice">{t("detail_stale_notice")}</div>
       )}
       {immediate.length > 0 && presale.length > 0 && (
         <div className="detail-tabs">
@@ -158,31 +160,32 @@ function RetailerDetail({ name, inventory, onBack }: { name: string; inventory: 
             onClick={() => setActiveTab("immediate")}
           >
             <span className="detail-tab-dot detail-tab-dot--immediate" />
-            现货 {immediate.length}
+            {t("tab_immediate")} {immediate.length}
           </button>
           <button
             className={`detail-tab detail-tab--presale${activeTab === "presale" ? " detail-tab--active" : ""}`}
             onClick={() => setActiveTab("presale")}
           >
             <span className="detail-tab-dot detail-tab-dot--presale" />
-            预售 {presale.length}
+            {t("tab_presale")} {presale.length}
           </button>
         </div>
       )}
       <div className="product-grid">
         {displayed.map((product) => (
-          <ProductCard key={product.url} product={product} />
+          <ProductCard key={product.url} product={product} t={t} />
         ))}
       </div>
       <div className="detail-footer">
-        <span>库存变化很快，请在购买前确认配送日期和最终价格。</span>
-        <a href={brand.url} target="_blank" rel="noopener noreferrer">访问 {brand.name} 官网 ↗</a>
+        <span>{t("detail_footer_disclaimer")}</span>
+        <a href={brand.url} target="_blank" rel="noopener noreferrer">{t("detail_visit_store", { name: brand.name })} ↗</a>
       </div>
     </div>
   );
 }
 
 export default function App() {
+  const { lang, setLang, t } = useTranslation();
   const [snapshot, setSnapshot] = useState<InventorySnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedRetailer, setSelectedRetailer] = useState<string | null>(selectedRetailFromHash);
@@ -195,7 +198,7 @@ export default function App() {
     abortRef.current = controller;
     fetch(inventoryUrl, { signal: controller.signal })
       .then((response) => {
-        if (!response.ok) throw new Error(`库存数据请求失败（${response.status}）`);
+        if (!response.ok) throw new Error(t("error_fetch", { status: response.status }));
         return response.json() as Promise<InventorySnapshot>;
       })
       .then((data) => {
@@ -204,9 +207,9 @@ export default function App() {
       })
       .catch((reason: unknown) => {
         if (reason instanceof DOMException && reason.name === "AbortError") return;
-        setError(reason instanceof Error ? reason.message : "无法读取库存数据");
+        setError(reason instanceof Error ? reason.message : t("error_generic"));
       });
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     fetchInventory();
@@ -266,24 +269,27 @@ export default function App() {
 
   return (
     <main className="page-shell">
+      <div className="lang-switcher-container">
+        <LanguageSwitcher lang={lang} setLang={setLang} />
+      </div>
       <header className="hero">
         <div className="product-name" aria-label="Airco Watch">
           <span className="product-symbol" aria-hidden="true"><i /><i /><i /></span>
           <span>Airco Watch</span>
         </div>
         <div className="hero-copy">
-          <p className="eyebrow">荷兰 · 实时库存</p>
-          <h1>哪里还有空调，<br />一眼就知道。</h1>
-          <p className="hero-description">每 10 分钟查看 {snapshot?.site_count ?? 27} 家商店，聚合当前可以在线购买的便携空调。点击有货的商店查看具体型号。</p>
+          <p className="eyebrow">{t("hero_eyebrow")}</p>
+          <h1 dangerouslySetInnerHTML={{ __html: t("hero_title") }} />
+          <p className="hero-description">{t("hero_description", { site_count: snapshot?.site_count ?? 27 })}</p>
         </div>
         <div className="hero-metrics" aria-live="polite">
           <div className="primary-metric">
             <span className="metric-value">{snapshot?.available_product_count ?? "—"}</span>
-            <span className="metric-label">台空调有货</span>
+            <span className="metric-label">{t("metric_in_stock")}</span>
           </div>
           <div className="secondary-metrics">
-            <span><strong>{snapshot ? storesWithStock : "—"}</strong> 家商店有货</span>
-            <span><strong>{snapshot?.site_count ?? "—"}</strong> 家正在追踪</span>
+            <span><strong>{snapshot ? storesWithStock : "—"}</strong> {t("metric_stores_stocked", { count: snapshot ? storesWithStock : 0 }).replace(/^0\s*/, "")}</span>
+            <span><strong>{snapshot?.site_count ?? "—"}</strong> {t("metric_stores_tracked", { count: snapshot?.site_count ?? 0 }).replace(/^0\s*/, "")}</span>
           </div>
         </div>
       </header>
@@ -291,12 +297,12 @@ export default function App() {
       <section className="inventory-section" aria-labelledby="inventory-title">
         <div className="section-heading">
           <div>
-            <p className="section-kicker">Live overview</p>
-            <h2 id="inventory-title">各网站库存</h2>
+            <p className="section-kicker">{t("section_kicker")}</p>
+            <h2 id="inventory-title">{t("section_title")}</h2>
           </div>
           <div className="updated-at">
             <span className="pulse" aria-hidden="true" />
-            更新于 {formatUpdatedAt(snapshot?.updated_at ?? null)}
+            {t("updated_at", { time: formatUpdatedAt(snapshot?.updated_at ?? null, t) })}
           </div>
         </div>
 
@@ -306,38 +312,38 @@ export default function App() {
             onClick={() => setOverviewTab("immediate")}
           >
             <span className="overview-tab-dot overview-tab-dot--immediate" />
-            现货 {immediateCount > 0 ? immediateCount : ""}
+            {t("tab_immediate")} {immediateCount > 0 ? immediateCount : ""}
           </button>
           <button
             className={`overview-tab overview-tab--presale${overviewTab === "presale" ? " overview-tab--active" : ""}`}
             onClick={() => setOverviewTab("presale")}
           >
             <span className="overview-tab-dot overview-tab-dot--presale" />
-            预售 {presaleCount > 0 ? presaleCount : ""}
+            {t("tab_presale")} {presaleCount > 0 ? presaleCount : ""}
           </button>
         </div>
 
         {error && <div className="notice notice--error">{error}</div>}
-        {!snapshot && !error && <div className="notice">正在读取最新库存…</div>}
+        {!snapshot && !error && <div className="notice">{t("loading")}</div>}
         {snapshot && displayedSites.length === 0 && (
-          <div className="notice">{overviewTab === "immediate" ? "目前没有现货，请切到预售 Tab 查看预约选项" : "目前没有预售产品"}</div>
+          <div className="notice">{overviewTab === "immediate" ? t("empty_immediate") : t("empty_presale")}</div>
         )}
         {snapshot && displayedSites.length > 0 && (
           <div className="store-grid">
             {displayedSites.map(([name, inventory]) => (
-              <StoreCard key={name} name={name} inventory={inventory} onSelect={selectRetailer} presaleView={overviewTab === "presale"} />
+              <StoreCard key={name} name={name} inventory={inventory} onSelect={selectRetailer} presaleView={overviewTab === "presale"} t={t} />
             ))}
           </div>
         )}
       </section>
 
       <footer className="page-footer">
-        <span>库存变化很快，请在购买前确认配送日期和最终价格。</span>
+        <span>{t("page_footer_disclaimer")}</span>
         <span>Airco Watch · NL</span>
       </footer>
 
       {selectedRetailer && selectedSite && (
-        <RetailerDetail name={selectedRetailer} inventory={selectedSite} onBack={goBack} />
+        <RetailerDetail name={selectedRetailer} inventory={selectedSite} onBack={goBack} t={t} />
       )}
     </main>
   );

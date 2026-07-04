@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { DefaultAzureCredential } from "@azure/identity";
 import { BlobServiceClient } from "@azure/storage-blob";
 import { parseInventory, type InventorySnapshot } from "./inventory.js";
+import { loadI18n, type TranslationMap } from "./i18n.js";
 
 const currentDirectory = dirname(fileURLToPath(import.meta.url));
 // Compiled server.js lives at <root>/server-dist/server/server.js, so go up
@@ -122,8 +123,20 @@ async function sendStatic(pathname: string, response: ServerResponse, headOnly: 
   }
 
   try {
-    const content = await readFile(filePath);
+    let content = await readFile(filePath);
     const extension = extname(filePath).toLowerCase();
+    // Inject i18n translations into the HTML shell so the React app
+    // can render in the user's chosen language without a second round-trip.
+    if (extension === ".html") {
+      let i18nData: TranslationMap = {};
+      try {
+        i18nData = await loadI18n();
+      } catch (error) {
+        console.error("i18n load failed:", error);
+      }
+      const script = `<script>window.__I18N__=${JSON.stringify(i18nData)};</script>`;
+      content = Buffer.from(content.toString("utf8").replace("</head>", `${script}</head>`));
+    }
     response.statusCode = 200;
     response.setHeader("Content-Type", mimeTypes[extension] ?? "application/octet-stream");
     response.setHeader(
