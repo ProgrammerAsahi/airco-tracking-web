@@ -148,3 +148,23 @@ Multi-language support added with zh/nl/en switcher:
 - Foundation bicep: Storage Table Data Contributor role added for Managed Identity.
 - Frontend commit: e84ea249. Backend commit: bd373ba.
 - Production verified: __I18N__ populated from Table Storage, all endpoints OK.
+
+## 2026-07-04 i18n display bug (UNRESOLVED)
+
+**Symptom**: The web UI shows raw translation key names (e.g. `hero_title`, `section_title`, `hero_eyebrow`) instead of actual translated text. Switching languages via the dropdown does not change anything.
+
+**Root cause investigation**:
+- The `window.__I18N__` data IS correctly injected into the HTML by the Node server (verified via curl — 33 keys with zh/nl/en values are present in the `<body>` before `<div id="root">`).
+- Vite places `<script type="module" src="...">` in `<head>`. The i18n inline `<script>` is in `<body>` before `<div id="root">`. Module scripts are deferred, so the inline script should execute first.
+- `src/i18n.ts` was changed from a module-level constant to a per-call `getTranslations()` function that reads `window.__I18N__` each time `t()` is called — but the bug persists.
+- The `t()` function returns the key itself when `translations[key]` is undefined, which is what's happening.
+
+**Hypotheses not yet tested**:
+1. Vite's production build may be transforming the `getTranslations()` function in a way that breaks `window.__I18N__` access (e.g. scope/hoisting issue after minification).
+2. The `declare global { interface Window { __I18N__?: TranslationMap } }` may not survive Vite's build, causing `window.__I18N__` to be treated as `undefined` by the minifier.
+3. The inline script's JSON may contain characters that break HTML parsing (e.g. `<` in `<br />` inside translation values like `hero_title`), causing the script to not execute correctly.
+
+**Next steps for the next agent**:
+1. Test hypothesis 3 first: check if `<br />` in translation values (e.g. `hero_title` zh value "哪里还有空调，<br />一眼就知道。") breaks the inline `<script>` tag. The `JSON.stringify` output contains `</br>` which could close the script tag early. Fix: escape `<` and `</` in the JSON string before injection, or use `<\/script>` escaping.
+2. If that's not it, add a `console.log(typeof window.__I18N__, Object.keys(window.__I18N__||{}).length)` at the top of the React entry point to verify the data is available at runtime.
+3. Consider using a `<script type="application/json" id="i18n-data">` element instead of an inline `<script>` to avoid HTML parsing issues, then read it via `document.getElementById('i18n-data').textContent`.
