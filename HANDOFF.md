@@ -10,6 +10,8 @@ A 2026-07-03 quality round improved the frontend with: client-side polling drive
 
 A 2026-07-04 feature round added a retailer product detail page: clicking a stocked retailer card opens a full-screen overlay listing all in-stock products (name, price, BTU, delivery) sorted by price ascending, each linking directly to the retailer's product page. Hash-based routing (`#/RetailerName`) supports browser back and shareable URLs. No backend changes were needed; `inventory.json` already contains product arrays.
 
+A 2026-07-04 presale round added separate tabs for immediate stock vs presale products: the detail page shows a "现货" (green dot) tab and a "预售" (blue dot) tab when a retailer has both types. The backend `inventory.json` now includes a `presale` boolean field per product; the frontend validates and uses it to split the product list. Presale products (multi-week lead times, pre-orders) never trigger email alerts.
+
 No active blocker exists. The next agent should first confirm what the user wants to add rather than assuming that every candidate item below is authorized.
 
 ## Repository and production
@@ -18,8 +20,8 @@ No active blocker exists. The next agent should first confirm what the user want
 - Branch: `main`
 - Local path: `~/airco-tracking-web`
 - Live URL: `https://airco-tracking-web.livelystone-5966d837.westeurope.azurecontainerapps.io`
-- Feature commit and deployed image tag: `d8fcc49e2867685e71ec87eea8dfa8c143c50c87`
-- Successful deployment workflow: GitHub Actions run `28703023049`
+- Feature commit and deployed image tag: `e5527716c06fa44093666c93e1685cb4f26ef287`
+- Successful deployment workflow: GitHub Actions run `28704599395`
 - Azure resource group: `airco-tracker-nl-rg`
 - Container App: `airco-tracking-web`
 - Provisioning state after first deployment: `Succeeded`
@@ -41,6 +43,7 @@ The Git branch history uses the repository-local GitHub noreply author. A tempor
 - Reduced-motion support and no horizontal overflow at the 1440×900 target.
 - **Polling**: the UI refetches `/api/inventory` on an interval driven by the snapshot's `refresh_interval_seconds` (clamped to ≥ 60s), and immediately on `visibilitychange` when the tab becomes visible again. This replaces the previous fetch-once-on-mount behavior.
 - **Retailer detail page**: clicking a stocked retailer card opens a full-screen overlay (`RetailerDetail` component) listing all in-stock products for that retailer. Products are sorted by price ascending. Each product card links directly to the retailer's product page (`product.url`, `target="_blank"`). Hash-based routing (`#/RetailerName`) supports browser back button and shareable URLs. Unstocked cards remain non-interactive.
+- **Presale tabs**: the detail page separates products into "现货" (immediate stock, green dot) and "预售" (presale, blue dot) tabs. Tabs appear only when a retailer has both types. Default is 现货; falls back to 预售 if only presale products exist. The backend provides a `presale` boolean per product.
 
 ### Same-origin API
 
