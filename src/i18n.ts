@@ -13,7 +13,9 @@ declare global {
   }
 }
 
-const translations: TranslationMap = (typeof window !== "undefined" && window.__I18N__) || {};
+function getTranslations(): TranslationMap {
+  return (typeof window !== "undefined" && window.__I18N__) || {};
+}
 
 function detectLang(): Lang {
   if (typeof window === "undefined") return DEFAULT_LANG;
@@ -40,6 +42,7 @@ export function useTranslation() {
 
   const t = useCallback(
     (key: string, params?: Record<string, string | number>): string => {
+      const translations = getTranslations();
       const bundle = translations[key];
       if (!bundle) return key;
       const template = bundle[lang] || bundle[DEFAULT_LANG] || key;

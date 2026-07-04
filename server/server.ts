@@ -135,7 +135,7 @@ async function sendStatic(pathname: string, response: ServerResponse, headOnly: 
         console.error("i18n load failed:", error);
       }
       const script = `<script>window.__I18N__=${JSON.stringify(i18nData)};</script>`;
-      content = Buffer.from(content.toString("utf8").replace("</head>", `${script}</head>`));
+      content = Buffer.from(content.toString("utf8").replace('<div id="root">', `${script}<div id="root">`));
     }
     response.statusCode = 200;
     response.setHeader("Content-Type", mimeTypes[extension] ?? "application/octet-stream");
