@@ -312,4 +312,217 @@ h1 {
 
 @media (prefers-reduced-motion: reduce) {
   .store-card { transition: none; }
+  .product-card { transition: none; }
+}
+
+/* --- Retailer detail overlay --- */
+
+.detail-overlay {
+  --brand: #35524a;
+  --brand-tint: #edf2ef;
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  overflow-y: auto;
+  background:
+    radial-gradient(circle at 87% 4%, rgba(112, 211, 246, 0.22), transparent 28rem),
+    linear-gradient(180deg, #edf8fc 0%, #f5fafc 44%, #eef7fb 100%);
+}
+
+.detail-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  width: min(100%, 1200px);
+  margin: 0 auto;
+  padding: 18px 42px;
+  background: rgba(250, 253, 255, 0.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(19, 103, 148, 0.10);
+}
+
+.detail-back {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 1px solid rgba(22, 87, 122, 0.15);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.8);
+  color: #496b7d;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: border-color 180ms ease, color 180ms ease;
+}
+
+.detail-back:hover {
+  border-color: color-mix(in srgb, var(--brand) 40%, transparent);
+  color: var(--brand);
+}
+
+.detail-brand-lockup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.detail-brand-name {
+  overflow: hidden;
+  color: #183d51;
+  font-size: 18px;
+  font-weight: 760;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detail-count {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  color: var(--brand);
+}
+
+.detail-count strong {
+  font-size: 28px;
+  font-weight: 790;
+  letter-spacing: -0.05em;
+}
+
+.detail-count span {
+  font-size: 12px;
+  font-weight: 650;
+  color: #698391;
+}
+
+.detail-stale-notice {
+  width: min(100%, 1200px);
+  margin: 14px auto 0;
+  padding: 10px 42px;
+  color: #8a6d3b;
+  font-size: 12px;
+}
+
+.product-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  width: min(100%, 1200px);
+  margin: 18px auto 0;
+  padding: 0 42px 30px;
+}
+
+.product-card {
+  display: flex;
+  flex-direction: column;
+  padding: 18px;
+  border: 1px solid rgba(22, 87, 122, 0.10);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.9);
+  text-decoration: none;
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.product-card:hover {
+  z-index: 1;
+  border-color: color-mix(in srgb, var(--brand) 30%, transparent);
+  box-shadow: 0 12px 30px rgba(22, 96, 135, 0.12);
+  transform: translateY(-2px);
+}
+
+.product-card-name {
+  color: #183d51;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.5;
+  margin-bottom: 12px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.product-card-specs {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.product-price {
+  color: var(--brand);
+  font-size: 20px;
+  font-weight: 780;
+  letter-spacing: -0.03em;
+}
+
+.product-btu {
+  color: #698391;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.product-delivery {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 14px;
+  color: #4d8576;
+  font-size: 12px;
+}
+
+.product-delivery-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #20a9d5;
+}
+
+.product-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+  color: #7896a5;
+  font-size: 11px;
+}
+
+.product-card-arrow {
+  font-size: 14px;
+  color: var(--brand);
+}
+
+.detail-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: min(100%, 1200px);
+  margin: 0 auto;
+  padding: 20px 42px 30px;
+  color: #78929f;
+  font-size: 11px;
+}
+
+.detail-footer a {
+  color: var(--brand);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+@media (max-width: 900px) {
+  .product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .detail-header, .detail-stale-notice, .product-grid, .detail-footer {
+    padding-inline: 18px;
+  }
+}
+
+@media (max-width: 620px) {
+  .product-grid { grid-template-columns: 1fr; }
+  .detail-header { flex-wrap: wrap; gap: 12px; }
+  .detail-footer { flex-direction: column; gap: 10px; }
 }

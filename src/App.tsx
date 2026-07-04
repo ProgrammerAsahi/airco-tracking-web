@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getBrand } from "./brands";
-import type { InventorySnapshot, SiteInventory } from "./types";
+import type { InventoryProduct, InventorySnapshot, SiteInventory } from "./types";
 import "./styles.css";
 
 const inventoryUrl = import.meta.env.VITE_INVENTORY_URL ?? "/api/inventory";
@@ -17,17 +17,41 @@ function formatUpdatedAt(value: string | null): string {
   }).format(new Date(value));
 }
 
-function StoreCard({ name, inventory }: { name: string; inventory: SiteInventory }) {
+function formatPrice(value: number | null): string {
+  if (value === null) return "价格未知";
+  return `€${value.toLocaleString("nl-NL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function formatBtu(value: number | null): string {
+  if (value === null) return "";
+  return `${value.toLocaleString("nl-NL")} BTU`;
+}
+
+function selectedRetailFromHash(): string | null {
+  const hash = window.location.hash;
+  if (!hash || hash === "#/") return null;
+  return decodeURIComponent(hash.slice(2));
+}
+
+function StoreCard({ name, inventory, onSelect }: { name: string; inventory: SiteInventory; onSelect: (name: string) => void }) {
   const brand = getBrand(name);
   const count = inventory.available_product_count;
   const hasStock = count > 0;
 
+  const handleClick = (event: React.MouseEvent) => {
+    if (hasStock) {
+      event.preventDefault();
+      onSelect(name);
+    }
+  };
+
   return (
     <a
       className={`store-card${hasStock ? " store-card--stocked" : ""}${inventory.stale ? " store-card--stale" : ""}`}
-      href={brand.url}
-      target="_blank"
-      rel="noopener noreferrer"
+      href={hasStock ? `#/${encodeURIComponent(name)}` : brand.url}
+      target={hasStock ? undefined : "_blank"}
+      rel={hasStock ? undefined : "noopener noreferrer"}
+      onClick={handleClick}
       style={{ "--brand": brand.color, "--brand-tint": brand.tint } as React.CSSProperties}
       aria-label={`${brand.name}，${count} 台有货`}
     >
@@ -41,16 +65,86 @@ function StoreCard({ name, inventory }: { name: string; inventory: SiteInventory
       </div>
       <div className="card-footer">
         <span className={`status-dot${hasStock ? " status-dot--live" : ""}`} />
-        {inventory.stale ? "数据暂时过期" : hasStock ? "现在可购买" : "暂时无货"}
-        <span className="card-arrow" aria-hidden="true">↗</span>
+        {inventory.stale ? "数据暂时过期" : hasStock ? "点击查看有货型号" : "暂时无货"}
+        <span className="card-arrow" aria-hidden="true">{hasStock ? "→" : ""}</span>
       </div>
     </a>
+  );
+}
+
+function ProductCard({ product }: { product: InventoryProduct }) {
+  return (
+    <a
+      className="product-card"
+      href={product.url}
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      <div className="product-card-name">{product.name}</div>
+      <div className="product-card-specs">
+        <span className="product-price">{formatPrice(product.price_eur)}</span>
+        {product.btu !== null && <span className="product-btu">{formatBtu(product.btu)}</span>}
+      </div>
+      {product.delivery && (
+        <div className="product-delivery">
+          <span className="product-delivery-dot" />
+          {product.delivery}
+        </div>
+      )}
+      <div className="product-card-footer">
+        <span>去商品页下单</span>
+        <span className="product-card-arrow" aria-hidden="true">↗</span>
+      </div>
+    </a>
+  );
+}
+
+function RetailerDetail({ name, inventory, onBack }: { name: string; inventory: SiteInventory; onBack: () => void }) {
+  const brand = getBrand(name);
+  const products = useMemo(
+    () => [...inventory.products].sort((a, b) => {
+      const priceA = a.price_eur ?? Number.MAX_SAFE_INTEGER;
+      const priceB = b.price_eur ?? Number.MAX_SAFE_INTEGER;
+      return priceA - priceB;
+    }),
+    [inventory.products],
+  );
+
+  return (
+    <div className="detail-overlay" style={{ "--brand": brand.color, "--brand-tint": brand.tint } as React.CSSProperties}>
+      <div className="detail-header">
+        <button className="detail-back" onClick={onBack} aria-label="返回">
+          <span aria-hidden="true">←</span> 返回
+        </button>
+        <div className="detail-brand-lockup">
+          <span className="brand-mark" aria-hidden="true">{brand.shortMark}</span>
+          <span className="detail-brand-name">{brand.name}</span>
+        </div>
+        <div className="detail-count">
+          <strong>{inventory.available_product_count}</strong>
+          <span>台有货</span>
+        </div>
+      </div>
+      {inventory.stale && (
+        <div className="detail-stale-notice">该网站数据暂时过期，以下为最近一次成功检查的结果</div>
+      )}
+      <div className="product-grid">
+        {products.map((product) => (
+          <ProductCard key={product.url} product={product} />
+        ))}
+      </div>
+      <div className="detail-footer">
+        <span>库存变化很快，请在购买前确认配送日期和最终价格。</span>
+        <a href={brand.url} target="_blank" rel="noopener noreferrer">访问 {brand.name} 官网 ↗</a>
+      </div>
+    </div>
   );
 }
 
 export default function App() {
   const [snapshot, setSnapshot] = useState<InventorySnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [selectedRetailer, setSelectedRetailer] = useState<string | null>(selectedRetailFromHash);
   const abortRef = useRef<AbortController | null>(null);
 
   const fetchInventory = useCallback(() => {
@@ -74,26 +168,35 @@ export default function App() {
 
   useEffect(() => {
     fetchInventory();
-
-    // Poll using the snapshot's refresh interval (clamped to at least 60s
-    // so a misconfigured value cannot hammer the API).
     const intervalMs = Math.max(60, (snapshot?.refresh_interval_seconds ?? 600)) * 1000;
     const timer = setInterval(fetchInventory, intervalMs);
-
-    // Refetch immediately when the tab becomes visible again.
     const onVisibility = () => {
       if (document.visibilityState === "visible") fetchInventory();
     };
     document.addEventListener("visibilitychange", onVisibility);
-
     return () => {
       clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisibility);
       abortRef.current?.abort();
     };
-    // Re-create the timer when the refresh interval changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchInventory, snapshot?.refresh_interval_seconds]);
+
+  useEffect(() => {
+    const onHashChange = () => setSelectedRetailer(selectedRetailFromHash());
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
+
+  const selectRetailer = useCallback((name: string) => {
+    window.location.hash = `/${encodeURIComponent(name)}`;
+    setSelectedRetailer(name);
+  }, []);
+
+  const goBack = useCallback(() => {
+    window.location.hash = "";
+    setSelectedRetailer(null);
+  }, []);
 
   const sites = useMemo(() => {
     if (!snapshot) return [];
@@ -104,6 +207,7 @@ export default function App() {
   }, [snapshot]);
 
   const storesWithStock = sites.filter(([, site]) => site.available_product_count > 0).length;
+  const selectedSite = selectedRetailer && snapshot ? snapshot.sites[selectedRetailer] : undefined;
 
   return (
     <main className="page-shell">
@@ -115,7 +219,7 @@ export default function App() {
         <div className="hero-copy">
           <p className="eyebrow">荷兰 · 实时库存</p>
           <h1>哪里还有空调，<br />一眼就知道。</h1>
-          <p className="hero-description">每 10 分钟查看 27 家商店，聚合当前可以在线购买的便携空调。</p>
+          <p className="hero-description">每 10 分钟查看 {snapshot?.site_count ?? 27} 家商店，聚合当前可以在线购买的便携空调。点击有货的商店查看具体型号。</p>
         </div>
         <div className="hero-metrics" aria-live="polite">
           <div className="primary-metric">
@@ -146,7 +250,7 @@ export default function App() {
         {snapshot && (
           <div className="store-grid">
             {sites.map(([name, inventory]) => (
-              <StoreCard key={name} name={name} inventory={inventory} />
+              <StoreCard key={name} name={name} inventory={inventory} onSelect={selectRetailer} />
             ))}
           </div>
         )}
@@ -156,6 +260,10 @@ export default function App() {
         <span>库存变化很快，请在购买前确认配送日期和最终价格。</span>
         <span>Airco Watch · NL</span>
       </footer>
+
+      {selectedRetailer && selectedSite && (
+        <RetailerDetail name={selectedRetailer} inventory={selectedSite} onBack={goBack} />
+      )}
     </main>
   );
 }
