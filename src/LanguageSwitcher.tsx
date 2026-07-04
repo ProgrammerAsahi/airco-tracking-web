@@ -23,10 +23,12 @@ export function LanguageSwitcher({ lang, setLang }: { lang: Lang; setLang: (lang
   return (
     <div className="lang-switcher" ref={ref}>
       <button
+        type="button"
         className="lang-switcher-button"
         onClick={() => setOpen(!open)}
-        aria-label="Language"
+        aria-label="Language / Taal / 语言"
         aria-expanded={open}
+        aria-haspopup="menu"
       >
         <span className="lang-flag">{current.flag}</span>
         <span className="lang-chevron" aria-hidden="true">▾</span>
@@ -36,12 +38,14 @@ export function LanguageSwitcher({ lang, setLang }: { lang: Lang; setLang: (lang
           {LANGUAGES.map((l) => (
             <li key={l.code}>
               <button
+                type="button"
                 className={`lang-option${l.code === lang ? " lang-option--active" : ""}`}
                 onClick={() => {
                   setLang(l.code);
                   setOpen(false);
                 }}
                 role="menuitem"
+                aria-current={l.code === lang ? "true" : undefined}
               >
                 <span className="lang-flag">{l.flag}</span>
                 <span>{l.label}</span>

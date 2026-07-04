@@ -23,6 +23,8 @@ Maintain a fast, low-cost, public inventory dashboard for portable air condition
 - GitHub Actions authenticates to Azure with OIDC. Do not add `AZURE_CREDENTIALS` or a service-principal password.
 - Only non-secret identifiers belong in GitHub Actions Variables: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, and `AZURE_RESOURCE_GROUP`.
 - Reuse the existing least-privilege runtime identity and infrastructure where possible. Do not broaden Azure roles without a concrete need and explicit authorization.
+- Preserve the strict `script-src 'self'` CSP. Do not add `unsafe-inline` to make runtime data injection work.
+- Treat translations loaded from Table Storage as data, not trusted markup. Embed them only as escaped `application/json`, validate their shape, and never render them with `dangerouslySetInnerHTML`.
 - Preserve unrelated user changes. Never overwrite a dirty worktree or rewrite shared history casually.
 
 ## Product and design contract
@@ -35,6 +37,7 @@ Maintain a fast, low-cost, public inventory dashboard for portable air condition
 - The current brand marks are color-coded initials, not downloaded official logos. Do not introduce remote logo dependencies or copyrighted asset bundles without checking the trade-off with the user.
 - Do not hard-code inventory totals in rendering logic. Counts and site status come from the snapshot. If marketing copy mentions the number of tracked sites, update it when backend coverage changes.
 - Maintain keyboard semantics, readable contrast, reduced-motion support, and no horizontal overflow at supported breakpoints.
+- Chinese, Dutch, and English must switch without a reload. Keep visible copy, errors, document metadata, locale-sensitive dates/numbers, and accessible labels synchronized with the selected language.
 
 ## Architecture
 
@@ -56,6 +59,9 @@ Browser
 - Contract tests: `server/inventory.test.ts`
 - Non-sensitive local fixture: `test-fixtures/inventory.sample.json`
 - Shared data contract: `shared/inventory.ts`
+- Shared translation contract/parser: `shared/i18n.ts`
+- Table Storage translation loader and CSP-safe serializer: `server/i18n.ts`
+- Browser translation hook and language persistence: `src/i18n.ts`
 - Container image: `Dockerfile`
 - Container App definition: `infra/app.bicep`
 - Repository-specific OIDC credential: `infra/github-oidc.bicep`
@@ -95,7 +101,7 @@ Development preview (requires two terminals):
 
 ```bash
 # Terminal 1: start the API server with sample data
-PORT=4174 INVENTORY_FILE=test-fixtures/inventory.sample.json pnpm start
+PORT=4174 INVENTORY_FILE=test-fixtures/inventory.sample.json I18N_FILE=test-fixtures/i18n.local.json pnpm start
 
 # Terminal 2: start Vite dev server (proxies /api to :4174)
 pnpm dev
@@ -105,7 +111,7 @@ pnpm dev
 Production-mode integration check:
 
 ```bash
-PORT=4174 INVENTORY_FILE=test-fixtures/inventory.sample.json pnpm start
+PORT=4174 INVENTORY_FILE=test-fixtures/inventory.sample.json I18N_FILE=test-fixtures/i18n.local.json pnpm start
 node scripts/verify-deployment.mjs http://127.0.0.1:4174
 ```
 
@@ -115,7 +121,7 @@ When changing layout or CSS, inspect the page at 1440×900 and at least one narr
 
 - Pull requests and manual CI runs use `.github/workflows/ci.yml`.
 - Pushes to `main` use `.github/workflows/deploy.yml`.
-- Deployment runs tests, type checks, builds browser/server artifacts, compiles Bicep, logs in with OIDC, builds in ACR, deploys an immutable full-SHA image, and verifies `/health` plus `/api/inventory`.
+- Deployment runs tests, type checks, builds browser/server artifacts, compiles Bicep, logs in with OIDC, builds in ACR, deploys an immutable full-SHA image, and verifies `/health`, the strict-CSP i18n HTML contract, plus `/api/inventory`.
 - The Container App uses external HTTPS ingress, a 30-second Blob cache, and 0–2 replicas.
 - `scripts/bootstrap-github-oidc.sh` is a one-time or repair operation. Do not run it routinely.
 - Documentation-only commits may use `[skip ci]` when no deployed artifact changed.

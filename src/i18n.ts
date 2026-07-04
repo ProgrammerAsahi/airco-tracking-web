@@ -1,20 +1,20 @@
 import { useCallback, useEffect, useState } from "react";
+import { parseTranslationData, type Lang, type TranslationMap } from "../shared/i18n";
 
-export type Lang = "zh" | "nl" | "en";
+export type { Lang } from "../shared/i18n";
 
 const DEFAULT_LANG: Lang = "zh";
 const STORAGE_KEY = "airco-lang";
 
-type TranslationMap = Record<string, Record<Lang, string>>;
-
-declare global {
-  interface Window {
-    __I18N__?: TranslationMap;
-  }
-}
+let translations: TranslationMap | undefined;
 
 function getTranslations(): TranslationMap {
-  return (typeof window !== "undefined" && window.__I18N__) || {};
+  if (translations) return translations;
+  if (typeof document === "undefined") return {};
+  const dataElement = document.getElementById("i18n-data");
+  if (!dataElement) return {};
+  translations = parseTranslationData(dataElement.textContent);
+  return translations;
 }
 
 function detectLang(): Lang {

@@ -4,7 +4,7 @@ Ice-blue TypeScript/React dashboard for the [Airco Tracker NL](https://github.co
 
 **Live:** [airco-tracking-web.livelystone-5966d837.westeurope.azurecontainerapps.io](https://airco-tracking-web.livelystone-5966d837.westeurope.azurecontainerapps.io)
 
-The page shows the current available-product count for all 27 tracked retailers. Production uses a same-origin TypeScript API to read the private Azure Blob snapshot through Managed Identity; no Storage Key, SAS token, or secret reaches the browser.
+The page shows current available and presale counts for every tracked retailer, with product drill-down, prices, BTU values, delivery text, and direct product links. Chinese, Dutch, and English can be switched without reloading. Production uses a same-origin TypeScript API and Managed Identity; no Storage Key, SAS token, or secret reaches the browser.
 
 ## Architecture
 
@@ -12,8 +12,10 @@ The page shows the current available-product count for all 27 tracked retailers.
 Browser
   └─ HTTPS → Azure Container Apps (scale 0–2)
                  ├─ serves the Vite/React build
-                 └─ GET /api/inventory
-                        └─ Managed Identity → private inventory.json Blob
+                 ├─ GET /api/inventory
+                 │      └─ Managed Identity → private inventory.json Blob
+                 └─ embeds escaped, inert i18n JSON
+                        └─ Managed Identity → Azure Table Storage
 ```
 
 The app reuses the existing Container Apps Environment, ACR, Storage Account, and runtime identity from `airco-tracking-nl`. It creates only one additional Container App in the same resource group.
@@ -24,6 +26,9 @@ Requires Node.js 22 and pnpm 11.7.
 
 ```bash
 pnpm install
+# Terminal 1, after `pnpm build:server`
+PORT=4174 INVENTORY_FILE=test-fixtures/inventory.sample.json I18N_FILE=test-fixtures/i18n.local.json pnpm start
+# Terminal 2
 pnpm dev
 ```
 
@@ -34,7 +39,7 @@ To test the production server locally:
 ```bash
 pnpm test
 pnpm build
-PORT=4174 INVENTORY_FILE=test-fixtures/inventory.sample.json pnpm start
+PORT=4174 INVENTORY_FILE=test-fixtures/inventory.sample.json I18N_FILE=test-fixtures/i18n.local.json pnpm start
 node scripts/verify-deployment.mjs http://127.0.0.1:4174
 ```
 
@@ -46,7 +51,7 @@ The repository uses GitHub OIDC rather than a client secret. The one-time bootst
 ./scripts/bootstrap-github-oidc.sh
 ```
 
-Every push to `main` then runs tests, compiles TypeScript and Bicep, builds an immutable image in the existing ACR, deploys `airco-tracking-web`, and verifies both `/health` and `/api/inventory`.
+Every push to `main` then runs tests, compiles TypeScript and Bicep, builds an immutable image in the existing ACR, deploys `airco-tracking-web`, and verifies `/health`, the strict-CSP i18n HTML contract, and `/api/inventory`.
 
 - `.github/workflows/ci.yml`: validates pull requests.
 - `.github/workflows/deploy.yml`: deploys `main` to Azure.
@@ -62,5 +67,6 @@ Every push to `main` then runs tests, compiles TypeScript and Bicep, builds an i
 | `AZURE_CLIENT_ID` | User-assigned runtime identity |
 | `INVENTORY_CACHE_SECONDS` | Blob read cache, defaults to 30 seconds |
 | `INVENTORY_FILE` | Local-only file override |
+| `I18N_FILE` | Local-only translation JSON override |
 
 Do not add Azure keys, long-lived SAS tokens, or secrets to this repository.

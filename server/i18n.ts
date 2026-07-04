@@ -3,12 +3,10 @@ import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { TableClient } from "@azure/data-tables";
 import { DefaultAzureCredential } from "@azure/identity";
+import type { TranslationMap } from "../shared/i18n.js";
 
 const currentDirectory = dirname(fileURLToPath(import.meta.url));
 const projectDirectory = resolve(currentDirectory, "..", "..");
-
-export type Lang = "zh" | "nl" | "en";
-export type TranslationMap = Record<string, Record<Lang, string>>;
 
 const accountUrl = process.env.AZURE_STORAGE_ACCOUNT_URL?.trim();
 const localFile = process.env.I18N_FILE?.trim() || "test-fixtures/i18n.local.json";

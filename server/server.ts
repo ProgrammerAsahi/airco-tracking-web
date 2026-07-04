@@ -5,7 +5,8 @@ import { fileURLToPath } from "node:url";
 import { DefaultAzureCredential } from "@azure/identity";
 import { BlobServiceClient } from "@azure/storage-blob";
 import { parseInventory, type InventorySnapshot } from "./inventory.js";
-import { loadI18n, type TranslationMap } from "./i18n.js";
+import { buildI18nDataElement, type TranslationMap } from "../shared/i18n.js";
+import { loadI18n } from "./i18n.js";
 
 const currentDirectory = dirname(fileURLToPath(import.meta.url));
 // Compiled server.js lives at <root>/server-dist/server/server.js, so go up
@@ -134,8 +135,8 @@ async function sendStatic(pathname: string, response: ServerResponse, headOnly: 
       } catch (error) {
         console.error("i18n load failed:", error);
       }
-      const script = `<script>window.__I18N__=${JSON.stringify(i18nData)};</script>`;
-      content = Buffer.from(content.toString("utf8").replace('<div id="root">', `${script}<div id="root">`));
+      const dataElement = buildI18nDataElement(i18nData);
+      content = Buffer.from(content.toString("utf8").replace('<div id="root">', `${dataElement}<div id="root">`));
     }
     response.statusCode = 200;
     response.setHeader("Content-Type", mimeTypes[extension] ?? "application/octet-stream");

@@ -1,15 +1,30 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getBrand } from "./brands";
 import type { InventoryProduct, InventorySnapshot, SiteInventory } from "./types";
 import { useTranslation } from "./i18n";
+import type { Lang } from "./i18n";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import "./styles.css";
 
 const inventoryUrl = import.meta.env.VITE_INVENTORY_URL ?? "/api/inventory";
 
-function formatUpdatedAt(value: string | null, t: (k: string) => string): string {
+type Translator = (key: string, params?: Record<string, string | number>) => string;
+
+const LOCALES: Record<Lang, string> = {
+  zh: "zh-CN",
+  nl: "nl-NL",
+  en: "en-GB",
+};
+
+class InventoryResponseError extends Error {
+  constructor(readonly status: number) {
+    super(`inventory returned ${status}`);
+  }
+}
+
+function formatUpdatedAt(value: string | null, t: Translator, lang: Lang): string {
   if (!value) return t("waiting_first_update");
-  return new Intl.DateTimeFormat("zh-CN", {
+  return new Intl.DateTimeFormat(LOCALES[lang], {
     timeZone: "Europe/Amsterdam",
     month: "short",
     day: "numeric",
@@ -19,14 +34,33 @@ function formatUpdatedAt(value: string | null, t: (k: string) => string): string
   }).format(new Date(value));
 }
 
-function formatPrice(value: number | null, t: (k: string) => string): string {
+function formatPrice(value: number | null, t: Translator, lang: Lang): string {
   if (value === null) return t("price_unknown");
-  return `€${value.toLocaleString("nl-NL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return new Intl.NumberFormat(LOCALES[lang], {
+    style: "currency",
+    currency: "EUR",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
 }
 
-function formatBtu(value: number | null): string {
+function formatBtu(value: number | null, lang: Lang): string {
   if (value === null) return "";
-  return `${value.toLocaleString("nl-NL")} BTU`;
+  return `${value.toLocaleString(LOCALES[lang])} BTU`;
+}
+
+function TranslatedHeading({ text }: { text: string }) {
+  const lines = text.split(/<br\s*\/?>/i);
+  return (
+    <>
+      {lines.map((line, index) => (
+        <Fragment key={`${index}-${line}`}>
+          {index > 0 && <br />}
+          {line}
+        </Fragment>
+      ))}
+    </>
+  );
 }
 
 function siteHasImmediate(site: SiteInventory): boolean {
@@ -43,7 +77,7 @@ function selectedRetailFromHash(): string | null {
   return decodeURIComponent(hash.slice(2));
 }
 
-function StoreCard({ name, inventory, onSelect, presaleView, t }: { name: string; inventory: SiteInventory; onSelect: (name: string) => void; presaleView: boolean; t: (k: string, p?: Record<string, string | number>) => string }) {
+function StoreCard({ name, inventory, onSelect, presaleView, t }: { name: string; inventory: SiteInventory; onSelect: (name: string) => void; presaleView: boolean; t: Translator }) {
   const brand = getBrand(name);
   const count = inventory.available_product_count;
   const hasStock = count > 0;
@@ -63,7 +97,7 @@ function StoreCard({ name, inventory, onSelect, presaleView, t }: { name: string
       rel={hasStock ? undefined : "noopener noreferrer"}
       onClick={handleClick}
       style={{ "--brand": brand.color, "--brand-tint": brand.tint } as React.CSSProperties}
-      aria-label={`${brand.name}，${count} ${t(presaleView ? "units_presale" : "units_in_stock")}`}
+      aria-label={`${brand.name}, ${count} ${t(presaleView ? "units_presale" : "units_in_stock")}`}
     >
       <div className="brand-lockup">
         <span className="brand-mark" aria-hidden="true">{brand.shortMark}</span>
@@ -82,7 +116,7 @@ function StoreCard({ name, inventory, onSelect, presaleView, t }: { name: string
   );
 }
 
-function ProductCard({ product, t }: { product: InventoryProduct; t: (k: string, p?: Record<string, string | number>) => string }) {
+function ProductCard({ product, t, lang }: { product: InventoryProduct; t: Translator; lang: Lang }) {
   return (
     <a
       className="product-card"
@@ -92,8 +126,8 @@ function ProductCard({ product, t }: { product: InventoryProduct; t: (k: string,
     >
       <div className="product-card-name">{product.name}</div>
       <div className="product-card-specs">
-        <span className="product-price">{formatPrice(product.price_eur, t)}</span>
-        {product.btu !== null && <span className="product-btu">{formatBtu(product.btu)}</span>}
+        <span className="product-price">{formatPrice(product.price_eur, t, lang)}</span>
+        {product.btu !== null && <span className="product-btu">{formatBtu(product.btu, lang)}</span>}
       </div>
       {product.delivery && (
         <div className="product-delivery">
@@ -109,7 +143,7 @@ function ProductCard({ product, t }: { product: InventoryProduct; t: (k: string,
   );
 }
 
-function RetailerDetail({ name, inventory, onBack, t }: { name: string; inventory: SiteInventory; onBack: () => void; t: (k: string, p?: Record<string, string | number>) => string }) {
+function RetailerDetail({ name, inventory, onBack, t, lang }: { name: string; inventory: SiteInventory; onBack: () => void; t: Translator; lang: Lang }) {
   const brand = getBrand(name);
   const [activeTab, setActiveTab] = useState<"immediate" | "presale">("immediate");
 
@@ -173,7 +207,7 @@ function RetailerDetail({ name, inventory, onBack, t }: { name: string; inventor
       )}
       <div className="product-grid">
         {displayed.map((product) => (
-          <ProductCard key={product.url} product={product} t={t} />
+          <ProductCard key={product.url} product={product} t={t} lang={lang} />
         ))}
       </div>
       <div className="detail-footer">
@@ -186,10 +220,8 @@ function RetailerDetail({ name, inventory, onBack, t }: { name: string; inventor
 
 export default function App() {
   const { lang, setLang, t } = useTranslation();
-  const tRef = useRef(t);
-  tRef.current = t;
   const [snapshot, setSnapshot] = useState<InventorySnapshot | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ kind: "http"; status: number } | { kind: "generic" } | null>(null);
   const [selectedRetailer, setSelectedRetailer] = useState<string | null>(selectedRetailFromHash);
   const [overviewTab, setOverviewTab] = useState<"immediate" | "presale">("immediate");
   const abortRef = useRef<AbortController | null>(null);
@@ -198,10 +230,10 @@ export default function App() {
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
-    const tr = tRef.current;
+    setError(null);
     fetch(inventoryUrl, { signal: controller.signal })
       .then((response) => {
-        if (!response.ok) throw new Error(tr("error_fetch", { status: response.status }));
+        if (!response.ok) throw new InventoryResponseError(response.status);
         return response.json() as Promise<InventorySnapshot>;
       })
       .then((data) => {
@@ -210,9 +242,21 @@ export default function App() {
       })
       .catch((reason: unknown) => {
         if (reason instanceof DOMException && reason.name === "AbortError") return;
-        setError(reason instanceof Error ? reason.message : tr("error_generic"));
+        setError(
+          reason instanceof InventoryResponseError
+            ? { kind: "http", status: reason.status }
+            : { kind: "generic" },
+        );
       });
   }, []);
+
+  useEffect(() => {
+    const siteCount = snapshot?.site_count ?? "…";
+    document.title = `Airco Watch · ${t("section_title")}`;
+    document
+      .querySelector('meta[name="description"]')
+      ?.setAttribute("content", t("hero_description", { site_count: siteCount }).replace(/<br\s*\/?>/gi, " "));
+  }, [snapshot?.site_count, t]);
 
   useEffect(() => {
     fetchInventory();
@@ -282,8 +326,8 @@ export default function App() {
         </div>
         <div className="hero-copy">
           <p className="eyebrow">{t("hero_eyebrow")}</p>
-          <h1 dangerouslySetInnerHTML={{ __html: t("hero_title") }} />
-          <p className="hero-description">{t("hero_description", { site_count: snapshot?.site_count ?? 27 })}</p>
+          <h1><TranslatedHeading text={t("hero_title")} /></h1>
+          <p className="hero-description">{t("hero_description", { site_count: snapshot?.site_count ?? "…" })}</p>
         </div>
         <div className="hero-metrics" aria-live="polite">
           <div className="primary-metric">
@@ -305,7 +349,7 @@ export default function App() {
           </div>
           <div className="updated-at">
             <span className="pulse" aria-hidden="true" />
-            {t("updated_at", { time: formatUpdatedAt(snapshot?.updated_at ?? null, t) })}
+            {t("updated_at", { time: formatUpdatedAt(snapshot?.updated_at ?? null, t, lang) })}
           </div>
         </div>
 
@@ -326,7 +370,11 @@ export default function App() {
           </button>
         </div>
 
-        {error && <div className="notice notice--error">{error}</div>}
+        {error && (
+          <div className="notice notice--error">
+            {error.kind === "http" ? t("error_fetch", { status: error.status }) : t("error_generic")}
+          </div>
+        )}
         {!snapshot && !error && <div className="notice">{t("loading")}</div>}
         {snapshot && displayedSites.length === 0 && (
           <div className="notice">{overviewTab === "immediate" ? t("empty_immediate") : t("empty_presale")}</div>
@@ -346,7 +394,7 @@ export default function App() {
       </footer>
 
       {selectedRetailer && selectedSite && (
-        <RetailerDetail name={selectedRetailer} inventory={selectedSite} onBack={goBack} t={t} />
+        <RetailerDetail name={selectedRetailer} inventory={selectedSite} onBack={goBack} t={t} lang={lang} />
       )}
     </main>
   );
