@@ -138,3 +138,13 @@ Then:
 6. Update this handoff after meaningful work or deployment.
 
 Never record personal data, secret values, tokens, local machine identities, or unnecessary Azure identifiers in this file.
+
+## 2026-07-04 i18n round
+
+Multi-language support added with zh/nl/en switcher:
+- Azure Table Storage table "i18n" stores all translations (PartitionKey=scope, RowKey=key, columns zh/nl/en). 44 entries seeded via scripts/seed-i18n.py.
+- Frontend: server/i18n.ts loads web-scope translations at startup, injects into HTML as window.__I18N__. React useTranslation hook + LanguageSwitcher component (flag emoji dropdown).
+- Backend: i18n_table.py loads email-scope translations from Table Storage with i18n_local.json fallback. i18n.py refactored to use dynamic loading.
+- Foundation bicep: Storage Table Data Contributor role added for Managed Identity.
+- Frontend commit: e84ea249. Backend commit: bd373ba.
+- Production verified: __I18N__ populated from Table Storage, all endpoints OK.
