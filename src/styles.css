@@ -265,6 +265,66 @@ h1 {
 
 .status-dot { width: 5px; height: 5px; border-radius: 50%; background: #b8c8cf; }
 .status-dot--live { background: #20a9d5; }
+.status-dot--presale { background: #3b82f6; }
+
+/* --- Overview tabs --- */
+
+.overview-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.overview-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 24px;
+  border: 1px solid rgba(22, 87, 122, 0.12);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.7);
+  color: #698391;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 180ms ease, color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.overview-tab:hover {
+  border-color: rgba(22, 87, 122, 0.25);
+}
+
+.overview-tab--active {
+  background: #075b8d;
+  border-color: #075b8d;
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(7, 91, 141, 0.25);
+}
+
+.overview-tab--presale.overview-tab--active {
+  background: #3b82f6;
+  border-color: #3b82f6;
+  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.25);
+}
+
+.overview-tab-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.overview-tab-dot--immediate { background: #20a9d5; }
+.overview-tab-dot--presale { background: #3b82f6; }
+
+.overview-tab--active .overview-tab-dot--immediate,
+.overview-tab--active .overview-tab-dot--presale {
+  background: #fff;
+}
+
+.store-card--presale.store-card--stocked {
+  border-color: color-mix(in srgb, #3b82f6 18%, transparent);
+  background: linear-gradient(145deg, #ffffff 35%, #e8f0fe 100%);
+}
 .card-arrow { margin-left: auto; color: #7896a5; font-size: 13px; }
 
 .notice {

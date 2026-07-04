@@ -27,13 +27,21 @@ function formatBtu(value: number | null): string {
   return `${value.toLocaleString("nl-NL")} BTU`;
 }
 
+function siteHasImmediate(site: SiteInventory): boolean {
+  return site.products.some((p) => !p.presale);
+}
+
+function siteHasPresale(site: SiteInventory): boolean {
+  return site.products.some((p) => p.presale);
+}
+
 function selectedRetailFromHash(): string | null {
   const hash = window.location.hash;
   if (!hash || hash === "#/") return null;
   return decodeURIComponent(hash.slice(2));
 }
 
-function StoreCard({ name, inventory, onSelect }: { name: string; inventory: SiteInventory; onSelect: (name: string) => void }) {
+function StoreCard({ name, inventory, onSelect, presaleView }: { name: string; inventory: SiteInventory; onSelect: (name: string) => void; presaleView: boolean }) {
   const brand = getBrand(name);
   const count = inventory.available_product_count;
   const hasStock = count > 0;
@@ -47,13 +55,13 @@ function StoreCard({ name, inventory, onSelect }: { name: string; inventory: Sit
 
   return (
     <a
-      className={`store-card${hasStock ? " store-card--stocked" : ""}${inventory.stale ? " store-card--stale" : ""}`}
+      className={`store-card${hasStock ? " store-card--stocked" : ""}${inventory.stale ? " store-card--stale" : ""}${presaleView && hasStock ? " store-card--presale" : ""}`}
       href={hasStock ? `#/${encodeURIComponent(name)}` : brand.url}
       target={hasStock ? undefined : "_blank"}
       rel={hasStock ? undefined : "noopener noreferrer"}
       onClick={handleClick}
       style={{ "--brand": brand.color, "--brand-tint": brand.tint } as React.CSSProperties}
-      aria-label={`${brand.name}，${count} 台有货`}
+      aria-label={`${brand.name}，${count} 台${presaleView ? "预售" : "有货"}`}
     >
       <div className="brand-lockup">
         <span className="brand-mark" aria-hidden="true">{brand.shortMark}</span>
@@ -61,11 +69,11 @@ function StoreCard({ name, inventory, onSelect }: { name: string; inventory: Sit
       </div>
       <div className="stock-block">
         <strong className="stock-number">{count}</strong>
-        <span className="stock-label">台有货</span>
+        <span className="stock-label">{presaleView ? "台预售" : "台有货"}</span>
       </div>
       <div className="card-footer">
-        <span className={`status-dot${hasStock ? " status-dot--live" : ""}`} />
-        {inventory.stale ? "数据暂时过期" : hasStock ? "点击查看有货型号" : "暂时无货"}
+        <span className={`status-dot${hasStock ? (presaleView ? " status-dot--presale" : " status-dot--live") : ""}`} />
+        {inventory.stale ? "数据暂时过期" : hasStock ? "点击查看型号" : "暂时无货"}
         <span className="card-arrow" aria-hidden="true">{hasStock ? "→" : ""}</span>
       </div>
     </a>
@@ -115,7 +123,6 @@ function RetailerDetail({ name, inventory, onBack }: { name: string; inventory: 
     };
   }, [inventory.products]);
 
-  // Default to presale tab if there are no immediate products.
   useEffect(() => {
     if (immediate.length === 0 && presale.length > 0) {
       setActiveTab("presale");
@@ -144,7 +151,7 @@ function RetailerDetail({ name, inventory, onBack }: { name: string; inventory: 
       {inventory.stale && (
         <div className="detail-stale-notice">该网站数据暂时过期，以下为最近一次成功检查的结果</div>
       )}
-      {(immediate.length > 0 && presale.length > 0) && (
+      {immediate.length > 0 && presale.length > 0 && (
         <div className="detail-tabs">
           <button
             className={`detail-tab${activeTab === "immediate" ? " detail-tab--active" : ""}`}
@@ -179,6 +186,7 @@ export default function App() {
   const [snapshot, setSnapshot] = useState<InventorySnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedRetailer, setSelectedRetailer] = useState<string | null>(selectedRetailFromHash);
+  const [overviewTab, setOverviewTab] = useState<"immediate" | "presale">("immediate");
   const abortRef = useRef<AbortController | null>(null);
 
   const fetchInventory = useCallback(() => {
@@ -240,6 +248,19 @@ export default function App() {
     });
   }, [snapshot]);
 
+  const immediateSites = useMemo(
+    () => sites.filter(([, site]) => siteHasImmediate(site)),
+    [sites],
+  );
+  const presaleSites = useMemo(
+    () => sites.filter(([, site]) => siteHasPresale(site) && !siteHasImmediate(site)),
+    [sites],
+  );
+
+  const displayedSites = overviewTab === "immediate" ? immediateSites : presaleSites;
+  const immediateCount = immediateSites.length;
+  const presaleCount = presaleSites.length;
+
   const storesWithStock = sites.filter(([, site]) => site.available_product_count > 0).length;
   const selectedSite = selectedRetailer && snapshot ? snapshot.sites[selectedRetailer] : undefined;
 
@@ -279,12 +300,32 @@ export default function App() {
           </div>
         </div>
 
+        <div className="overview-tabs">
+          <button
+            className={`overview-tab${overviewTab === "immediate" ? " overview-tab--active" : ""}`}
+            onClick={() => setOverviewTab("immediate")}
+          >
+            <span className="overview-tab-dot overview-tab-dot--immediate" />
+            现货 {immediateCount > 0 ? immediateCount : ""}
+          </button>
+          <button
+            className={`overview-tab overview-tab--presale${overviewTab === "presale" ? " overview-tab--active" : ""}`}
+            onClick={() => setOverviewTab("presale")}
+          >
+            <span className="overview-tab-dot overview-tab-dot--presale" />
+            预售 {presaleCount > 0 ? presaleCount : ""}
+          </button>
+        </div>
+
         {error && <div className="notice notice--error">{error}</div>}
         {!snapshot && !error && <div className="notice">正在读取最新库存…</div>}
-        {snapshot && (
+        {snapshot && displayedSites.length === 0 && (
+          <div className="notice">{overviewTab === "immediate" ? "目前没有现货，请切到预售 Tab 查看预约选项" : "目前没有预售产品"}</div>
+        )}
+        {snapshot && displayedSites.length > 0 && (
           <div className="store-grid">
-            {sites.map(([name, inventory]) => (
-              <StoreCard key={name} name={name} inventory={inventory} onSelect={selectRetailer} />
+            {displayedSites.map(([name, inventory]) => (
+              <StoreCard key={name} name={name} inventory={inventory} onSelect={selectRetailer} presaleView={overviewTab === "presale"} />
             ))}
           </div>
         )}
