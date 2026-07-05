@@ -24,8 +24,8 @@ No active blocker exists. The next agent should first confirm what the user want
 - Branch: `main`
 - Local path: `~/airco-tracking-web`
 - Live URL: `https://airco-tracking-web.livelystone-5966d837.westeurope.azurecontainerapps.io`
-- Feature commit and deployed image tag: `5d022fc45e9e9d03bec567cd6afaee5f59e37f90`
-- Successful deployment workflow: GitHub Actions run `28717820865`
+- Feature commit and deployed image tag: `069f587e0cc84b7f1c82d3e04020c71e8b5c38d2`
+- Successful deployment workflow: GitHub Actions run `28735567922`
 - Azure resource group: `airco-tracker-nl-rg`
 - Container App: `airco-tracking-web`
 - Provisioning state after first deployment: `Succeeded`
@@ -115,6 +115,12 @@ Prior production deployment evidence (run `28681867269`, commit `039ea44`): succ
 - The strengthened production verifier passed `/health`, strict `script-src 'self'`, the escaped 33-key `application/json` translation block, absence of executable inline translation data, and the live inventory contract.
 - Live API verification returned 27 sites, 20 available products, and 0 stale sites at `2026-07-04T19:54:00Z`.
 - Browser QA on the production URL switched Chinese → Dutch → English without reload. It verified translated hero/section/card labels, `html lang`, localized Amsterdam timestamps, and localized document titles; `window.__I18N__` remained undefined by design.
+
+2026-07-05 Bostools expansion deployment:
+- Actions run `28735567922` for frontend commit `069f587`: succeeded in 2m42s.
+- Frontend image: `airco-tracking-web:069f587e0cc84b7f1c82d3e04020c71e8b5c38d2`.
+- Production API verified: 28 sites, 20 available products, 0 stale sites. Bostools brand metadata renders correctly with 1 presale product.
+- Backend companion run `28735561062` for commit `6e50bf4`: succeeded in 4m13s.
 
 ## Known limitations and candidate next work
 
