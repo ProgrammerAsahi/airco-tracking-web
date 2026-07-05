@@ -28,6 +28,7 @@ const brands: Record<string, Omit<BrandDefinition, "name">> = {
   Vrijbuiter: { shortMark: "V", url: "https://www.vrijbuiter.nl", color: "#e64d24", tint: "#fff0ec" },
   Klimaatshop: { shortMark: "KS", url: "https://www.klimaatshop.nl", color: "#00779c", tint: "#e7f4f8" },
   "Airco-Webwinkel": { shortMark: "AW", url: "https://www.airco-webwinkel.nl", color: "#2b74a8", tint: "#eaf3f9" },
+  Bostools: { shortMark: "B", url: "https://www.bostools.nl", color: "#176b58", tint: "#e8f4f0" },
 };
 
 export function getBrand(name: string): BrandDefinition {

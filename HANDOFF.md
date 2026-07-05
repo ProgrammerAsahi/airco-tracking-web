@@ -14,6 +14,8 @@ A 2026-07-04 presale round added separate tabs for immediate stock vs presale pr
 
 A 2026-07-04 localization round added Chinese, Dutch, and English UI copy backed by the existing Azure Table Storage. The initial executable inline-data approach was blocked by the strict CSP; it is now replaced by escaped inert JSON that the external React module validates and parses. Language changes update visible copy, errors, document metadata, accessibility labels, Amsterdam timestamps, prices, and BTU formatting without reloading.
 
+The 2026-07-05 retailer expansion adds explicit Bostools brand metadata so the 28th backend inventory site renders with its correct shop link and a stable glacier-compatible brand treatment.
+
 No active blocker exists. The next agent should first confirm what the user wants to add rather than assuming that every candidate item below is authorized.
 
 ## Repository and production
