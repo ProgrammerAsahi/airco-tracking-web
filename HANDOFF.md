@@ -8,6 +8,8 @@ Provide a public, low-cost, read-only dashboard for the private Airco Tracker in
 
 A 2026-07-05 doc round updated backend references after the backend repository was renamed from `airco-tracking-nl` to `airco-tracking`. The backend now uses a country-based adapter registry (`adapters/nl/`, `adapters/registry.py`); the frontend references the backend by its new name in docs, scripts, and the shared inventory contract comment. No frontend code or behavior changed; the inventory schema remains version `1` and fully compatible.
 
+A 2026-07-05 Azure consolidation moved all backend infrastructure into a single `airco-tracker-rg` resource group (the old `airco-tracker-nl-rg` was deleted). The runtime UAMI and deployer UAMI were recreated with new clientIds — the GitHub Actions `AZURE_CLIENT_ID` variable on both repos was updated to the new deployer clientId `8adc0579-710f-4fcb-8762-28cea100a8a9`. The frontend Container App's identity reference was updated via `app.bicep` redeploy to point at the new runtime UAMI. No frontend code or image changed; the doc-only commits used `[skip ci]`.
+
 A 2026-07-03 quality round improved the frontend with: client-side polling driven by `refresh_interval_seconds` plus `visibilitychange` refetch, a shared `shared/inventory.ts` type module eliminating client/server type duplication, deepened server validation (products, timestamps, `site_count` cross-check), BlobServiceClient reuse at startup, removal of the hard-coded `27` magic number from the verify script, sample JSON moved out of the production build, expanded test coverage (3 → 14 tests), and a `if: success()` gate on the deploy summary step.
 
 A 2026-07-04 feature round added a retailer product detail page: clicking a stocked retailer card opens a full-screen overlay listing all in-stock products (name, price, BTU, delivery) sorted by price ascending, each linking directly to the retailer's product page. Hash-based routing (`#/RetailerName`) supports browser back and shareable URLs. No backend changes were needed; `inventory.json` already contains product arrays.
@@ -31,6 +33,7 @@ No active blocker exists. The next agent should first confirm what the user want
 - Successful deployment workflow: GitHub Actions run `28735567922`
 - Azure resource group: `airco-tracker-rg` (all resources consolidated here 2026-07-05; old `airco-tracker-nl-rg` deleted)
 - Backend repository: `https://github.com/ProgrammerAsahi/airco-tracking` (renamed from `airco-tracking-nl`)
+- Deployer UAMI clientId (GitHub Actions `AZURE_CLIENT_ID`): `8adc0579-710f-4fcb-8762-28cea100a8a9` (recreated 2026-07-05)
 - Container App: `airco-tracking-web`
 - Provisioning state after first deployment: `Succeeded`
 - Scale: 0–2 replicas
@@ -158,11 +161,12 @@ pnpm build
 Then:
 
 1. Read `CLAUDE.md`, `AGENTS.md`, and this handoff.
-2. Confirm the user's requested next feature and inspect only the relevant files.
-3. For UI work, run `pnpm dev` and validate 1440×900 plus a narrow breakpoint.
-4. For server work, run production mode with the sample fixture and `scripts/verify-deployment.mjs`.
-5. For schema work, inspect and update the backend producer and tests as a coordinated change.
-6. Update this handoff after meaningful work or deployment.
+2. Verify the GitHub Actions variables are current: `gh variable list -R ProgrammerAsahi/airco-tracking-web` should show `AZURE_RESOURCE_GROUP=airco-tracker-rg` and `AZURE_CLIENT_ID=8adc0579-710f-4fcb-8762-28cea100a8a9`. If a deploy fails with OIDC errors, the deployer UAMI clientId may have drifted from the variable.
+3. Confirm the user's requested next feature and inspect only the relevant files.
+4. For UI work, run `pnpm dev` and validate 1440×900 plus a narrow breakpoint.
+5. For server work, run production mode with the sample fixture and `scripts/verify-deployment.mjs`.
+6. For schema work, inspect and update the backend producer and tests as a coordinated change.
+7. Update this handoff after meaningful work or deployment.
 
 Never record personal data, secret values, tokens, local machine identities, or unnecessary Azure identifiers in this file.
 
