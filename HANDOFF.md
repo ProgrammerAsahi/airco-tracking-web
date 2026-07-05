@@ -1,10 +1,12 @@
 # Airco Tracking Web — current handoff
 
-Last updated: 2026-07-04 (Europe/Amsterdam)
+Last updated: 2026-07-05 (Europe/Amsterdam)
 
 ## Current objective
 
-Provide a public, low-cost, read-only dashboard for the private Airco Tracker NL inventory snapshot. The first production version is complete: it lists the available-product count for all tracked retailers, uses a glacier-blue responsive UI, and reads live inventory through a same-origin API backed by Managed Identity.
+Provide a public, low-cost, read-only dashboard for the private Airco Tracker inventory snapshot. The first production version is complete: it lists the available-product count for all tracked retailers, uses a glacier-blue responsive UI, and reads live inventory through a same-origin API backed by Managed Identity.
+
+A 2026-07-05 doc round updated backend references after the backend repository was renamed from `airco-tracking-nl` to `airco-tracking`. The backend now uses a country-based adapter registry (`adapters/nl/`, `adapters/registry.py`); the frontend references the backend by its new name in docs, scripts, and the shared inventory contract comment. No frontend code or behavior changed; the inventory schema remains version `1` and fully compatible.
 
 A 2026-07-03 quality round improved the frontend with: client-side polling driven by `refresh_interval_seconds` plus `visibilitychange` refetch, a shared `shared/inventory.ts` type module eliminating client/server type duplication, deepened server validation (products, timestamps, `site_count` cross-check), BlobServiceClient reuse at startup, removal of the hard-coded `27` magic number from the verify script, sample JSON moved out of the production build, expanded test coverage (3 → 14 tests), and a `if: success()` gate on the deploy summary step.
 
@@ -24,9 +26,11 @@ No active blocker exists. The next agent should first confirm what the user want
 - Branch: `main`
 - Local path: `~/airco-tracking-web`
 - Live URL: `https://airco-tracking-web.livelystone-5966d837.westeurope.azurecontainerapps.io`
-- Feature commit and deployed image tag: `069f587e0cc84b7f1c82d3e04020c71e8b5c38d2`
+- Feature commit: `5f82190` (backend-reference doc updates after backend rename; no code change)
+- Deployed image tag: `069f587e0cc84b7f1c82d3e04020c71e8b5c38d2` (last code deployment; doc-only commits do not redeploy)
 - Successful deployment workflow: GitHub Actions run `28735567922`
-- Azure resource group: `airco-tracker-nl-rg`
+- Azure resource group: `airco-tracker-nl-rg` (Azure does not support RG rename; deferred)
+- Backend repository: `https://github.com/ProgrammerAsahi/airco-tracking` (renamed from `airco-tracking-nl`)
 - Container App: `airco-tracking-web`
 - Provisioning state after first deployment: `Succeeded`
 - Scale: 0–2 replicas
@@ -121,6 +125,12 @@ Prior production deployment evidence (run `28681867269`, commit `039ea44`): succ
 - Frontend image: `airco-tracking-web:069f587e0cc84b7f1c82d3e04020c71e8b5c38d2`.
 - Production API verified: 28 sites, 20 available products, 0 stale sites. Bostools brand metadata renders correctly with 1 presale product.
 - Backend companion run `28735561062` for commit `6e50bf4`: succeeded in 4m13s.
+
+2026-07-05 backend rename + registry refactor (doc-only frontend update):
+- Backend commit `afdde97`: renamed `airco-tracking-nl` → `airco-tracking`, moved 27 adapters into `adapters/nl/`, added `registry.py` with `load_adapter_classes(countries)`, fixed `i18n_local.json` packaging. Backend Actions run `28745071912` succeeded; verification execution `airco-tracker-job-ftzu1v6` Succeeded.
+- Frontend commit `5f82190`: updated backend repo/path references in `README.md`, `AGENTS.md`, `CLAUDE.md`, `HANDOFF.md`, `shared/inventory.ts`, and two scripts. No code or behavior change; doc-only commit did not trigger a deploy.
+- Frontend `pnpm test` (17/17), `pnpm typecheck`, and `pnpm build` all passed locally.
+- Production verification 2026-07-05T15:14Z: `/health` ok, `/api/inventory` returned 28 sites / 20 available / 0 stale; `verify-deployment.mjs` passed.
 
 ## Known limitations and candidate next work
 
