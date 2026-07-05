@@ -2,7 +2,7 @@
  * Shared inventory data contract — the single source of truth for the
  * inventory snapshot shape, used by both the browser UI and the Node API.
  *
- * The backend producer (`airco_tracker/inventory.py` in airco-tracking-nl)
+ * The backend producer (`airco_tracker/inventory.py` in airco-tracking)
  * generates the Blob; this module mirrors its schema. A schema change must
  * be coordinated across both repositories.
  */

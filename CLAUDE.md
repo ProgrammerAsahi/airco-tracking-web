@@ -11,6 +11,6 @@
 - Do not make the Blob container public and do not move Azure credentials into Vite variables. Browser code must read inventory only from the same-origin `/api/inventory` endpoint.
 - Keep the strict `script-src 'self'` CSP. Translation data from Table Storage must remain inert JSON, be HTML-safe when embedded, and never be rendered through `dangerouslySetInnerHTML`.
 - Any visible-copy change must work in Chinese, Dutch, and English, including document metadata, locale-sensitive dates/numbers, errors, and accessible labels.
-- If a change affects the inventory schema, coordinate it with `~/airco-tracking-nl` and update frontend types, server validation, sample data, tests, and handoff documentation together.
+- If a change affects the inventory schema, coordinate it with `~/airco-tracking` and update frontend types, server validation, sample data, tests, and handoff documentation together.
 - After a meaningful milestone, deployment, architectural decision, or newly discovered blocker, update `HANDOFF.md` in the same change.
 - External mutations such as Azure deployments, GitHub variable changes, force-pushes, domain changes, or role assignments require clear user authorization. Prefer OIDC and Managed Identity over new secrets.

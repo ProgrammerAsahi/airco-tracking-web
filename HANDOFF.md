@@ -76,7 +76,7 @@ The Git branch history uses the repository-local GitHub noreply author. A tempor
 
 ## Data contract and backend relationship
 
-- Backend repository: `~/airco-tracking-nl` / `ProgrammerAsahi/airco-tracking-nl`.
+- Backend repository: `~/airco-tracking` / `ProgrammerAsahi/airco-tracking`.
 - Producer: `airco_tracker/inventory.py` in the backend repository.
 - Blob: private container `airco-tracker`, object `inventory.json`.
 - Snapshot schema version: `1`.

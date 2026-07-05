@@ -1,6 +1,6 @@
 # Airco Tracking Web
 
-Ice-blue TypeScript/React dashboard for the [Airco Tracker NL](https://github.com/ProgrammerAsahi/airco-tracking-nl) live inventory snapshot.
+Ice-blue TypeScript/React dashboard for the [Airco Tracker NL](https://github.com/ProgrammerAsahi/airco-tracking) live inventory snapshot.
 
 **Live:** [airco-tracking-web.livelystone-5966d837.westeurope.azurecontainerapps.io](https://airco-tracking-web.livelystone-5966d837.westeurope.azurecontainerapps.io)
 
@@ -18,7 +18,7 @@ Browser
                         └─ Managed Identity → Azure Table Storage
 ```
 
-The app reuses the existing Container Apps Environment, ACR, Storage Account, and runtime identity from `airco-tracking-nl`. It creates only one additional Container App in the same resource group.
+The app reuses the existing Container Apps Environment, ACR, Storage Account, and runtime identity from `airco-tracking`. It creates only one additional Container App in the same resource group.
 
 ## Local development
 

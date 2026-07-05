@@ -2,7 +2,7 @@
 
 ## Mission
 
-Maintain a fast, low-cost, public inventory dashboard for portable air conditioners deliverable in the Netherlands. Present the private `airco-tracking-nl` live snapshot clearly without exposing Azure credentials or making Blob Storage public.
+Maintain a fast, low-cost, public inventory dashboard for portable air conditioners deliverable in the Netherlands. Present the private `airco-tracking` live snapshot clearly without exposing Azure credentials or making Blob Storage public.
 
 ## Read first
 
@@ -12,7 +12,7 @@ Maintain a fast, low-cost, public inventory dashboard for portable air condition
    - Same-origin API: `server/`
    - Azure deployment: `infra/` and `scripts/`
    - Automation: `.github/workflows/`
-3. If the data shape is involved, inspect the backend producer in `~/airco-tracking-nl/airco_tracker/inventory.py` as the source of truth.
+3. If the data shape is involved, inspect the backend producer in `~/airco-tracking/airco_tracker/inventory.py` as the source of truth.
 4. Use `README.md` for user-facing setup and architecture. Keep it synchronized with behavior changes.
 
 ## Non-negotiable security rules
