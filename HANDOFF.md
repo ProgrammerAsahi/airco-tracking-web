@@ -29,7 +29,7 @@ No active blocker exists. The next agent should first confirm what the user want
 - Feature commit: `5f82190` (backend-reference doc updates after backend rename; no code change)
 - Deployed image tag: `069f587e0cc84b7f1c82d3e04020c71e8b5c38d2` (last code deployment; doc-only commits do not redeploy)
 - Successful deployment workflow: GitHub Actions run `28735567922`
-- Azure resource group: `airco-tracker-nl-rg` (Azure does not support RG rename; deferred)
+- Azure resource group: `airco-tracker-rg` (resources moved from `airco-tracker-nl-rg` on 2026-07-05; UAMIs and EmailService remain in old RG)
 - Backend repository: `https://github.com/ProgrammerAsahi/airco-tracking` (renamed from `airco-tracking-nl`)
 - Container App: `airco-tracking-web`
 - Provisioning state after first deployment: `Succeeded`
