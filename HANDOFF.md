@@ -76,7 +76,7 @@ The Git branch history uses the repository-local GitHub noreply author. A tempor
 - The app reuses the backend project's Container Apps Environment, ACR, Storage Account, and runtime UAMI. No second environment, registry, database, Function App, Storage Account, or Key Vault was created.
 - External HTTPS ingress targets port 3000. Minimum replicas are 0 and maximum replicas are 2. Scale-to-zero means the first request after idle has a multi-second cold start; this is an accepted tradeoff for the low-traffic dashboard. If latency becomes an issue, set `minReplicas: 1` in `infra/app.bicep`.
 - Runtime identity reads the existing private `airco-tracker/inventory.json` Blob and pulls the private ACR image without passwords.
-- The new GitHub repository has its own branch-restricted federated credential on the existing `airco-github-deployer` identity.
+- The new GitHub repository has its own branch-restricted federated credential (`github-airco-tracking-web`) on the existing `airco-github-deployer` identity. The bicep name uses `last(split(githubRepository,'/'))` for idempotency.
 - GitHub stores only non-secret Azure identifiers as Actions Variables. No `AZURE_CREDENTIALS` secret or Client Secret exists for this workflow.
 - Pull requests run `.github/workflows/ci.yml`; pushes to `main` run `.github/workflows/deploy.yml`.
 - Deployment uses the full commit SHA as the immutable image tag and fails unless `/health`, the homepage i18n/CSP contract, and `/api/inventory` pass.
@@ -95,45 +95,24 @@ The Git branch history uses the repository-local GitHub noreply author. A tempor
 
 ## Verification evidence
 
-Current local verification after the 2026-07-04 localization repair:
+Current local verification (2026-07-05):
 
 - `pnpm test`: 17/17 tests passed: 14 inventory-contract tests plus CSP-safe i18n serialization, hostile `</script>` escaping, and malformed bundle validation.
 - `pnpm typecheck`: browser and server TypeScript passed.
 - `pnpm build`: Node server and Vite production bundles passed.
 - All shell scripts passed `bash -n`.
 - `git diff --check`: clean.
-- Sample JSON moved from `public/` to `test-fixtures/`; no longer ships in the production image.
 - `verify-deployment.mjs` validates the strict script CSP, inert 3-language JSON data element, absence of the broken `window.__I18N__` injection, and dynamic inventory site counts.
-- Production-mode local verification passed with 27 sites and 22 available products at that moment.
-- Browser QA confirmed live switching among `zh-CN`, `nl`, and `en`; translated title/description/date/card labels and locale-aware price/BTU formatting all changed correctly.
-- Deploy summary step gated with `if: success()`.
 
-Prior production deployment evidence (run `28681867269`, commit `039ea44`): succeeded, 27 sites and 15 available products at that moment.
+Production deployment history (compact):
 
-2026-07-04 feature deployment:
-- Actions run `28703023049` for commit `d8fcc49`: succeeded in 2m55s.
-- Production image: `airco-tracking-web:d8fcc49e2867685e71ec87eea8dfa8c143c50c87`.
-- `/health`: ok. `/api/inventory`: 27 sites, 17 available. `/`: HTML served. `verify-deployment.mjs`: passed.
-- Sample fixture now includes real product data for local testing of the detail page.
+- **2026-07-05 backend rename + Azure consolidation**: Backend `afdde97` deployed (Actions `28745071912`, Succeeded). Azure resources moved to `airco-tracker-rg`; UAMIs + EmailService recreated with new clientIds; `app.bicep` redeployed to update the Container App identity reference. Frontend doc-only commits (`5f82190`, `43e9a82`, `c9fc94c`, `f150a2b`) used `[skip ci]` — no frontend image redeploy. Production API verified 2026-07-05T17:21Z: 28 sites / 19 available / 0 stale. `verify-deployment.mjs` passed.
+- **2026-07-05 OIDC bicep fix**: `infra/github-oidc.bicep` changed from `uniqueString()` to `last(split(githubRepository,'/'))` for idempotent federated-credential names. Redeployed; no frontend code/image change. (commit `f150a2b`)
+- **2026-07-05 Bostools**: Actions `28735567922` for frontend commit `069f587`: succeeded in 2m42s. 28 sites, 20 available, 0 stale.
+- **2026-07-04 localization repair**: Actions `28717820865` for commit `5d022fc`: succeeded. Strict CSP + 3-language inert JSON verified. Browser QA confirmed zh/nl/en switching.
+- **2026-07-04 feature (detail page + presale tabs)**: Actions `28703023049` for commit `d8fcc49`: succeeded.
+- **2026-07-03 first deploy**: Actions `28681867269` for commit `039ea44`: succeeded. 27 sites, 15 available.
 - Inventory totals are time-sensitive; re-run `scripts/verify-deployment.mjs` or query the live API before citing a current count.
-
-2026-07-04 localization repair deployment:
-- Actions run `28717820865` for commit/image `5d022fc45e9e9d03bec567cd6afaee5f59e37f90`: succeeded in 2m52s.
-- The strengthened production verifier passed `/health`, strict `script-src 'self'`, the escaped 33-key `application/json` translation block, absence of executable inline translation data, and the live inventory contract.
-- Live API verification returned 27 sites, 20 available products, and 0 stale sites at `2026-07-04T19:54:00Z`.
-- Browser QA on the production URL switched Chinese → Dutch → English without reload. It verified translated hero/section/card labels, `html lang`, localized Amsterdam timestamps, and localized document titles; `window.__I18N__` remained undefined by design.
-
-2026-07-05 Bostools expansion deployment:
-- Actions run `28735567922` for frontend commit `069f587`: succeeded in 2m42s.
-- Frontend image: `airco-tracking-web:069f587e0cc84b7f1c82d3e04020c71e8b5c38d2`.
-- Production API verified: 28 sites, 20 available products, 0 stale sites. Bostools brand metadata renders correctly with 1 presale product.
-- Backend companion run `28735561062` for commit `6e50bf4`: succeeded in 4m13s.
-
-2026-07-05 backend rename + registry refactor (doc-only frontend update):
-- Backend commit `afdde97`: renamed `airco-tracking-nl` → `airco-tracking`, moved 27 adapters into `adapters/nl/`, added `registry.py` with `load_adapter_classes(countries)`, fixed `i18n_local.json` packaging. Backend Actions run `28745071912` succeeded; verification execution `airco-tracker-job-ftzu1v6` Succeeded.
-- Frontend commit `5f82190`: updated backend repo/path references in `README.md`, `AGENTS.md`, `CLAUDE.md`, `HANDOFF.md`, `shared/inventory.ts`, and two scripts. No code or behavior change; doc-only commit did not trigger a deploy.
-- Frontend `pnpm test` (17/17), `pnpm typecheck`, and `pnpm build` all passed locally.
-- Production verification 2026-07-05T15:14Z: `/health` ok, `/api/inventory` returned 28 sites / 20 available / 0 stale; `verify-deployment.mjs` passed.
 
 ## Known limitations and candidate next work
 
@@ -144,6 +123,32 @@ These are options, not pre-authorized tasks:
 3. **Freshness UX** — each stale site is styled, but there is no prominent global warning when several retailers are stale or the snapshot itself is old.
 4. **Automated browser tests** — contract and deployment checks cover i18n data, but no committed Playwright accessibility or visual-regression suite exists.
 5. **Observability** — deployment checks health and data, but there is no dedicated alert for repeated API failures or high Container App error rates.
+
+## Standard local verification
+
+```bash
+cd ~/airco-tracking-web
+pnpm install --frozen-lockfile
+pnpm test          # 17 tests
+pnpm typecheck
+pnpm build
+bash -n scripts/*.sh
+git diff --check
+```
+
+Development preview (two terminals):
+```bash
+# Terminal 1: API server with sample data
+PORT=4174 INVENTORY_FILE=test-fixtures/inventory.sample.json I18N_FILE=test-fixtures/i18n.local.json pnpm start
+# Terminal 2: Vite dev server (proxies /api to :4174)
+pnpm dev   # http://127.0.0.1:4173
+```
+
+Production-mode integration check:
+```bash
+PORT=4174 INVENTORY_FILE=test-fixtures/inventory.sample.json I18N_FILE=test-fixtures/i18n.local.json pnpm start
+node scripts/verify-deployment.mjs http://127.0.0.1:4174
+```
 
 ## Resume checklist for the next agent
 
