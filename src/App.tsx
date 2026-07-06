@@ -9,6 +9,8 @@ import "./styles.css";
 const inventoryUrl = import.meta.env.VITE_INVENTORY_URL ?? "/api/inventory";
 
 type Translator = (key: string, params?: Record<string, string | number>) => string;
+type InventoryTab = "immediate" | "presale";
+type SelectedRetailer = { key: string; tab: InventoryTab };
 
 const LOCALES: Record<Lang, string> = {
   zh: "zh-CN",
@@ -64,35 +66,63 @@ function TranslatedHeading({ text }: { text: string }) {
 }
 
 function siteHasImmediate(site: SiteInventory): boolean {
-  return site.products.some((p) => !p.presale);
+  return immediateProductCount(site) > 0;
 }
 
 function siteHasPresale(site: SiteInventory): boolean {
-  return site.products.some((p) => p.presale);
+  return presaleProductCount(site) > 0;
 }
 
-function selectedRetailFromHash(): string | null {
+function immediateProductCount(site: SiteInventory): number {
+  return site.immediate_product_count ?? site.products.filter((p) => !p.presale).length;
+}
+
+function presaleProductCount(site: SiteInventory): number {
+  return site.presale_product_count ?? site.products.filter((p) => p.presale).length;
+}
+
+function siteDisplayName(siteKey: string, site: SiteInventory): string {
+  return site.site ?? siteKey.replace(/^[a-z]{2}:/i, "");
+}
+
+function siteCountries(snapshot: InventorySnapshot | null): string {
+  if (!snapshot) return "NL";
+  const countries = new Set(
+    Object.entries(snapshot.sites).map(([siteKey, site]) => (site.country ?? siteKey.match(/^([a-z]{2}):/i)?.[1] ?? "nl").toUpperCase()),
+  );
+  const labels = Array.from(countries).sort();
+  return labels.length > 0 ? labels.join(" · ") : "NL";
+}
+
+function selectedRetailFromHash(): SelectedRetailer | null {
   const hash = window.location.hash;
   if (!hash || hash === "#/") return null;
-  return decodeURIComponent(hash.slice(2));
+  const [encodedKey, tab] = hash.slice(2).split("/");
+  if (!encodedKey) return null;
+  return {
+    key: decodeURIComponent(encodedKey),
+    tab: tab === "presale" ? "presale" : "immediate",
+  };
 }
 
-function StoreCard({ name, inventory, onSelect, presaleView, t }: { name: string; inventory: SiteInventory; onSelect: (name: string) => void; presaleView: boolean; t: Translator }) {
-  const brand = getBrand(name);
-  const count = inventory.available_product_count;
+function StoreCard({ siteKey, inventory, onSelect, presaleView, t }: { siteKey: string; inventory: SiteInventory; onSelect: (key: string, tab: InventoryTab) => void; presaleView: boolean; t: Translator }) {
+  const displayName = siteDisplayName(siteKey, inventory);
+  const brand = getBrand(displayName);
+  const count = presaleView ? presaleProductCount(inventory) : immediateProductCount(inventory);
   const hasStock = count > 0;
+  const tab = presaleView ? "presale" : "immediate";
 
   const handleClick = (event: React.MouseEvent) => {
     if (hasStock) {
       event.preventDefault();
-      onSelect(name);
+      onSelect(siteKey, tab);
     }
   };
 
   return (
     <a
       className={`store-card${hasStock ? " store-card--stocked" : ""}${inventory.stale ? " store-card--stale" : ""}${presaleView && hasStock ? " store-card--presale" : ""}`}
-      href={hasStock ? `#/${encodeURIComponent(name)}` : brand.url}
+      href={hasStock ? `#/${encodeURIComponent(siteKey)}${presaleView ? "/presale" : ""}` : brand.url}
       target={hasStock ? undefined : "_blank"}
       rel={hasStock ? undefined : "noopener noreferrer"}
       onClick={handleClick}
@@ -143,9 +173,10 @@ function ProductCard({ product, t, lang }: { product: InventoryProduct; t: Trans
   );
 }
 
-function RetailerDetail({ name, inventory, onBack, t, lang }: { name: string; inventory: SiteInventory; onBack: () => void; t: Translator; lang: Lang }) {
-  const brand = getBrand(name);
-  const [activeTab, setActiveTab] = useState<"immediate" | "presale">("immediate");
+function RetailerDetail({ siteKey, inventory, initialTab, onBack, t, lang }: { siteKey: string; inventory: SiteInventory; initialTab: InventoryTab; onBack: () => void; t: Translator; lang: Lang }) {
+  const displayName = siteDisplayName(siteKey, inventory);
+  const brand = getBrand(displayName);
+  const [activeTab, setActiveTab] = useState<InventoryTab>(initialTab);
 
   const { immediate, presale } = useMemo(() => {
     const sorted = [...inventory.products].sort((a, b) => {
@@ -160,14 +191,19 @@ function RetailerDetail({ name, inventory, onBack, t, lang }: { name: string; in
   }, [inventory.products]);
 
   useEffect(() => {
-    if (immediate.length === 0 && presale.length > 0) {
+    if (initialTab === "presale" && presale.length > 0) {
+      setActiveTab("presale");
+    } else if (initialTab === "immediate" && immediate.length > 0) {
+      setActiveTab("immediate");
+    } else if (immediate.length === 0 && presale.length > 0) {
       setActiveTab("presale");
     } else {
       setActiveTab("immediate");
     }
-  }, [immediate.length, presale.length]);
+  }, [immediate.length, initialTab, presale.length]);
 
   const displayed = activeTab === "immediate" ? immediate : presale;
+  const detailCount = activeTab === "immediate" ? immediate.length : presale.length;
 
   return (
     <div className="detail-overlay" style={{ "--brand": brand.color, "--brand-tint": brand.tint } as React.CSSProperties}>
@@ -180,8 +216,8 @@ function RetailerDetail({ name, inventory, onBack, t, lang }: { name: string; in
           <span className="detail-brand-name">{brand.name}</span>
         </div>
         <div className="detail-count">
-          <strong>{inventory.available_product_count}</strong>
-          <span>{t("detail_units_in_stock")}</span>
+          <strong>{detailCount}</strong>
+          <span>{t(activeTab === "presale" ? "units_presale" : "detail_units_in_stock")}</span>
         </div>
       </div>
       {inventory.stale && (
@@ -222,8 +258,8 @@ export default function App() {
   const { lang, setLang, t } = useTranslation();
   const [snapshot, setSnapshot] = useState<InventorySnapshot | null>(null);
   const [error, setError] = useState<{ kind: "http"; status: number } | { kind: "generic" } | null>(null);
-  const [selectedRetailer, setSelectedRetailer] = useState<string | null>(selectedRetailFromHash);
-  const [overviewTab, setOverviewTab] = useState<"immediate" | "presale">("immediate");
+  const [selectedRetailer, setSelectedRetailer] = useState<SelectedRetailer | null>(selectedRetailFromHash);
+  const [overviewTab, setOverviewTab] = useState<InventoryTab>("immediate");
   const abortRef = useRef<AbortController | null>(null);
 
   const fetchInventory = useCallback(() => {
@@ -280,9 +316,9 @@ export default function App() {
     return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
 
-  const selectRetailer = useCallback((name: string) => {
-    window.location.hash = `/${encodeURIComponent(name)}`;
-    setSelectedRetailer(name);
+  const selectRetailer = useCallback((key: string, tab: InventoryTab) => {
+    window.location.hash = `/${encodeURIComponent(key)}${tab === "presale" ? "/presale" : ""}`;
+    setSelectedRetailer({ key, tab });
   }, []);
 
   const goBack = useCallback(() => {
@@ -292,18 +328,28 @@ export default function App() {
 
   const sites = useMemo(() => {
     if (!snapshot) return [];
-    return Object.entries(snapshot.sites).sort(([nameA, siteA], [nameB, siteB]) => {
-      const stockDifference = siteB.available_product_count - siteA.available_product_count;
-      return stockDifference || nameA.localeCompare(nameB, "nl");
+    return Object.entries(snapshot.sites).sort(([keyA, siteA], [keyB, siteB]) => {
+      const stockDifference = (immediateProductCount(siteB) + presaleProductCount(siteB)) - (immediateProductCount(siteA) + presaleProductCount(siteA));
+      return stockDifference || siteDisplayName(keyA, siteA).localeCompare(siteDisplayName(keyB, siteB), "nl");
     });
   }, [snapshot]);
 
   const immediateSites = useMemo(
-    () => sites.filter(([, site]) => siteHasImmediate(site)),
+    () => sites
+      .filter(([, site]) => siteHasImmediate(site))
+      .sort(([keyA, siteA], [keyB, siteB]) => {
+        const stockDifference = immediateProductCount(siteB) - immediateProductCount(siteA);
+        return stockDifference || siteDisplayName(keyA, siteA).localeCompare(siteDisplayName(keyB, siteB), "nl");
+      }),
     [sites],
   );
   const presaleSites = useMemo(
-    () => sites.filter(([, site]) => siteHasPresale(site) && !siteHasImmediate(site)),
+    () => sites
+      .filter(([, site]) => siteHasPresale(site))
+      .sort(([keyA, siteA], [keyB, siteB]) => {
+        const stockDifference = presaleProductCount(siteB) - presaleProductCount(siteA);
+        return stockDifference || siteDisplayName(keyA, siteA).localeCompare(siteDisplayName(keyB, siteB), "nl");
+      }),
     [sites],
   );
 
@@ -311,8 +357,16 @@ export default function App() {
   const immediateCount = immediateSites.length;
   const presaleCount = presaleSites.length;
 
-  const storesWithStock = sites.filter(([, site]) => site.available_product_count > 0).length;
-  const selectedSite = selectedRetailer && snapshot ? snapshot.sites[selectedRetailer] : undefined;
+  const immediateProductTotal = snapshot
+    ? snapshot.immediate_product_count ?? sites.reduce((total, [, site]) => total + immediateProductCount(site), 0)
+    : null;
+  const storesWithStock = immediateSites.length;
+  const selectedEntry = useMemo(() => {
+    if (!selectedRetailer || !snapshot) return undefined;
+    const direct = snapshot.sites[selectedRetailer.key];
+    if (direct) return [selectedRetailer.key, direct] as const;
+    return Object.entries(snapshot.sites).find(([siteKey, site]) => siteDisplayName(siteKey, site) === selectedRetailer.key);
+  }, [selectedRetailer, snapshot]);
 
   return (
     <main className="page-shell">
@@ -331,7 +385,7 @@ export default function App() {
         </div>
         <div className="hero-metrics" aria-live="polite">
           <div className="primary-metric">
-            <span className="metric-value">{snapshot?.available_product_count ?? "—"}</span>
+            <span className="metric-value">{immediateProductTotal ?? "—"}</span>
             <span className="metric-label">{t("metric_in_stock")}</span>
           </div>
           <div className="secondary-metrics">
@@ -381,8 +435,8 @@ export default function App() {
         )}
         {snapshot && displayedSites.length > 0 && (
           <div className="store-grid">
-            {displayedSites.map(([name, inventory]) => (
-              <StoreCard key={name} name={name} inventory={inventory} onSelect={selectRetailer} presaleView={overviewTab === "presale"} t={t} />
+            {displayedSites.map(([siteKey, inventory]) => (
+              <StoreCard key={siteKey} siteKey={siteKey} inventory={inventory} onSelect={selectRetailer} presaleView={overviewTab === "presale"} t={t} />
             ))}
           </div>
         )}
@@ -390,11 +444,11 @@ export default function App() {
 
       <footer className="page-footer">
         <span>{t("page_footer_disclaimer")}</span>
-        <span>Airco Watch · NL</span>
+        <span>Airco Watch · {siteCountries(snapshot)}</span>
       </footer>
 
-      {selectedRetailer && selectedSite && (
-        <RetailerDetail name={selectedRetailer} inventory={selectedSite} onBack={goBack} t={t} lang={lang} />
+      {selectedRetailer && selectedEntry && (
+        <RetailerDetail siteKey={selectedEntry[0]} inventory={selectedEntry[1]} initialTab={selectedRetailer.tab} onBack={goBack} t={t} lang={lang} />
       )}
     </main>
   );

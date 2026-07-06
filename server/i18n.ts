@@ -54,7 +54,7 @@ async function readI18nSource(): Promise<TranslationMap> {
 async function readFromTable(url: string): Promise<TranslationMap> {
   // The AZURE_STORAGE_ACCOUNT_URL env var points to the blob endpoint;
   // derive the table endpoint from it.
-  const tableUrl = url.replace(".blob.core.windows.net", ".table.core.windows.net");
+  const tableUrl = url.includes(".table.") ? url : url.replace(".blob.", ".table.");
   const credential = new DefaultAzureCredential({
     managedIdentityClientId: process.env.AZURE_CLIENT_ID?.trim() || undefined,
   });

@@ -1,6 +1,6 @@
 # Airco Tracking Web
 
-Ice-blue TypeScript/React dashboard for the [Airco Tracker NL](https://github.com/ProgrammerAsahi/airco-tracking) live inventory snapshot.
+Ice-blue TypeScript/React dashboard for the [Airco Tracker](https://github.com/ProgrammerAsahi/airco-tracking) live inventory snapshot.
 
 **Live:** [airco-tracking-web.livelystone-5966d837.westeurope.azurecontainerapps.io](https://airco-tracking-web.livelystone-5966d837.westeurope.azurecontainerapps.io)
 

@@ -11,6 +11,7 @@ COPY public ./public
 COPY src ./src
 COPY shared ./shared
 COPY server ./server
+COPY test-fixtures/i18n.local.json ./test-fixtures/i18n.local.json
 
 RUN pnpm build && pnpm prune --prod
 
@@ -24,6 +25,7 @@ COPY --from=build --chown=node:node /app/package.json ./package.json
 COPY --from=build --chown=node:node /app/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/dist ./dist
 COPY --from=build --chown=node:node /app/server-dist ./server-dist
+COPY --from=build --chown=node:node /app/test-fixtures/i18n.local.json ./test-fixtures/i18n.local.json
 
 USER node
 EXPOSE 3000

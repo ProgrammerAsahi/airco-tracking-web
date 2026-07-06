@@ -1,10 +1,12 @@
 # Airco Tracking Web — current handoff
 
-Last updated: 2026-07-05 (Europe/Amsterdam)
+Last updated: 2026-07-06 (Europe/Amsterdam)
 
 ## Current objective
 
-Provide a public, low-cost, read-only dashboard for the private Airco Tracker inventory snapshot. The first production version is complete: it lists the available-product count for all tracked retailers, uses a glacier-blue responsive UI, and reads live inventory through a same-origin API backed by Managed Identity.
+Provide a public, low-cost, read-only dashboard for the private Airco Tracker inventory snapshot. The first production version is complete: it lists immediate-stock and presale counts for all tracked retailers, uses a glacier-blue responsive UI, and reads live inventory through a same-origin API backed by Managed Identity.
+
+A 2026-07-06 hardening round made the frontend compatible with the backend's post-rename country-aware schema. The UI now treats `available_product_count` as total visible orderable products and uses `immediate_product_count` / `presale_product_count` (or derived product-array fallbacks) for user-facing counts, so presales are no longer shown as in-stock. Presale overview now includes mixed retailers, presale card clicks open the presale detail tab, and the footer country label is data-driven. The API validator accepts both old and new schema-v1 snapshots while enforcing stricter consistency checks. The Docker image now includes the local i18n fallback file, and deployment verification cross-checks inventory totals.
 
 A 2026-07-05 doc round updated backend references after the backend repository was renamed from `airco-tracking-nl` to `airco-tracking`. The backend now uses a country-based adapter registry (`adapters/nl/`, `adapters/registry.py`); the frontend references the backend by its new name in docs, scripts, and the shared inventory contract comment. No frontend code or behavior changed; the inventory schema remains version `1` and fully compatible.
 
@@ -47,14 +49,14 @@ The Git branch history uses the repository-local GitHub noreply author. A tempor
 
 - React 19 + TypeScript + Vite.
 - Glacier-blue page background, hero treatment, summary metrics, and stock-status accents.
-- Retailer cards show a brand-colored initial mark, retailer name, large available count, status, and outbound-link arrow.
-- Retailers with stock sort first by count; ties use Dutch locale name sorting.
+- Retailer cards show a brand-colored initial mark, retailer name, tab-specific count, status, and outbound-link arrow.
+- Retailers with immediate stock or presale sort first by the active tab's count; ties use Dutch locale name sorting.
 - Stale sites use a dashed, muted card state.
 - Responsive grid: six columns on wide desktop, five below 1180px, three below 900px, two below 620px, one below 400px.
 - Reduced-motion support and no horizontal overflow at the 1440×900 target.
 - **Polling**: the UI refetches `/api/inventory` on an interval driven by the snapshot's `refresh_interval_seconds` (clamped to ≥ 60s), and immediately on `visibilitychange` when the tab becomes visible again. This replaces the previous fetch-once-on-mount behavior.
-- **Retailer detail page**: clicking a stocked retailer card opens a full-screen overlay (`RetailerDetail` component) listing all in-stock products for that retailer. Products are sorted by price ascending. Each product card links directly to the retailer's product page (`product.url`, `target="_blank"`). Hash-based routing (`#/RetailerName`) supports browser back button and shareable URLs. Unstocked cards remain non-interactive.
-- **Presale tabs**: the detail page separates products into "现货" (immediate stock, green dot) and "预售" (presale, blue dot) tabs. Tabs appear only when a retailer has both types. Default is 现货; falls back to 预售 if only presale products exist. The backend provides a `presale` boolean per product.
+- **Retailer detail page**: clicking a stocked retailer card opens a full-screen overlay (`RetailerDetail` component) listing active-tab products for that retailer. Products are sorted by price ascending. Each product card links directly to the retailer's product page (`product.url`, `target="_blank"`). Hash-based routing (`#/siteKey` and `#/siteKey/presale`) supports browser back button and shareable URLs. Unstocked cards remain non-interactive.
+- **Presale tabs**: the detail page separates products into "现货" (immediate stock, green dot) and "预售" (presale, blue dot) tabs. Tabs appear only when a retailer has both types. Default is 现货, opens 预售 when selected from a presale overview card, and falls back to 预售 if only presale products exist. The backend provides a `presale` boolean per product.
 - **Localization**: a flag menu switches Chinese, Dutch, and English and persists the choice in `localStorage`. Dates and numbers use `zh-CN`, `nl-NL`, or `en-GB`; the document language, title, description, errors, and accessible card labels update with the selected language.
 
 ### Same-origin API
@@ -66,7 +68,7 @@ The Git branch history uses the repository-local GitHub noreply author. A tempor
 - `/health` provides the deployment health check.
 - Security headers include CSP, frame denial, MIME sniffing protection, no-referrer, and restricted browser permissions.
 - `server/i18n.ts` loads the `web` scope from Azure Table Storage, caches it for five minutes, and injects escaped `application/json` into the HTML shell. No executable inline script or browser Azure credential is used.
-- The API validates snapshot version, totals, `refresh_interval_seconds`, `updated_at` timestamp, site status, stale flags, counts, products arrays (including individual product fields), and cross-checks `site_count` against the actual number of site entries before returning data.
+- The API validates snapshot version, totals, `refresh_interval_seconds`, strict ISO timestamps, site status, stale flags, counts, product URLs/specs, product-site ownership, and cross-checks `site_count`, `stale_site_count`, `available_product_count`, `immediate_product_count`, and `presale_product_count` before returning data.
 - Local production mode uses `INVENTORY_FILE=test-fixtures/inventory.sample.json`; this override is not configured in Azure.
 - Shared data contract: `shared/inventory.ts` is the single source of truth for the inventory types, used by both `src/types.ts` (browser) and `server/inventory.ts` (API).
 
@@ -90,19 +92,21 @@ The Git branch history uses the repository-local GitHub noreply author. A tempor
 - Frontend runtime validation: `server/inventory.ts`.
 - Browser types: `src/types.ts`.
 - Local fixture: `test-fixtures/inventory.sample.json`.
-- The API returns the whole snapshot. The overview uses counts and the retailer detail overlay uses product arrays.
+- The API returns the whole snapshot. The overview uses immediate/presale counts and the retailer detail overlay uses product arrays.
+- Schema v1 now supports optional `country`, `site_id`, `immediate_product_count`, and `presale_product_count` fields. The frontend keeps fallback derivation from product arrays so old snapshots and new snapshots both work.
 - Any producer/schema change must be coordinated across both repositories. Do not make the Blob public and do not replace the API with a browser-side SAS URL.
 
 ## Verification evidence
 
-Current local verification (2026-07-05):
+Current local verification (2026-07-06):
 
-- `pnpm test`: 17/17 tests passed: 14 inventory-contract tests plus CSP-safe i18n serialization, hostile `</script>` escaping, and malformed bundle validation.
+- `pnpm test`: 20/20 tests passed: 17 inventory-contract tests plus CSP-safe i18n serialization, hostile `</script>` escaping, and malformed bundle validation.
 - `pnpm typecheck`: browser and server TypeScript passed.
 - `pnpm build`: Node server and Vite production bundles passed.
+- Local fixture and live production inventory JSON both pass the new validator.
 - All shell scripts passed `bash -n`.
 - `git diff --check`: clean.
-- `verify-deployment.mjs` validates the strict script CSP, inert 3-language JSON data element, absence of the broken `window.__I18N__` injection, and dynamic inventory site counts.
+- `verify-deployment.mjs` validates the strict script CSP, inert 3-language JSON data element, absence of the broken `window.__I18N__` injection, dynamic inventory site counts, and aggregate product-count consistency.
 
 Production deployment history (compact):
 

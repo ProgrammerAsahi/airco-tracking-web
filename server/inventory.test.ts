@@ -4,6 +4,8 @@ import { parseInventory } from "./inventory.js";
 
 const validProduct = {
   site: "Shop",
+  country: "nl",
+  site_id: "nl:Shop",
   name: "Airco 9000 BTU",
   url: "https://shop.test/airco",
   available: true,
@@ -13,6 +15,13 @@ const validProduct = {
   presale: false,
 };
 
+const validPresaleProduct = {
+  ...validProduct,
+  name: "Airco 12000 BTU presale",
+  url: "https://shop.test/airco-presale",
+  presale: true,
+};
+
 const validSnapshot = {
   version: 1,
   updated_at: "2026-07-03T15:51:05+00:00",
@@ -20,14 +29,21 @@ const validSnapshot = {
   site_count: 1,
   stale_site_count: 0,
   available_product_count: 2,
+  immediate_product_count: 1,
+  presale_product_count: 1,
   sites: {
-    Shop: {
+    "nl:Shop": {
       status: "ok",
       stale: false,
+      country: "nl",
+      site: "Shop",
+      site_id: "nl:Shop",
       last_attempt_at: "2026-07-03T15:51:05+00:00",
       last_success_at: "2026-07-03T15:51:05+00:00",
       available_product_count: 2,
-      products: [],
+      immediate_product_count: 1,
+      presale_product_count: 1,
+      products: [validProduct, validPresaleProduct],
     },
   },
 };
@@ -35,12 +51,14 @@ const validSnapshot = {
 test("accepts the backend inventory v1 contract", () => {
   const snapshot = parseInventory(JSON.stringify(validSnapshot));
   assert.equal(snapshot.available_product_count, 2);
-  assert.equal(snapshot.sites.Shop.status, "ok");
+  assert.equal(snapshot.immediate_product_count, 1);
+  assert.equal(snapshot.presale_product_count, 1);
+  assert.equal(snapshot.sites["nl:Shop"].status, "ok");
 });
 
 test("rejects malformed site inventory", () => {
   const malformed = structuredClone(validSnapshot);
-  Reflect.set(malformed.sites.Shop, "available_product_count", -1);
+  Reflect.set(malformed.sites["nl:Shop"], "available_product_count", -1);
   assert.throws(() => parseInventory(JSON.stringify(malformed)), /Invalid inventory site/);
 });
 
@@ -66,11 +84,11 @@ test("rejects an invalid updated_at timestamp", () => {
 test("accepts null updated_at and null timestamps", () => {
   const nullable = structuredClone(validSnapshot);
   Reflect.set(nullable, "updated_at", null);
-  Reflect.set(nullable.sites.Shop, "last_attempt_at", null);
-  Reflect.set(nullable.sites.Shop, "last_success_at", null);
+  Reflect.set(nullable.sites["nl:Shop"], "last_attempt_at", null);
+  Reflect.set(nullable.sites["nl:Shop"], "last_success_at", null);
   const snapshot = parseInventory(JSON.stringify(nullable));
   assert.equal(snapshot.updated_at, null);
-  assert.equal(snapshot.sites.Shop.last_attempt_at, null);
+  assert.equal(snapshot.sites["nl:Shop"].last_attempt_at, null);
 });
 
 test("rejects site_count that does not match actual site entries", () => {
@@ -81,36 +99,54 @@ test("rejects site_count that does not match actual site entries", () => {
 
 test("rejects a site with non-boolean stale", () => {
   const malformed = structuredClone(validSnapshot);
-  Reflect.set(malformed.sites.Shop, "stale", "yes");
+  Reflect.set(malformed.sites["nl:Shop"], "stale", "yes");
   assert.throws(() => parseInventory(JSON.stringify(malformed)), /Invalid inventory site/);
 });
 
 test("rejects a site with an invalid status", () => {
   const malformed = structuredClone(validSnapshot);
-  Reflect.set(malformed.sites.Shop, "status", "unknown");
+  Reflect.set(malformed.sites["nl:Shop"], "status", "unknown");
   assert.throws(() => parseInventory(JSON.stringify(malformed)), /Invalid inventory site/);
 });
 
 test("accepts valid products in the products array", () => {
   const withProducts = structuredClone(validSnapshot);
-  Reflect.set(withProducts.sites.Shop, "products", [validProduct]);
   const snapshot = parseInventory(JSON.stringify(withProducts));
-  assert.equal(snapshot.sites.Shop.products.length, 1);
-  assert.equal(snapshot.sites.Shop.products[0].btu, 9000);
+  assert.equal(snapshot.sites["nl:Shop"].products.length, 2);
+  assert.equal(snapshot.sites["nl:Shop"].products[0].btu, 9000);
 });
 
 test("rejects a product with a non-integer btu", () => {
   const withBadProduct = structuredClone(validSnapshot);
   const badProduct = { ...validProduct, btu: 9000.5 };
-  Reflect.set(withBadProduct.sites.Shop, "products", [badProduct]);
+  Reflect.set(withBadProduct.sites["nl:Shop"], "products", [badProduct, validPresaleProduct]);
   assert.throws(() => parseInventory(JSON.stringify(withBadProduct)), /Invalid inventory site/);
 });
 
 test("rejects a product missing a required url", () => {
   const withBadProduct = structuredClone(validSnapshot);
   const badProduct = { ...validProduct, url: "" };
-  Reflect.set(withBadProduct.sites.Shop, "products", [badProduct]);
+  Reflect.set(withBadProduct.sites["nl:Shop"], "products", [badProduct, validPresaleProduct]);
   assert.throws(() => parseInventory(JSON.stringify(withBadProduct)), /Invalid inventory site/);
+});
+
+test("rejects available product count mismatches", () => {
+  const mismatched = structuredClone(validSnapshot);
+  Reflect.set(mismatched.sites["nl:Shop"], "available_product_count", 99);
+  Reflect.set(mismatched, "available_product_count", 99);
+  assert.throws(() => parseInventory(JSON.stringify(mismatched)), /available_product_count mismatch/);
+});
+
+test("rejects stale site count mismatches", () => {
+  const mismatched = structuredClone(validSnapshot);
+  Reflect.set(mismatched, "stale_site_count", 1);
+  assert.throws(() => parseInventory(JSON.stringify(mismatched)), /stale_site_count mismatch/);
+});
+
+test("rejects product site mismatches", () => {
+  const mismatched = structuredClone(validSnapshot);
+  Reflect.set(mismatched.sites["nl:Shop"].products[0], "site", "Other shop");
+  assert.throws(() => parseInventory(JSON.stringify(mismatched)), /product site mismatch/);
 });
 
 test("rejects malformed JSON", () => {

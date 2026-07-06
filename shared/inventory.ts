@@ -9,6 +9,8 @@
 
 export interface InventoryProduct {
   site: string;
+  country?: string;
+  site_id?: string;
   name: string;
   url: string;
   available: boolean;
@@ -21,9 +23,14 @@ export interface InventoryProduct {
 export interface SiteInventory {
   status: "ok" | "error";
   stale: boolean;
+  country?: string;
+  site?: string;
+  site_id?: string;
   last_attempt_at: string | null;
   last_success_at: string | null;
   available_product_count: number;
+  immediate_product_count?: number;
+  presale_product_count?: number;
   products: InventoryProduct[];
 }
 
@@ -34,5 +41,7 @@ export interface InventorySnapshot {
   site_count: number;
   stale_site_count: number;
   available_product_count: number;
+  immediate_product_count?: number;
+  presale_product_count?: number;
   sites: Record<string, SiteInventory>;
 }
