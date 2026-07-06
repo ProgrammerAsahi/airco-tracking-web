@@ -27,6 +27,7 @@ export interface SiteInventory {
   country?: string;
   site?: string;
   site_id?: string;
+  delivery_coverage?: string[];
   last_attempt_at: string | null;
   last_success_at: string | null;
   available_product_count: number;

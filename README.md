@@ -4,7 +4,7 @@ Ice-blue TypeScript/React dashboard for the [Airco Tracker](https://github.com/P
 
 **Live:** [airco-tracking-web.livelystone-5966d837.westeurope.azurecontainerapps.io](https://airco-tracking-web.livelystone-5966d837.westeurope.azurecontainerapps.io)
 
-The page shows current available and presale counts for every tracked retailer, with product drill-down, prices, BTU values, delivery text, and direct product links. Chinese, Dutch, and English can be switched without reloading. Production uses a same-origin TypeScript API and Managed Identity; no Storage Key, SAS token, or secret reaches the browser.
+The page shows current available and presale counts for every tracked retailer, with product drill-down, prices, BTU values, delivery text, and direct product links. The API contract also accepts site-level `delivery_coverage` metadata for future country-aware visibility, though no frontend country filter is enabled yet. Chinese, Dutch, and English can be switched without reloading. Production uses a same-origin TypeScript API and Managed Identity; no Storage Key, SAS token, or secret reaches the browser.
 
 ## Architecture
 

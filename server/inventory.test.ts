@@ -38,6 +38,7 @@ const validSnapshot = {
       country: "nl",
       site: "Shop",
       site_id: "nl:Shop",
+      delivery_coverage: ["eu", "ch"],
       last_attempt_at: "2026-07-03T15:51:05+00:00",
       last_success_at: "2026-07-03T15:51:05+00:00",
       available_product_count: 2,
@@ -54,6 +55,7 @@ test("accepts the backend inventory v1 contract", () => {
   assert.equal(snapshot.immediate_product_count, 1);
   assert.equal(snapshot.presale_product_count, 1);
   assert.equal(snapshot.sites["nl:Shop"].status, "ok");
+  assert.deepEqual(snapshot.sites["nl:Shop"].delivery_coverage, ["eu", "ch"]);
 });
 
 test("rejects malformed site inventory", () => {
@@ -106,6 +108,12 @@ test("rejects a site with non-boolean stale", () => {
 test("rejects a site with an invalid status", () => {
   const malformed = structuredClone(validSnapshot);
   Reflect.set(malformed.sites["nl:Shop"], "status", "unknown");
+  assert.throws(() => parseInventory(JSON.stringify(malformed)), /Invalid inventory site/);
+});
+
+test("rejects invalid delivery coverage tokens", () => {
+  const malformed = structuredClone(validSnapshot);
+  Reflect.set(malformed.sites["nl:Shop"], "delivery_coverage", ["europe"]);
   assert.throws(() => parseInventory(JSON.stringify(malformed)), /Invalid inventory site/);
 });
 

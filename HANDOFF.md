@@ -6,7 +6,7 @@ Last updated: 2026-07-06 (Europe/Amsterdam)
 
 Provide a public, low-cost, read-only dashboard for the private Airco Tracker inventory snapshot. The first production version is complete: it lists immediate-stock and presale counts for all tracked retailers, uses a glacier-blue responsive UI, and reads live inventory through a same-origin API backed by Managed Identity.
 
-A 2026-07-06 hardening round made the frontend compatible with the backend's post-rename country-aware schema. The UI now treats `available_product_count` as total visible orderable products and uses `immediate_product_count` / `presale_product_count` (or derived product-array fallbacks) for user-facing counts, so presales are no longer shown as in-stock. Presale overview now includes mixed retailers, presale card clicks open the presale detail tab, and the footer country label is data-driven. The API validator accepts both old and new schema-v1 snapshots while enforcing stricter consistency checks. The Docker image now includes the local i18n fallback file, and deployment verification cross-checks inventory totals.
+A 2026-07-06 hardening round made the frontend compatible with the backend's post-rename country-aware schema. The UI now treats `available_product_count` as total visible orderable products and uses `immediate_product_count` / `presale_product_count` (or derived product-array fallbacks) for user-facing counts, so presales are no longer shown as in-stock. Presale overview now includes mixed retailers, presale card clicks open the presale detail tab, and the footer country label is data-driven. The API validator accepts both old and new schema-v1 snapshots while enforcing stricter consistency checks; it also accepts optional site-level `delivery_coverage` tokens for future country-aware visibility. The Docker image now includes the local i18n fallback file, and deployment verification cross-checks inventory totals.
 
 A 2026-07-05 doc round updated backend references after the backend repository was renamed from `airco-tracking-nl` to `airco-tracking`. The backend now uses a country-based adapter registry (`adapters/nl/`, `adapters/registry.py`); the frontend references the backend by its new name in docs, scripts, and the shared inventory contract comment. No frontend code or behavior changed; the inventory schema remains version `1` and fully compatible.
 
@@ -94,14 +94,14 @@ The Git branch history uses the repository-local GitHub noreply author. A tempor
 - Browser types: `src/types.ts`.
 - Local fixture: `test-fixtures/inventory.sample.json`.
 - The API returns the whole snapshot. The overview uses immediate/presale counts and the retailer detail overlay uses product arrays.
-- Schema v1 now supports optional `country`, `site_id`, `immediate_product_count`, and `presale_product_count` fields. The frontend keeps fallback derivation from product arrays so old snapshots and new snapshots both work.
+- Schema v1 now supports optional `country`, `site_id`, site-level `delivery_coverage`, `immediate_product_count`, and `presale_product_count` fields. The frontend keeps fallback derivation from product arrays so old snapshots and new snapshots both work.
 - Any producer/schema change must be coordinated across both repositories. Do not make the Blob public and do not replace the API with a browser-side SAS URL.
 
 ## Verification evidence
 
 Current local verification (2026-07-06):
 
-- `pnpm test`: 21/21 tests passed: 18 inventory-contract tests plus CSP-safe i18n serialization, hostile `</script>` escaping, and malformed bundle validation.
+- `pnpm test`: 22/22 tests passed: 19 inventory-contract tests plus CSP-safe i18n serialization, hostile `</script>` escaping, and malformed bundle validation.
 - `pnpm typecheck`: browser and server TypeScript passed.
 - `pnpm build`: Node server and Vite production bundles passed.
 - Local fixture and live production inventory JSON both pass the new validator.

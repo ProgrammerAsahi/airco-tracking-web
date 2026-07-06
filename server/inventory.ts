@@ -22,6 +22,7 @@ function isIsoTimestamp(value: unknown): value is string | null {
 }
 
 const SUPPORTED_INVENTORY_VERSIONS = new Set([1]);
+const REGION_DELIVERY_TOKENS = new Set(["eu", "eea", "nordics", "benelux", "dach"]);
 
 function isHttpsUrl(value: unknown): value is string {
   if (typeof value !== "string" || value.length === 0) return false;
@@ -39,6 +40,21 @@ function isOptionalNonEmptyString(value: unknown): value is string | undefined {
 
 function isOptionalNonNegativeInteger(value: unknown): value is number | undefined {
   return value === undefined || isNonNegativeInteger(value);
+}
+
+function isDeliveryCoverageToken(value: unknown): value is string {
+  return (
+    typeof value === "string"
+    && (/^[a-z]{2}$/.test(value) || REGION_DELIVERY_TOKENS.has(value))
+  );
+}
+
+function isOptionalDeliveryCoverage(value: unknown): value is string[] | undefined {
+  return value === undefined || (
+    Array.isArray(value)
+    && value.length > 0
+    && value.every(isDeliveryCoverageToken)
+  );
 }
 
 function isValidProduct(value: unknown): value is InventoryProduct {
@@ -65,6 +81,7 @@ function isValidSite(name: string, candidate: unknown): candidate is SiteInvento
   if (!isOptionalNonEmptyString(candidate.country)) return false;
   if (!isOptionalNonEmptyString(candidate.site)) return false;
   if (!isOptionalNonEmptyString(candidate.site_id)) return false;
+  if (!isOptionalDeliveryCoverage(candidate.delivery_coverage)) return false;
   if (typeof candidate.stale !== "boolean") return false;
   if (candidate.status !== "ok" && candidate.status !== "error") return false;
   if (!isIsoTimestamp(candidate.last_attempt_at)) return false;
