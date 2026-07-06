@@ -21,11 +21,13 @@ function isIsoTimestamp(value: unknown): value is string | null {
   return !Number.isNaN(Date.parse(value));
 }
 
-function isHttpUrl(value: unknown): value is string {
+const SUPPORTED_INVENTORY_VERSIONS = new Set([1]);
+
+function isHttpsUrl(value: unknown): value is string {
   if (typeof value !== "string" || value.length === 0) return false;
   try {
     const url = new URL(value);
-    return url.protocol === "https:" || url.protocol === "http:";
+    return url.protocol === "https:";
   } catch {
     return false;
   }
@@ -46,7 +48,7 @@ function isValidProduct(value: unknown): value is InventoryProduct {
     && isOptionalNonEmptyString(value.country)
     && isOptionalNonEmptyString(value.site_id)
     && typeof value.name === "string" && value.name.length > 0
-    && isHttpUrl(value.url)
+    && isHttpsUrl(value.url)
     && value.available === true
     && (value.price_eur === null || (typeof value.price_eur === "number" && Number.isFinite(value.price_eur) && value.price_eur >= 0))
     && isNullableString(value.delivery)
@@ -74,7 +76,13 @@ function isValidSite(name: string, candidate: unknown): candidate is SiteInvento
 
 export function parseInventory(raw: string): InventorySnapshot {
   const value: unknown = JSON.parse(raw);
-  if (!isRecord(value) || value.version !== 1 || !isRecord(value.sites)) {
+  if (
+    !isRecord(value)
+    || typeof value.version !== "number"
+    || !Number.isInteger(value.version)
+    || !SUPPORTED_INVENTORY_VERSIONS.has(value.version)
+    || !isRecord(value.sites)
+  ) {
     throw new Error("Unsupported inventory snapshot");
   }
   if (

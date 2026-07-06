@@ -23,7 +23,7 @@ Maintain a fast, low-cost, public inventory dashboard for portable air condition
 - GitHub Actions authenticates to Azure with OIDC. Do not add `AZURE_CREDENTIALS` or a service-principal password.
 - Only non-secret identifiers belong in GitHub Actions Variables: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, and `AZURE_RESOURCE_GROUP`.
 - Reuse the existing least-privilege runtime identity and infrastructure where possible. Do not broaden Azure roles without a concrete need and explicit authorization.
-- Preserve the strict `script-src 'self'` CSP. Do not add `unsafe-inline` to make runtime data injection work.
+- Preserve the strict `script-src 'self'; style-src 'self'` CSP. Do not add `unsafe-inline` to make runtime data injection work.
 - Treat translations loaded from Table Storage as data, not trusted markup. Embed them only as escaped `application/json`, validate their shape, and never render them with `dangerouslySetInnerHTML`.
 - Preserve unrelated user changes. Never overwrite a dirty worktree or rewrite shared history casually.
 

@@ -1,5 +1,5 @@
 import { readFile, stat } from "node:fs/promises";
-import { createServer, type ServerResponse } from "node:http";
+import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { dirname, extname, join, normalize, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { DefaultAzureCredential } from "@azure/identity";
@@ -13,9 +13,19 @@ const currentDirectory = dirname(fileURLToPath(import.meta.url));
 // two levels to reach the project root that contains dist/.
 const projectDirectory = resolve(currentDirectory, "..", "..");
 const staticDirectory = join(projectDirectory, "dist");
-const port = Number.parseInt(process.env.PORT ?? "3000", 10);
+
+function parseNonNegativeIntegerEnv(name: string, fallback: number): number {
+  const raw = process.env[name]?.trim();
+  if (!raw) return fallback;
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
+const port = parseNonNegativeIntegerEnv("PORT", 3000);
 const inventoryFile = process.env.INVENTORY_FILE?.trim();
-const cacheMilliseconds = Number.parseInt(process.env.INVENTORY_CACHE_SECONDS ?? "30", 10) * 1000;
+const cacheMilliseconds = parseNonNegativeIntegerEnv("INVENTORY_CACHE_SECONDS", 30) * 1000;
+const rateLimitWindowMilliseconds = parseNonNegativeIntegerEnv("RATE_LIMIT_WINDOW_SECONDS", 60) * 1000;
+const rateLimitMaxRequests = parseNonNegativeIntegerEnv("RATE_LIMIT_MAX_REQUESTS", 120);
 
 const accountUrl = process.env.AZURE_STORAGE_ACCOUNT_URL?.trim();
 const containerName = process.env.AZURE_STORAGE_CONTAINER?.trim() || "airco-tracker";
@@ -37,6 +47,8 @@ function getBlobClient(): BlobServiceClient {
 
 let cachedInventory: { expiresAt: number; snapshot: InventorySnapshot } | undefined;
 let inFlightRead: Promise<InventorySnapshot> | undefined;
+let lastRateLimitCleanup = 0;
+const rateLimitBuckets = new Map<string, { count: number; resetAt: number }>();
 
 const mimeTypes: Record<string, string> = {
   ".css": "text/css; charset=utf-8",
@@ -50,12 +62,52 @@ const mimeTypes: Record<string, string> = {
 };
 
 function securityHeaders(response: ServerResponse): void {
-  response.setHeader("Content-Security-Policy", "default-src 'self'; connect-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'");
+  response.setHeader("Content-Security-Policy", "default-src 'self'; connect-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'");
   response.setHeader("Cross-Origin-Opener-Policy", "same-origin");
   response.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
   response.setHeader("Referrer-Policy", "no-referrer");
+  response.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
   response.setHeader("X-Content-Type-Options", "nosniff");
   response.setHeader("X-Frame-Options", "DENY");
+}
+
+function clientAddress(request: IncomingMessage): string {
+  const forwardedFor = request.headers["x-forwarded-for"];
+  if (typeof forwardedFor === "string" && forwardedFor.trim()) {
+    return forwardedFor.split(",")[0]?.trim() || "unknown";
+  }
+  if (Array.isArray(forwardedFor) && forwardedFor.length > 0 && forwardedFor[0].trim()) {
+    return forwardedFor[0].split(",")[0]?.trim() || "unknown";
+  }
+  return request.socket.remoteAddress || "unknown";
+}
+
+function rateLimitRetryAfterSeconds(resetAt: number): number {
+  return Math.max(1, Math.ceil((resetAt - Date.now()) / 1000));
+}
+
+function checkRateLimit(request: IncomingMessage): { allowed: true } | { allowed: false; retryAfterSeconds: number } {
+  if (rateLimitMaxRequests <= 0 || rateLimitWindowMilliseconds <= 0) return { allowed: true };
+
+  const now = Date.now();
+  if (now - lastRateLimitCleanup > rateLimitWindowMilliseconds) {
+    for (const [key, bucket] of rateLimitBuckets.entries()) {
+      if (bucket.resetAt <= now) rateLimitBuckets.delete(key);
+    }
+    lastRateLimitCleanup = now;
+  }
+
+  const key = clientAddress(request);
+  const existing = rateLimitBuckets.get(key);
+  if (!existing || existing.resetAt <= now) {
+    rateLimitBuckets.set(key, { count: 1, resetAt: now + rateLimitWindowMilliseconds });
+    return { allowed: true };
+  }
+  if (existing.count >= rateLimitMaxRequests) {
+    return { allowed: false, retryAfterSeconds: rateLimitRetryAfterSeconds(existing.resetAt) };
+  }
+  existing.count += 1;
+  return { allowed: true };
 }
 
 function sendJson(response: ServerResponse, status: number, value: unknown): void {
@@ -168,6 +220,13 @@ const server = createServer(async (request, response) => {
     return;
   }
   if (url.pathname === "/api/inventory") {
+    const rateLimit = checkRateLimit(request);
+    if (!rateLimit.allowed) {
+      response.setHeader("Cache-Control", "no-store");
+      response.setHeader("Retry-After", String(rateLimit.retryAfterSeconds));
+      sendJson(response, 429, { error: "Too many requests" });
+      return;
+    }
     try {
       const snapshot = await getInventory();
       response.setHeader("Cache-Control", "public, max-age=30, stale-while-revalidate=30");

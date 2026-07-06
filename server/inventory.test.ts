@@ -130,6 +130,13 @@ test("rejects a product missing a required url", () => {
   assert.throws(() => parseInventory(JSON.stringify(withBadProduct)), /Invalid inventory site/);
 });
 
+test("rejects non-HTTPS product urls", () => {
+  const withBadProduct = structuredClone(validSnapshot);
+  const badProduct = { ...validProduct, url: "http://shop.test/airco" };
+  Reflect.set(withBadProduct.sites["nl:Shop"], "products", [badProduct, validPresaleProduct]);
+  assert.throws(() => parseInventory(JSON.stringify(withBadProduct)), /Invalid inventory site/);
+});
+
 test("rejects available product count mismatches", () => {
   const mismatched = structuredClone(validSnapshot);
   Reflect.set(mismatched.sites["nl:Shop"], "available_product_count", 99);

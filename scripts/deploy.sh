@@ -9,19 +9,48 @@ command -v az >/dev/null || { echo "Azure CLI (az) is required." >&2; exit 1; }
 command -v node >/dev/null || { echo "Node.js is required." >&2; exit 1; }
 az account show >/dev/null || { echo "Run 'az login' first." >&2; exit 1; }
 
-first_resource_name() {
-  az resource list \
+single_resource_name() {
+  local env_var="$1"
+  local resource_type="$2"
+  local configured="${!env_var:-}"
+  if [ -n "$configured" ]; then
+    echo "$configured"
+    return
+  fi
+
+  local names
+  names="$(az resource list \
     --resource-group "$RESOURCE_GROUP" \
-    --resource-type "$1" \
-    --query "[0].name" \
-    --output tsv
+    --resource-type "$resource_type" \
+    --query "[].name" \
+    --output tsv)"
+  local count
+  count="$(printf '%s\n' "$names" | awk 'NF { count++ } END { print count + 0 }')"
+  if [ "$count" != "1" ]; then
+    echo "Expected exactly one $resource_type in $RESOURCE_GROUP; found $count. Set $env_var explicitly." >&2
+    return 1
+  fi
+  printf '%s\n' "$names" | awk 'NF { print; exit }'
 }
 
 runtime_identity_name() {
-  az identity list \
+  if [ -n "${IDENTITY_NAME:-}" ]; then
+    echo "$IDENTITY_NAME"
+    return
+  fi
+
+  local names
+  names="$(az identity list \
     --resource-group "$RESOURCE_GROUP" \
-    --query "[?name!='airco-github-deployer']|[0].name" \
-    --output tsv
+    --query "[?name!='airco-github-deployer'].name" \
+    --output tsv)"
+  local count
+  count="$(printf '%s\n' "$names" | awk 'NF { count++ } END { print count + 0 }')"
+  if [ "$count" != "1" ]; then
+    echo "Expected exactly one runtime managed identity in $RESOURCE_GROUP; found $count. Set IDENTITY_NAME explicitly." >&2
+    return 1
+  fi
+  printf '%s\n' "$names" | awk 'NF { print; exit }'
 }
 
 require_value() {
@@ -31,15 +60,15 @@ require_value() {
   fi
 }
 
-ACR_NAME="${ACR_NAME:-$(first_resource_name Microsoft.ContainerRegistry/registries)}"
+ACR_NAME="$(single_resource_name ACR_NAME Microsoft.ContainerRegistry/registries)"
 require_value ACR_NAME "$ACR_NAME"
 ACR_LOGIN_SERVER="${ACR_LOGIN_SERVER:-$(az acr show --name "$ACR_NAME" --resource-group "$RESOURCE_GROUP" --query loginServer --output tsv)}"
 require_value ACR_LOGIN_SERVER "$ACR_LOGIN_SERVER"
-ENVIRONMENT_NAME="${CONTAINER_ENVIRONMENT_NAME:-$(first_resource_name Microsoft.App/managedEnvironments)}"
+ENVIRONMENT_NAME="$(single_resource_name CONTAINER_ENVIRONMENT_NAME Microsoft.App/managedEnvironments)"
 require_value CONTAINER_ENVIRONMENT_NAME "$ENVIRONMENT_NAME"
-IDENTITY_NAME="${IDENTITY_NAME:-$(runtime_identity_name)}"
+IDENTITY_NAME="$(runtime_identity_name)"
 require_value IDENTITY_NAME "$IDENTITY_NAME"
-STORAGE_NAME="${STORAGE_ACCOUNT_NAME:-$(first_resource_name Microsoft.Storage/storageAccounts)}"
+STORAGE_NAME="$(single_resource_name STORAGE_ACCOUNT_NAME Microsoft.Storage/storageAccounts)"
 require_value STORAGE_ACCOUNT_NAME "$STORAGE_NAME"
 IMAGE="$ACR_LOGIN_SERVER/airco-tracking-web:$IMAGE_TAG"
 

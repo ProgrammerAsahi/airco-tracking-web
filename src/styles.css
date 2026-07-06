@@ -252,9 +252,41 @@ h1 {
   gap: 12px;
 }
 
-.store-card {
+.brand-theme {
   --brand: #35524a;
   --brand-tint: #edf2ef;
+}
+
+.brand-theme--coolblue { --brand: #1673d1; --brand-tint: #e9f3ff; }
+.brand-theme--mediamarkt { --brand: #df0000; --brand-tint: #fff0f0; }
+.brand-theme--ep { --brand: #ee2f33; --brand-tint: #fff0f1; }
+.brand-theme--electroworld { --brand: #ef3125; --brand-tint: #fff1ef; }
+.brand-theme--wehkamp { --brand: #3c1d63; --brand-tint: #f3edfa; }
+.brand-theme--lidl { --brand: #0050aa; --brand-tint: #eaf2ff; }
+.brand-theme--gamma { --brand: #e9500e; --brand-tint: #fff0e8; }
+.brand-theme--karwei { --brand: #1f1f1f; --brand-tint: #f0f0ed; }
+.brand-theme--praxis { --brand: #e31b23; --brand-tint: #fff0f0; }
+.brand-theme--alternate { --brand: #e3001b; --brand-tint: #fff0f2; }
+.brand-theme--trotec { --brand: #df1724; --brand-tint: #fff0f1; }
+.brand-theme--klarstein { --brand: #171717; --brand-tint: #f1f1ef; }
+.brand-theme--flinq { --brand: #141414; --brand-tint: #f1f1ef; }
+.brand-theme--action { --brand: #0062aa; --brand-tint: #e9f4fb; }
+.brand-theme--expert { --brand: #e3000f; --brand-tint: #fff0f1; }
+.brand-theme--delonghi { --brand: #0b3b73; --brand-tint: #eaf0f7; }
+.brand-theme--obelink { --brand: #ed6f00; --brand-tint: #fff2e7; }
+.brand-theme--kampeerwereld { --brand: #217241; --brand-tint: #eaf5ee; }
+.brand-theme--create { --brand: #c05548; --brand-tint: #f9ece9; }
+.brand-theme--costway { --brand: #1769aa; --brand-tint: #eaf3fa; }
+.brand-theme--evolarshop { --brand: #0495a6; --brand-tint: #e8f6f7; }
+.brand-theme--aircovoorinhuis { --brand: #2472a4; --brand-tint: #e9f3f9; }
+.brand-theme--solago { --brand: #ec762c; --brand-tint: #fff1e8; }
+.brand-theme--hubo { --brand: #e46215; --brand-tint: #fff1e8; }
+.brand-theme--vrijbuiter { --brand: #e64d24; --brand-tint: #fff0ec; }
+.brand-theme--klimaatshop { --brand: #00779c; --brand-tint: #e7f4f8; }
+.brand-theme--aircowebwinkel { --brand: #2b74a8; --brand-tint: #eaf3f9; }
+.brand-theme--bostools { --brand: #176b58; --brand-tint: #e8f4f0; }
+
+.store-card {
   position: relative;
   display: flex;
   min-width: 0;
@@ -447,8 +479,6 @@ h1 {
 /* --- Retailer detail overlay --- */
 
 .detail-overlay {
-  --brand: #35524a;
-  --brand-tint: #edf2ef;
   position: fixed;
   inset: 0;
   z-index: 100;

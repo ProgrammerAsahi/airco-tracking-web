@@ -4,7 +4,8 @@
  *
  * The backend producer (`airco_tracker/inventory.py` in airco-tracking)
  * generates the Blob; this module mirrors its schema. A schema change must
- * be coordinated across both repositories.
+ * be coordinated across both repositories. Compatible additive fields remain
+ * on version 1; only breaking changes should move to a new version.
  */
 
 export interface InventoryProduct {

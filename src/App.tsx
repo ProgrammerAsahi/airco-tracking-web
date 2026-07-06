@@ -121,12 +121,11 @@ function StoreCard({ siteKey, inventory, onSelect, presaleView, t }: { siteKey: 
 
   return (
     <a
-      className={`store-card${hasStock ? " store-card--stocked" : ""}${inventory.stale ? " store-card--stale" : ""}${presaleView && hasStock ? " store-card--presale" : ""}`}
+      className={`store-card brand-theme ${brand.themeClass}${hasStock ? " store-card--stocked" : ""}${inventory.stale ? " store-card--stale" : ""}${presaleView && hasStock ? " store-card--presale" : ""}`}
       href={hasStock ? `#/${encodeURIComponent(siteKey)}${presaleView ? "/presale" : ""}` : brand.url}
       target={hasStock ? undefined : "_blank"}
       rel={hasStock ? undefined : "noopener noreferrer"}
       onClick={handleClick}
-      style={{ "--brand": brand.color, "--brand-tint": brand.tint } as React.CSSProperties}
       aria-label={`${brand.name}, ${count} ${t(presaleView ? "units_presale" : "units_in_stock")}`}
     >
       <div className="brand-lockup">
@@ -206,7 +205,7 @@ function RetailerDetail({ siteKey, inventory, initialTab, onBack, t, lang }: { s
   const detailCount = activeTab === "immediate" ? immediate.length : presale.length;
 
   return (
-    <div className="detail-overlay" style={{ "--brand": brand.color, "--brand-tint": brand.tint } as React.CSSProperties}>
+    <div className={`detail-overlay brand-theme ${brand.themeClass}`}>
       <div className="detail-header">
         <button className="detail-back" onClick={onBack} aria-label={t("detail_back")}>
           <span aria-hidden="true">←</span> {t("detail_back")}

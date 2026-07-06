@@ -4,6 +4,5 @@ export interface BrandDefinition {
   name: string;
   shortMark: string;
   url: string;
-  color: string;
-  tint: string;
+  themeClass: string;
 }

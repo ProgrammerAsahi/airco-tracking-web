@@ -66,9 +66,10 @@ The Git branch history uses the repository-local GitHub noreply author. A tempor
 - The `BlobServiceClient` is constructed once at startup and reused across cache misses, avoiding repeated credential-chain probes.
 - Blob reads are cached for 30 seconds and concurrent cache misses share one in-flight read.
 - `/health` provides the deployment health check.
-- Security headers include CSP, frame denial, MIME sniffing protection, no-referrer, and restricted browser permissions.
+- Security headers include strict CSP (`script-src 'self'`, `style-src 'self'`), HSTS, frame denial, MIME sniffing protection, no-referrer, and restricted browser permissions.
+- `/api/inventory` has a small in-memory per-client rate limit (`RATE_LIMIT_MAX_REQUESTS`, default 120 per `RATE_LIMIT_WINDOW_SECONDS`, default 60) to reduce low-effort abuse while keeping `/health` and static assets unaffected.
 - `server/i18n.ts` loads the `web` scope from Azure Table Storage, caches it for five minutes, and injects escaped `application/json` into the HTML shell. No executable inline script or browser Azure credential is used.
-- The API validates snapshot version, totals, `refresh_interval_seconds`, strict ISO timestamps, site status, stale flags, counts, product URLs/specs, product-site ownership, and cross-checks `site_count`, `stale_site_count`, `available_product_count`, `immediate_product_count`, and `presale_product_count` before returning data.
+- The API validates snapshot version, totals, `refresh_interval_seconds`, strict ISO timestamps, site status, stale flags, counts, HTTPS product URLs/specs, product-site ownership, and cross-checks `site_count`, `stale_site_count`, `available_product_count`, `immediate_product_count`, and `presale_product_count` before returning data.
 - Local production mode uses `INVENTORY_FILE=test-fixtures/inventory.sample.json`; this override is not configured in Azure.
 - Shared data contract: `shared/inventory.ts` is the single source of truth for the inventory types, used by both `src/types.ts` (browser) and `server/inventory.ts` (API).
 
@@ -100,7 +101,7 @@ The Git branch history uses the repository-local GitHub noreply author. A tempor
 
 Current local verification (2026-07-06):
 
-- `pnpm test`: 20/20 tests passed: 17 inventory-contract tests plus CSP-safe i18n serialization, hostile `</script>` escaping, and malformed bundle validation.
+- `pnpm test`: 21/21 tests passed: 18 inventory-contract tests plus CSP-safe i18n serialization, hostile `</script>` escaping, and malformed bundle validation.
 - `pnpm typecheck`: browser and server TypeScript passed.
 - `pnpm build`: Node server and Vite production bundles passed.
 - Local fixture and live production inventory JSON both pass the new validator.
@@ -183,6 +184,6 @@ Never record personal data, secret values, tokens, local machine identities, or 
 
 - Azure Table Storage table `i18n` stores 44 entries: 33 `web` rows and 11 email rows, each with `zh`, `nl`, and `en` values. The backend repository owns the seed/fallback source and Table role assignment.
 - The frontend reads only the `web` partition through Managed Identity. `server/i18n.ts` serializes it into `<script id="i18n-data" type="application/json">`; `<`, `>`, and `&` are escaped so a translation cannot terminate the raw-text element.
-- `shared/i18n.ts` validates the parsed bundles. The browser never executes Table content and the CSP remains `script-src 'self'` without `unsafe-inline`.
+- `shared/i18n.ts` validates the parsed bundles. The browser never executes Table content and the CSP remains `script-src 'self'; style-src 'self'` without `unsafe-inline`.
 - Hero line breaks are rendered as React elements after splitting the narrow `<br>` token; arbitrary translation HTML is never rendered.
 - No new translation keys were required for the repair, so the already seeded Table remains compatible.

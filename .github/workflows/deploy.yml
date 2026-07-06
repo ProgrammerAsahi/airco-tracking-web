@@ -20,15 +20,15 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Check out repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
         with:
           version: 11.7.0
 
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: "22"
           cache: pnpm
@@ -41,6 +41,10 @@ jobs:
           pnpm build
           bash -n scripts/*.sh
 
+      - name: Audit npm dependencies
+        continue-on-error: true
+        run: pnpm audit --prod
+
       - name: Compile Bicep templates
         run: |
           az bicep install
@@ -49,7 +53,7 @@ jobs:
           done
 
       - name: Log in to Azure with OIDC
-        uses: azure/login@v3
+        uses: azure/login@2dd0bbf4064d5a1812889dc200bb8eed2597f82a # v3
         with:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
