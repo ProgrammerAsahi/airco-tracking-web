@@ -4,6 +4,7 @@ import type { InventoryProduct, InventorySnapshot, SiteInventory } from "./types
 import { useTranslation } from "./i18n";
 import type { Lang } from "./i18n";
 import { LanguageSwitcher } from "./LanguageSwitcher";
+import { canonicalDeliveryPath, destinationCountryFromPath, visibleSiteEntries } from "../shared/delivery";
 import "./styles.css";
 
 const inventoryUrl = import.meta.env.VITE_INVENTORY_URL ?? "/api/inventory";
@@ -51,6 +52,21 @@ function formatBtu(value: number | null, lang: Lang): string {
   return `${value.toLocaleString(LOCALES[lang])} BTU`;
 }
 
+function destinationCountryName(country: string, lang: Lang): string {
+  try {
+    return new Intl.DisplayNames([LOCALES[lang]], { type: "region" }).of(country.toUpperCase()) ?? country.toUpperCase();
+  } catch {
+    return country.toUpperCase();
+  }
+}
+
+function destinationEyebrow(country: string, lang: Lang): string {
+  const name = destinationCountryName(country, lang);
+  if (lang === "zh") return `${name} · 实时库存`;
+  if (lang === "nl") return `${name} · realtime voorraad`;
+  return `${name} · live stock`;
+}
+
 function TranslatedHeading({ text }: { text: string }) {
   const lines = text.split(/<br\s*\/?>/i);
   return (
@@ -83,15 +99,6 @@ function presaleProductCount(site: SiteInventory): number {
 
 function siteDisplayName(siteKey: string, site: SiteInventory): string {
   return site.site ?? siteKey.replace(/^[a-z]{2}:/i, "");
-}
-
-function siteCountries(snapshot: InventorySnapshot | null): string {
-  if (!snapshot) return "NL";
-  const countries = new Set(
-    Object.entries(snapshot.sites).map(([siteKey, site]) => (site.country ?? siteKey.match(/^([a-z]{2}):/i)?.[1] ?? "nl").toUpperCase()),
-  );
-  const labels = Array.from(countries).sort();
-  return labels.length > 0 ? labels.join(" · ") : "NL";
 }
 
 function selectedRetailFromHash(): SelectedRetailer | null {
@@ -255,6 +262,7 @@ function RetailerDetail({ siteKey, inventory, initialTab, onBack, t, lang }: { s
 
 export default function App() {
   const { lang, setLang, t } = useTranslation();
+  const [destinationCountry, setDestinationCountry] = useState(() => destinationCountryFromPath(window.location.pathname));
   const [snapshot, setSnapshot] = useState<InventorySnapshot | null>(null);
   const [error, setError] = useState<{ kind: "http"; status: number } | { kind: "generic" } | null>(null);
   const [selectedRetailer, setSelectedRetailer] = useState<SelectedRetailer | null>(selectedRetailFromHash);
@@ -286,12 +294,31 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const siteCount = snapshot?.site_count ?? "…";
+    const siteCount = snapshot ? visibleSiteEntries(snapshot.sites, destinationCountry).length : "…";
     document.title = `Airco Watch · ${t("section_title")}`;
     document
       .querySelector('meta[name="description"]')
       ?.setAttribute("content", t("hero_description", { site_count: siteCount }).replace(/<br\s*\/?>/gi, " "));
-  }, [snapshot?.site_count, t]);
+  }, [destinationCountry, snapshot, t]);
+
+  useEffect(() => {
+    const syncDestinationFromPath = () => {
+      const next = destinationCountryFromPath(window.location.pathname);
+      setDestinationCountry(next);
+      const canonicalPath = canonicalDeliveryPath(next);
+      if (window.location.pathname !== canonicalPath) {
+        window.history.replaceState(
+          window.history.state,
+          "",
+          `${canonicalPath}${window.location.search}${window.location.hash}`,
+        );
+      }
+    };
+
+    syncDestinationFromPath();
+    window.addEventListener("popstate", syncDestinationFromPath);
+    return () => window.removeEventListener("popstate", syncDestinationFromPath);
+  }, []);
 
   useEffect(() => {
     fetchInventory();
@@ -327,11 +354,11 @@ export default function App() {
 
   const sites = useMemo(() => {
     if (!snapshot) return [];
-    return Object.entries(snapshot.sites).sort(([keyA, siteA], [keyB, siteB]) => {
+    return visibleSiteEntries(snapshot.sites, destinationCountry).sort(([keyA, siteA], [keyB, siteB]) => {
       const stockDifference = (immediateProductCount(siteB) + presaleProductCount(siteB)) - (immediateProductCount(siteA) + presaleProductCount(siteA));
       return stockDifference || siteDisplayName(keyA, siteA).localeCompare(siteDisplayName(keyB, siteB), "nl");
     });
-  }, [snapshot]);
+  }, [destinationCountry, snapshot]);
 
   const immediateSites = useMemo(
     () => sites
@@ -357,15 +384,16 @@ export default function App() {
   const presaleCount = presaleSites.length;
 
   const immediateProductTotal = snapshot
-    ? snapshot.immediate_product_count ?? sites.reduce((total, [, site]) => total + immediateProductCount(site), 0)
+    ? sites.reduce((total, [, site]) => total + immediateProductCount(site), 0)
     : null;
   const storesWithStock = immediateSites.length;
   const selectedEntry = useMemo(() => {
     if (!selectedRetailer || !snapshot) return undefined;
-    const direct = snapshot.sites[selectedRetailer.key];
+    const visibleSiteMap = new Map(sites);
+    const direct = visibleSiteMap.get(selectedRetailer.key);
     if (direct) return [selectedRetailer.key, direct] as const;
-    return Object.entries(snapshot.sites).find(([siteKey, site]) => siteDisplayName(siteKey, site) === selectedRetailer.key);
-  }, [selectedRetailer, snapshot]);
+    return sites.find(([siteKey, site]) => siteDisplayName(siteKey, site) === selectedRetailer.key);
+  }, [selectedRetailer, sites, snapshot]);
 
   return (
     <main className="page-shell">
@@ -378,9 +406,9 @@ export default function App() {
           <span>Airco Watch</span>
         </div>
         <div className="hero-copy">
-          <p className="eyebrow">{t("hero_eyebrow")}</p>
+          <p className="eyebrow">{destinationEyebrow(destinationCountry, lang)}</p>
           <h1><TranslatedHeading text={t("hero_title")} /></h1>
-          <p className="hero-description">{t("hero_description", { site_count: snapshot?.site_count ?? "…" })}</p>
+          <p className="hero-description">{t("hero_description", { site_count: snapshot ? sites.length : "…" })}</p>
         </div>
         <div className="hero-metrics" aria-live="polite">
           <div className="primary-metric">
@@ -389,7 +417,7 @@ export default function App() {
           </div>
           <div className="secondary-metrics">
             <span><strong>{snapshot ? storesWithStock : "—"}</strong> {t("metric_stores_stocked", { count: snapshot ? storesWithStock : 0 }).replace(/^0\s*/, "")}</span>
-            <span><strong>{snapshot?.site_count ?? "—"}</strong> {t("metric_stores_tracked", { count: snapshot?.site_count ?? 0 }).replace(/^0\s*/, "")}</span>
+            <span><strong>{snapshot ? sites.length : "—"}</strong> {t("metric_stores_tracked", { count: snapshot ? sites.length : 0 }).replace(/^0\s*/, "")}</span>
           </div>
         </div>
       </header>
@@ -443,7 +471,7 @@ export default function App() {
 
       <footer className="page-footer">
         <span>{t("page_footer_disclaimer")}</span>
-        <span>Airco Watch · {siteCountries(snapshot)}</span>
+        <span>Airco Watch · {destinationCountry.toUpperCase()}</span>
       </footer>
 
       {selectedRetailer && selectedEntry && (

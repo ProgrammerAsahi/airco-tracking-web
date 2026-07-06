@@ -6,7 +6,9 @@ Last updated: 2026-07-06 (Europe/Amsterdam)
 
 Provide a public, low-cost, read-only dashboard for the private Airco Tracker inventory snapshot. The first production version is complete: it lists immediate-stock and presale counts for all tracked retailers, uses a glacier-blue responsive UI, and reads live inventory through a same-origin API backed by Managed Identity.
 
-A 2026-07-06 hardening round made the frontend compatible with the backend's post-rename country-aware schema. The UI now treats `available_product_count` as total visible orderable products and uses `immediate_product_count` / `presale_product_count` (or derived product-array fallbacks) for user-facing counts, so presales are no longer shown as in-stock. Presale overview now includes mixed retailers, presale card clicks open the presale detail tab, and the footer country label is data-driven. The API validator accepts both old and new schema-v1 snapshots while enforcing stricter consistency checks; it also accepts optional site-level `delivery_coverage` tokens for future country-aware visibility. The Docker image now includes the local i18n fallback file, and deployment verification cross-checks inventory totals.
+A 2026-07-06 routing round made delivery destination a URL-level state: `/deliver-to/<country>` filters retailers by backend-provided site-level `delivery_coverage`, while `?lang=<zh|nl|en>` and the language switcher control only the interface language. `/` and unknown app paths canonicalize to `/deliver-to/nl`; existing hash-based retailer detail routes still work under the delivery-country path.
+
+A 2026-07-06 hardening round made the frontend compatible with the backend's post-rename country-aware schema. The UI now treats `available_product_count` as total visible orderable products and uses `immediate_product_count` / `presale_product_count` (or derived product-array fallbacks) for user-facing counts, so presales are no longer shown as in-stock. Presale overview now includes mixed retailers, presale card clicks open the presale detail tab, and the footer country label is data-driven. The API validator accepts both old and new schema-v1 snapshots while enforcing stricter consistency checks; it also accepts optional site-level `delivery_coverage` tokens. The Docker image now includes the local i18n fallback file, and deployment verification cross-checks inventory totals.
 
 A 2026-07-05 doc round updated backend references after the backend repository was renamed from `airco-tracking-nl` to `airco-tracking`. The backend now uses a country-based adapter registry (`adapters/nl/`, `adapters/registry.py`); the frontend references the backend by its new name in docs, scripts, and the shared inventory contract comment. No frontend code or behavior changed; the inventory schema remains version `1` and fully compatible.
 
@@ -29,7 +31,7 @@ No active blocker exists. The next agent should first confirm what the user want
 - Repository: `https://github.com/ProgrammerAsahi/airco-tracking-web`
 - Branch: `main`
 - Local path: `~/airco-tracking-web`
-- Live URL: `https://airco-tracking-web.livelystone-5966d837.westeurope.azurecontainerapps.io`
+- Live URL: `https://airco-tracking-web.livelystone-5966d837.westeurope.azurecontainerapps.io/deliver-to/nl`
 - Feature commit: `d787664` (accept site-level delivery coverage in inventory schema)
 - Deployed image tag: `d78766428dd017e4fb31b7a4cb74ed3c5e60ae4d`
 - Successful deployment workflow: GitHub Actions run `28789724133`
@@ -55,6 +57,7 @@ The Git branch history uses the repository-local GitHub noreply author. A tempor
 - Responsive grid: six columns on wide desktop, five below 1180px, three below 900px, two below 620px, one below 400px.
 - Reduced-motion support and no horizontal overflow at the 1440×900 target.
 - **Polling**: the UI refetches `/api/inventory` on an interval driven by the snapshot's `refresh_interval_seconds` (clamped to ≥ 60s), and immediately on `visibilitychange` when the tab becomes visible again. This replaces the previous fetch-once-on-mount behavior.
+- **Delivery-country routing**: `/deliver-to/<iso2>` filters the full backend inventory to sites whose `delivery_coverage` contains that country or a matching region alias (`eu`, `eea`, `nordics`, `benelux`, `dach`). `/deliver-to/nl` contains the current 28 Dutch-focused retailers. `/deliver-to/fr?lang=en` is the canonical shape for a France-delivery page in English. Language and delivery destination are deliberately independent.
 - **Retailer detail page**: clicking a stocked retailer card opens a full-screen overlay (`RetailerDetail` component) listing active-tab products for that retailer. Products are sorted by price ascending. Each product card links directly to the retailer's product page (`product.url`, `target="_blank"`). Hash-based routing (`#/siteKey` and `#/siteKey/presale`) supports browser back button and shareable URLs. Unstocked cards remain non-interactive.
 - **Presale tabs**: the detail page separates products into "现货" (immediate stock, green dot) and "预售" (presale, blue dot) tabs. Tabs appear only when a retailer has both types. Default is 现货, opens 预售 when selected from a presale overview card, and falls back to 预售 if only presale products exist. The backend provides a `presale` boolean per product.
 - **Localization**: a flag menu switches Chinese, Dutch, and English and persists the choice in `localStorage`. Dates and numbers use `zh-CN`, `nl-NL`, or `en-GB`; the document language, title, description, errors, and accessible card labels update with the selected language.
@@ -101,13 +104,13 @@ The Git branch history uses the repository-local GitHub noreply author. A tempor
 
 Current local verification (2026-07-06):
 
-- `pnpm test`: 22/22 tests passed: 19 inventory-contract tests plus CSP-safe i18n serialization, hostile `</script>` escaping, and malformed bundle validation.
+- `pnpm test`: 26/26 tests passed: 19 inventory-contract tests, 4 delivery-routing/filter tests, plus CSP-safe i18n serialization, hostile `</script>` escaping, and malformed bundle validation.
 - `pnpm typecheck`: browser and server TypeScript passed.
 - `pnpm build`: Node server and Vite production bundles passed.
 - Local fixture and live production inventory JSON both pass the new validator.
 - All shell scripts passed `bash -n`.
 - `git diff --check`: clean.
-- `verify-deployment.mjs` validates the strict script CSP, inert 3-language JSON data element, absence of the broken `window.__I18N__` injection, dynamic inventory site counts, and aggregate product-count consistency.
+- `verify-deployment.mjs` validates the strict script CSP, inert 3-language JSON data element, absence of the broken `window.__I18N__` injection, `/deliver-to/nl?lang=en` deep-link fallback, dynamic inventory site counts, site-level `delivery_coverage`, and aggregate product-count consistency.
 
 Production deployment history (compact):
 

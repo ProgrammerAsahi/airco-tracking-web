@@ -31,6 +31,12 @@ while (Date.now() < deadline) {
         throw new Error(`homepage has an incomplete i18n key: ${key}`);
       }
     }
+    const deepLink = await fetch(`${appUrl}/deliver-to/nl?lang=en`, { signal: AbortSignal.timeout(15_000) });
+    if (!deepLink.ok) throw new Error(`delivery-country route returned ${deepLink.status}`);
+    const deepLinkHtml = await deepLink.text();
+    if (!deepLinkHtml.includes('<div id="root">') || !deepLinkHtml.includes('id="i18n-data"')) {
+      throw new Error("delivery-country route did not return the React application shell");
+    }
 
     const response = await fetch(`${appUrl}/api/inventory`, { signal: AbortSignal.timeout(15_000) });
     if (!response.ok) throw new Error(`inventory returned ${response.status}`);
@@ -61,6 +67,9 @@ while (Date.now() < deadline) {
       }
       if (site.available_product_count !== site.products.length) {
         throw new Error(`inventory site ${siteKey} has mismatched available_product_count`);
+      }
+      if (!Array.isArray(site.delivery_coverage) || site.delivery_coverage.length === 0) {
+        throw new Error(`inventory site ${siteKey} is missing delivery_coverage`);
       }
       const displayName = site.site ?? siteKey.replace(/^[a-z]{2}:/i, "");
       const siteId = site.site_id ?? siteKey;

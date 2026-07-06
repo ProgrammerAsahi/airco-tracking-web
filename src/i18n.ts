@@ -5,6 +5,7 @@ export type { Lang } from "../shared/i18n";
 
 const DEFAULT_LANG: Lang = "zh";
 const STORAGE_KEY = "airco-lang";
+const SUPPORTED_LANGS = new Set<Lang>(["zh", "nl", "en"]);
 
 let translations: TranslationMap | undefined;
 
@@ -19,12 +20,18 @@ function getTranslations(): TranslationMap {
 
 function detectLang(): Lang {
   if (typeof window === "undefined") return DEFAULT_LANG;
+  const queryLang = new URLSearchParams(window.location.search).get("lang");
+  if (isLang(queryLang)) return queryLang;
   const stored = localStorage.getItem(STORAGE_KEY);
-  if (stored === "zh" || stored === "nl" || stored === "en") return stored;
+  if (isLang(stored)) return stored;
   const browser = navigator.language.slice(0, 2);
   if (browser === "nl") return "nl";
   if (browser === "en") return "en";
   return DEFAULT_LANG;
+}
+
+function isLang(value: string | null | undefined): value is Lang {
+  return SUPPORTED_LANGS.has(value as Lang);
 }
 
 export function useTranslation() {
@@ -34,9 +41,13 @@ export function useTranslation() {
     setLangState(next);
     localStorage.setItem(STORAGE_KEY, next);
     document.documentElement.lang = next === "zh" ? "zh-CN" : next;
+    const url = new URL(window.location.href);
+    url.searchParams.set("lang", next);
+    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
   }, []);
 
   useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, lang);
     document.documentElement.lang = lang === "zh" ? "zh-CN" : lang;
   }, [lang]);
 

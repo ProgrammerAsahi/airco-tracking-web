@@ -9,6 +9,7 @@
     "Coolblue": {
       "status": "ok",
       "stale": false,
+      "delivery_coverage": ["nl"],
       "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
       "last_success_at": "2026-07-03T15:51:05.399426+00:00",
       "available_product_count": 0,
@@ -17,6 +18,7 @@
     "MediaMarkt": {
       "status": "ok",
       "stale": false,
+      "delivery_coverage": ["nl"],
       "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
       "last_success_at": "2026-07-03T15:51:05.399426+00:00",
       "available_product_count": 0,
@@ -25,6 +27,7 @@
     "EP.nl": {
       "status": "ok",
       "stale": false,
+      "delivery_coverage": ["nl"],
       "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
       "last_success_at": "2026-07-03T15:51:05.399426+00:00",
       "available_product_count": 0,
@@ -33,6 +36,7 @@
     "Electro World": {
       "status": "ok",
       "stale": false,
+      "delivery_coverage": ["nl"],
       "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
       "last_success_at": "2026-07-03T15:51:05.399426+00:00",
       "available_product_count": 0,
@@ -41,6 +45,7 @@
     "Wehkamp": {
       "status": "ok",
       "stale": false,
+      "delivery_coverage": ["nl"],
       "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
       "last_success_at": "2026-07-03T15:51:05.399426+00:00",
       "available_product_count": 1,
@@ -60,6 +65,7 @@
     "Lidl": {
       "status": "ok",
       "stale": false,
+      "delivery_coverage": ["nl"],
       "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
       "last_success_at": "2026-07-03T15:51:05.399426+00:00",
       "available_product_count": 0,
@@ -68,6 +74,7 @@
     "GAMMA": {
       "status": "ok",
       "stale": false,
+      "delivery_coverage": ["nl"],
       "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
       "last_success_at": "2026-07-03T15:51:05.399426+00:00",
       "available_product_count": 0,
@@ -76,6 +83,7 @@
     "KARWEI": {
       "status": "ok",
       "stale": false,
+      "delivery_coverage": ["nl"],
       "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
       "last_success_at": "2026-07-03T15:51:05.399426+00:00",
       "available_product_count": 0,
@@ -84,6 +92,7 @@
     "Praxis": {
       "status": "ok",
       "stale": false,
+      "delivery_coverage": ["nl"],
       "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
       "last_success_at": "2026-07-03T15:51:05.399426+00:00",
       "available_product_count": 0,
@@ -92,6 +101,7 @@
     "Alternate.nl": {
       "status": "ok",
       "stale": false,
+      "delivery_coverage": ["nl"],
       "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
       "last_success_at": "2026-07-03T15:51:05.399426+00:00",
       "available_product_count": 0,
@@ -100,6 +110,7 @@
     "Trotec": {
       "status": "ok",
       "stale": false,
+      "delivery_coverage": ["nl"],
       "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
       "last_success_at": "2026-07-03T15:51:05.399426+00:00",
       "available_product_count": 1,
@@ -119,6 +130,7 @@
     "Klarstein": {
       "status": "ok",
       "stale": false,
+      "delivery_coverage": ["nl"],
       "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
       "last_success_at": "2026-07-03T15:51:05.399426+00:00",
       "available_product_count": 0,
@@ -127,6 +139,7 @@
     "FlinQ": {
       "status": "ok",
       "stale": false,
+      "delivery_coverage": ["nl"],
       "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
       "last_success_at": "2026-07-03T15:51:05.399426+00:00",
       "available_product_count": 0,
@@ -135,6 +148,7 @@
     "Action Webshop": {
       "status": "ok",
       "stale": false,
+      "delivery_coverage": ["nl"],
       "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
       "last_success_at": "2026-07-03T15:51:05.399426+00:00",
       "available_product_count": 0,
@@ -143,6 +157,7 @@
     "Expert.nl": {
       "status": "ok",
       "stale": false,
+      "delivery_coverage": ["nl"],
       "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
       "last_success_at": "2026-07-03T15:51:05.399426+00:00",
       "available_product_count": 0,
@@ -151,6 +166,7 @@
     "De'Longhi NL": {
       "status": "ok",
       "stale": false,
+      "delivery_coverage": ["nl"],
       "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
       "last_success_at": "2026-07-03T15:51:05.399426+00:00",
       "available_product_count": 0,
@@ -159,6 +175,7 @@
     "Obelink": {
       "status": "ok",
       "stale": false,
+      "delivery_coverage": ["nl"],
       "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
       "last_success_at": "2026-07-03T15:51:05.399426+00:00",
       "available_product_count": 1,
@@ -178,6 +195,7 @@
     "Kampeerwereld": {
       "status": "ok",
       "stale": false,
+      "delivery_coverage": ["nl"],
       "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
       "last_success_at": "2026-07-03T15:51:05.399426+00:00",
       "available_product_count": 1,
@@ -197,6 +215,7 @@
     "Create NL": {
       "status": "ok",
       "stale": false,
+      "delivery_coverage": ["nl"],
       "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
       "last_success_at": "2026-07-03T15:51:05.399426+00:00",
       "available_product_count": 0,
@@ -205,6 +224,7 @@
     "Costway NL": {
       "status": "ok",
       "stale": false,
+      "delivery_coverage": ["nl"],
       "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
       "last_success_at": "2026-07-03T15:51:05.399426+00:00",
       "available_product_count": 4,
@@ -254,6 +274,7 @@
     "Evolarshop": {
       "status": "ok",
       "stale": false,
+      "delivery_coverage": ["nl"],
       "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
       "last_success_at": "2026-07-03T15:51:05.399426+00:00",
       "available_product_count": 7,
@@ -333,6 +354,7 @@
     "Airco voor in huis": {
       "status": "ok",
       "stale": false,
+      "delivery_coverage": ["nl"],
       "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
       "last_success_at": "2026-07-03T15:51:05.399426+00:00",
       "available_product_count": 1,
@@ -352,6 +374,7 @@
     "Solago": {
       "status": "ok",
       "stale": false,
+      "delivery_coverage": ["nl"],
       "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
       "last_success_at": "2026-07-03T15:51:05.399426+00:00",
       "available_product_count": 1,
@@ -371,6 +394,7 @@
     "Hubo": {
       "status": "ok",
       "stale": false,
+      "delivery_coverage": ["nl"],
       "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
       "last_success_at": "2026-07-03T15:51:05.399426+00:00",
       "available_product_count": 5,
@@ -430,6 +454,7 @@
     "Vrijbuiter": {
       "status": "ok",
       "stale": false,
+      "delivery_coverage": ["nl"],
       "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
       "last_success_at": "2026-07-03T15:51:05.399426+00:00",
       "available_product_count": 0,
@@ -438,6 +463,7 @@
     "Klimaatshop": {
       "status": "ok",
       "stale": false,
+      "delivery_coverage": ["nl"],
       "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
       "last_success_at": "2026-07-03T15:51:05.399426+00:00",
       "available_product_count": 0,
@@ -446,6 +472,7 @@
     "Airco-Webwinkel": {
       "status": "ok",
       "stale": false,
+      "delivery_coverage": ["nl"],
       "last_attempt_at": "2026-07-03T15:51:05.399426+00:00",
       "last_success_at": "2026-07-03T15:51:05.399426+00:00",
       "available_product_count": 0,

@@ -2,9 +2,9 @@
 
 Ice-blue TypeScript/React dashboard for the [Airco Tracker](https://github.com/ProgrammerAsahi/airco-tracking) live inventory snapshot.
 
-**Live:** [airco-tracking-web.livelystone-5966d837.westeurope.azurecontainerapps.io](https://airco-tracking-web.livelystone-5966d837.westeurope.azurecontainerapps.io)
+**Live:** [airco-tracking-web.livelystone-5966d837.westeurope.azurecontainerapps.io/deliver-to/nl](https://airco-tracking-web.livelystone-5966d837.westeurope.azurecontainerapps.io/deliver-to/nl)
 
-The page shows current available and presale counts for every tracked retailer, with product drill-down, prices, BTU values, delivery text, and direct product links. The API contract also accepts site-level `delivery_coverage` metadata for future country-aware visibility, though no frontend country filter is enabled yet. Chinese, Dutch, and English can be switched without reloading. Production uses a same-origin TypeScript API and Managed Identity; no Storage Key, SAS token, or secret reaches the browser.
+The page shows current available and presale counts for retailers that can deliver to the selected destination country, with product drill-down, prices, BTU values, delivery text, and direct product links. Delivery destination is part of the URL (`/deliver-to/nl`, `/deliver-to/fr`); interface language stays independent through `?lang=en` and the language switcher. Chinese, Dutch, and English can be switched without reloading. Production uses a same-origin TypeScript API and Managed Identity; no Storage Key, SAS token, or secret reaches the browser.
 
 ## Architecture
 
@@ -33,6 +33,8 @@ pnpm dev
 ```
 
 Open <http://127.0.0.1:4173>. Development proxies `/api` to a local Node server.
+
+Use `/deliver-to/<country>?lang=<language>` for country-aware views. For example, `/deliver-to/fr?lang=en` shows sites that can deliver to France with an English UI, while `/deliver-to/nl?lang=zh` keeps the Dutch delivery destination and switches only the interface language.
 
 To test the production server locally:
 
