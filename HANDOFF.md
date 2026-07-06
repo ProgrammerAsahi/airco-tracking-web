@@ -32,9 +32,9 @@ No active blocker exists. The next agent should first confirm what the user want
 - Branch: `main`
 - Local path: `~/airco-tracking-web`
 - Live URL: `https://airco-tracking-web.livelystone-5966d837.westeurope.azurecontainerapps.io/deliver-to/nl`
-- Feature commit: `d787664` (accept site-level delivery coverage in inventory schema)
-- Deployed image tag: `d78766428dd017e4fb31b7a4cb74ed3c5e60ae4d`
-- Successful deployment workflow: GitHub Actions run `28789724133`
+- Feature commit: `3ab3508` (delivery-country routes and filtering)
+- Deployed image tag: `3ab350822b83185fe48f008447ab67d982ef5565`
+- Successful deployment workflow: GitHub Actions run `28791599824`
 - Azure resource group: `airco-tracker-rg` (all resources consolidated here 2026-07-05; old `airco-tracker-nl-rg` deleted)
 - Backend repository: `https://github.com/ProgrammerAsahi/airco-tracking` (renamed from `airco-tracking-nl`)
 - Deployer UAMI clientId (GitHub Actions `AZURE_CLIENT_ID`): `8adc0579-710f-4fcb-8762-28cea100a8a9` (recreated 2026-07-05)
@@ -114,6 +114,7 @@ Current local verification (2026-07-06):
 
 Production deployment history (compact):
 
+- **2026-07-06 delivery-country routes**: Actions run `28791599824` for frontend commit `3ab3508` succeeded in 3m7s. Production image `airco-tracking-web:3ab350822b83185fe48f008447ab67d982ef5565` is active. Live verifier passed against the public URL, `/deliver-to/nl?lang=en` and `/deliver-to/fr?lang=en` both returned the React shell, and the production inventory currently maps 28/28 sites to `deliver-to/nl`, 0 sites to `deliver-to/fr` (expected until French retailers are added), with `delivery_coverage` present on all site records.
 - **2026-07-06 delivery coverage schema compatibility**: Actions run `28789724133` for frontend commit `d787664` succeeded in 2m41s. Backend commit `352338c` then produced inventory with site-level `delivery_coverage`; live API verified `2026-07-06T12:01:31.736406+00:00`: 28 sites, 22 available products (12 immediate, 10 presale), 0 stale, and coverage present on all site records. The live deployment verifier passed against the public URL.
 - **2026-07-05 backend rename + Azure consolidation**: Backend `afdde97` deployed (Actions `28745071912`, Succeeded). Azure resources moved to `airco-tracker-rg`; UAMIs + EmailService recreated with new clientIds; `app.bicep` redeployed to update the Container App identity reference. Frontend doc-only commits (`5f82190`, `43e9a82`, `c9fc94c`, `f150a2b`) used `[skip ci]` — no frontend image redeploy. Production API verified 2026-07-05T17:21Z: 28 sites / 19 available / 0 stale. `verify-deployment.mjs` passed.
 - **2026-07-05 OIDC bicep fix**: `infra/github-oidc.bicep` changed from `uniqueString()` to `last(split(githubRepository,'/'))` for idempotent federated-credential names. Redeployed; no frontend code/image change. (commit `f150a2b`)
