@@ -30,9 +30,9 @@ No active blocker exists. The next agent should first confirm what the user want
 - Branch: `main`
 - Local path: `~/airco-tracking-web`
 - Live URL: `https://airco-tracking-web.livelystone-5966d837.westeurope.azurecontainerapps.io`
-- Feature commit: `5f82190` (backend-reference doc updates after backend rename; no code change)
-- Deployed image tag: `069f587e0cc84b7f1c82d3e04020c71e8b5c38d2` (last code deployment; doc-only commits do not redeploy)
-- Successful deployment workflow: GitHub Actions run `28735567922`
+- Feature commit: `d787664` (accept site-level delivery coverage in inventory schema)
+- Deployed image tag: `d78766428dd017e4fb31b7a4cb74ed3c5e60ae4d`
+- Successful deployment workflow: GitHub Actions run `28789724133`
 - Azure resource group: `airco-tracker-rg` (all resources consolidated here 2026-07-05; old `airco-tracker-nl-rg` deleted)
 - Backend repository: `https://github.com/ProgrammerAsahi/airco-tracking` (renamed from `airco-tracking-nl`)
 - Deployer UAMI clientId (GitHub Actions `AZURE_CLIENT_ID`): `8adc0579-710f-4fcb-8762-28cea100a8a9` (recreated 2026-07-05)
@@ -111,6 +111,7 @@ Current local verification (2026-07-06):
 
 Production deployment history (compact):
 
+- **2026-07-06 delivery coverage schema compatibility**: Actions run `28789724133` for frontend commit `d787664` succeeded in 2m41s. Backend commit `352338c` then produced inventory with site-level `delivery_coverage`; live API verified `2026-07-06T12:01:31.736406+00:00`: 28 sites, 22 available products (12 immediate, 10 presale), 0 stale, and coverage present on all site records. The live deployment verifier passed against the public URL.
 - **2026-07-05 backend rename + Azure consolidation**: Backend `afdde97` deployed (Actions `28745071912`, Succeeded). Azure resources moved to `airco-tracker-rg`; UAMIs + EmailService recreated with new clientIds; `app.bicep` redeployed to update the Container App identity reference. Frontend doc-only commits (`5f82190`, `43e9a82`, `c9fc94c`, `f150a2b`) used `[skip ci]` — no frontend image redeploy. Production API verified 2026-07-05T17:21Z: 28 sites / 19 available / 0 stale. `verify-deployment.mjs` passed.
 - **2026-07-05 OIDC bicep fix**: `infra/github-oidc.bicep` changed from `uniqueString()` to `last(split(githubRepository,'/'))` for idempotent federated-credential names. Redeployed; no frontend code/image change. (commit `f150a2b`)
 - **2026-07-05 Bostools**: Actions `28735567922` for frontend commit `069f587`: succeeded in 2m42s. 28 sites, 20 available, 0 stale.
