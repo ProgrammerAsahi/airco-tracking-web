@@ -54,6 +54,7 @@ type AuthStore = {
   upsertSession(record: SessionRecord): Promise<void>;
   deleteSession(sessionHash: string): Promise<void>;
   deleteSessionsForEmail(email: string): Promise<void>;
+  updateSessionsEmail(oldEmail: string, newEmail: string): Promise<void>;
 };
 
 type SendCodeResult = {
@@ -97,6 +98,11 @@ export type RequestCodeResult = {
   ok: true;
   retryAfterSeconds: number;
   devCode?: string;
+};
+
+type PreviewPaymentDetails = {
+  paymentBrand: string | null;
+  paymentLast4: string | null;
 };
 
 const USER_PARTITION = "user";
@@ -337,6 +343,25 @@ class TableAuthStore implements AuthStore {
       await this.deleteSession(String(entity.sessionHash));
     }
   }
+
+  async updateSessionsEmail(oldEmail: string, newEmail: string): Promise<void> {
+    await this.ensureTables();
+    const oldNormalized = normalizeEmail(oldEmail);
+    const newNormalized = normalizeEmail(newEmail);
+    const entities = this.sessions.listEntities<SessionEntity>({
+      queryOptions: { filter: `PartitionKey eq '${SESSION_PARTITION}'` },
+    });
+    for await (const entity of entities) {
+      if (normalizeEmail(entity.email) !== oldNormalized) continue;
+      await this.sessions.upsertEntity(sessionToEntity({
+        sessionHash: String(entity.sessionHash),
+        email: newNormalized,
+        expiresAt: String(entity.expiresAt),
+        createdAt: String(entity.createdAt),
+        lastSeenAt: nowIso(),
+      }), "Replace");
+    }
+  }
 }
 
 class MemoryAuthStore implements AuthStore {
@@ -389,6 +414,16 @@ class MemoryAuthStore implements AuthStore {
       if (normalizeEmail(session.email) === normalized) this.sessions.delete(hash);
     }
   }
+
+  async updateSessionsEmail(oldEmail: string, newEmail: string): Promise<void> {
+    const oldNormalized = normalizeEmail(oldEmail);
+    const newNormalized = normalizeEmail(newEmail);
+    for (const [hash, session] of this.sessions) {
+      if (normalizeEmail(session.email) === oldNormalized) {
+        this.sessions.set(hash, { ...session, email: newNormalized, lastSeenAt: nowIso() });
+      }
+    }
+  }
 }
 
 type UserEntity = {
@@ -400,6 +435,9 @@ type UserEntity = {
   subscriptionCancelAtPeriodEnd?: boolean;
   pendingSubscriptionPlan?: string;
   pendingSubscriptionEffectiveAt?: string;
+  paymentMethod?: string;
+  paymentBrand?: string;
+  paymentLast4?: string;
   languagePreference?: string;
   deliveryCountry?: string;
   createdAt: string;
@@ -421,6 +459,9 @@ function userToEntity(user: UserProfile): UserEntity & { partitionKey: string; r
     subscriptionCancelAtPeriodEnd: user.subscriptionCancelAtPeriodEnd,
     pendingSubscriptionPlan: user.pendingSubscriptionPlan ?? "",
     pendingSubscriptionEffectiveAt: user.pendingSubscriptionEffectiveAt ?? "",
+    paymentMethod: user.paymentMethod ?? "",
+    paymentBrand: user.paymentBrand ?? "",
+    paymentLast4: user.paymentLast4 ?? "",
     languagePreference: user.languagePreference,
     deliveryCountry: user.deliveryCountry,
     createdAt: user.createdAt,
@@ -432,6 +473,7 @@ function userFromEntity(entity: TableEntityResult<UserEntity>): UserProfile {
   const subscriptionPlan = isSubscriptionPlan(entity.subscriptionPlan) ? entity.subscriptionPlan : AUTH_SUBSCRIPTION_PLAN_DEFAULT;
   const subscriptionStatus = isSubscriptionStatus(entity.subscriptionStatus) ? entity.subscriptionStatus : AUTH_SUBSCRIPTION_STATUS_DEFAULT;
   const pendingSubscriptionPlan = isPaidSubscriptionPlan(entity.pendingSubscriptionPlan) ? entity.pendingSubscriptionPlan : null;
+  const paymentMethod = isPaymentMethod(entity.paymentMethod) ? entity.paymentMethod : null;
   const languagePreference = isLanguagePreference(entity.languagePreference) ? entity.languagePreference : AUTH_LANGUAGE_DEFAULT;
   const deliveryCountry = isDeliveryCountry(entity.deliveryCountry) ? entity.deliveryCountry : AUTH_DELIVERY_COUNTRY_DEFAULT;
   return {
@@ -447,6 +489,9 @@ function userFromEntity(entity: TableEntityResult<UserEntity>): UserProfile {
     pendingSubscriptionEffectiveAt: typeof entity.pendingSubscriptionEffectiveAt === "string" && entity.pendingSubscriptionEffectiveAt.trim()
       ? entity.pendingSubscriptionEffectiveAt.trim()
       : null,
+    paymentMethod,
+    paymentBrand: typeof entity.paymentBrand === "string" && entity.paymentBrand.trim() ? entity.paymentBrand.trim() : null,
+    paymentLast4: typeof entity.paymentLast4 === "string" && /^\d{4}$/.test(entity.paymentLast4) ? entity.paymentLast4 : null,
     languagePreference,
     deliveryCountry,
     createdAt: String(entity.createdAt),
@@ -563,6 +608,19 @@ export class AuthService {
 
   async requestCode(rawEmail: unknown, lang: Lang): Promise<RequestCodeResult> {
     const email = normalizeAndValidateEmail(rawEmail);
+    return this.issueCode(email, lang);
+  }
+
+  async requestEmailChangeCode(request: IncomingMessage, rawEmail: unknown, lang: Lang): Promise<RequestCodeResult> {
+    const user = await this.requireUser(request);
+    const email = normalizeAndValidateEmail(rawEmail);
+    if (email === user.email) throw new AuthHttpError(400, "email_unchanged");
+    const existing = await this.store.getUser(email);
+    if (existing) throw new AuthHttpError(409, "email_taken");
+    return this.issueCode(email, lang);
+  }
+
+  private async issueCode(email: string, lang: Lang): Promise<RequestCodeResult> {
     const existing = await this.store.getCode(email);
     if (existing && !isExpired(existing.expiresAt)) {
       const nextAllowedAt = Date.parse(existing.lastSentAt) + this.codeResendSeconds * 1000;
@@ -601,24 +659,7 @@ export class AuthService {
 
   async verifyCode(rawEmail: unknown, rawCode: unknown, lang: Lang = AUTH_LANGUAGE_DEFAULT): Promise<VerifyCodeResult> {
     const email = normalizeAndValidateEmail(rawEmail);
-    const code = sanitizeCode(rawCode);
-    if (!/^\d{6}$/.test(code)) throw new AuthHttpError(400, "invalid_code");
-
-    const stored = await this.store.getCode(email);
-    if (!stored || isExpired(stored.expiresAt)) {
-      if (stored) await this.store.deleteCode(email);
-      throw new AuthHttpError(400, "invalid_or_expired_code");
-    }
-    if (stored.attempts >= this.codeMaxAttempts) {
-      await this.store.deleteCode(email);
-      throw new AuthHttpError(400, "too_many_code_attempts");
-    }
-    if (!verifyVerificationHash(email, code, stored.salt, stored.codeHash)) {
-      await this.store.upsertCode({ ...stored, attempts: stored.attempts + 1 });
-      throw new AuthHttpError(400, "invalid_or_expired_code");
-    }
-
-    await this.store.deleteCode(email);
+    await this.consumeCode(email, rawCode);
     const existingUser = await this.store.getUser(email);
     const timestamp = nowIso();
     const user: UserProfile = existingUser ?? {
@@ -630,6 +671,9 @@ export class AuthService {
       subscriptionCancelAtPeriodEnd: false,
       pendingSubscriptionPlan: null,
       pendingSubscriptionEffectiveAt: null,
+      paymentMethod: null,
+      paymentBrand: null,
+      paymentLast4: null,
       languagePreference: isLanguagePreference(lang) ? lang : AUTH_LANGUAGE_DEFAULT,
       deliveryCountry: AUTH_DELIVERY_COUNTRY_DEFAULT,
       createdAt: timestamp,
@@ -652,6 +696,27 @@ export class AuthService {
       sessionToken,
       sessionTtlSeconds: this.sessionTtlSeconds,
     };
+  }
+
+  private async consumeCode(email: string, rawCode: unknown): Promise<void> {
+    const code = sanitizeCode(rawCode);
+    if (!/^\d{6}$/.test(code)) throw new AuthHttpError(400, "invalid_code");
+
+    const stored = await this.store.getCode(email);
+    if (!stored || isExpired(stored.expiresAt)) {
+      if (stored) await this.store.deleteCode(email);
+      throw new AuthHttpError(400, "invalid_or_expired_code");
+    }
+    if (stored.attempts >= this.codeMaxAttempts) {
+      await this.store.deleteCode(email);
+      throw new AuthHttpError(400, "too_many_code_attempts");
+    }
+    if (!verifyVerificationHash(email, code, stored.salt, stored.codeHash)) {
+      await this.store.upsertCode({ ...stored, attempts: stored.attempts + 1 });
+      throw new AuthHttpError(400, "invalid_or_expired_code");
+    }
+
+    await this.store.deleteCode(email);
   }
 
   async currentUser(request: IncomingMessage): Promise<UserProfile | null> {
@@ -694,12 +759,30 @@ export class AuthService {
     return updated;
   }
 
-  async completePreviewSubscriptionPayment(request: IncomingMessage, values: { plan?: unknown; paymentMethod?: unknown }): Promise<UserProfile> {
+  async updateEmail(request: IncomingMessage, values: { email?: unknown; code?: unknown }): Promise<UserProfile> {
+    const user = await this.requireUser(request);
+    const email = normalizeAndValidateEmail(values.email);
+    if (email === user.email) throw new AuthHttpError(400, "email_unchanged");
+    const existing = await this.store.getUser(email);
+    if (existing) throw new AuthHttpError(409, "email_taken");
+    await this.consumeCode(email, values.code);
+    const updated: UserProfile = {
+      ...user,
+      email,
+      updatedAt: nowIso(),
+    };
+    await this.store.upsertUser(updated);
+    await this.store.updateSessionsEmail(user.email, email);
+    await this.store.deleteUser(user.email);
+    return updated;
+  }
+
+  async completePreviewSubscriptionPayment(request: IncomingMessage, values: { plan?: unknown; paymentMethod?: unknown; paymentBrand?: unknown; paymentLast4?: unknown; idealBank?: unknown }): Promise<UserProfile> {
     const user = await this.requireUser(request);
     if (!isPaidSubscriptionPlan(values.plan)) throw new AuthHttpError(400, "invalid_subscription_plan");
     if (!isPaymentMethod(values.paymentMethod)) throw new AuthHttpError(400, "invalid_payment_method");
 
-    const updated = changeSubscription(user, values.plan, values.paymentMethod);
+    const updated = changeSubscription(user, values.plan, values.paymentMethod, sanitizePaymentDetails(values.paymentMethod, values));
     await this.store.upsertUser(updated);
     return updated;
   }
@@ -777,7 +860,7 @@ export function authServiceFromEnvironment(): AuthService {
   });
 }
 
-function changeSubscription(user: UserProfile, plan: PaidSubscriptionPlan, _paymentMethod: PaymentMethod): UserProfile {
+function changeSubscription(user: UserProfile, plan: PaidSubscriptionPlan, paymentMethod: PaymentMethod, paymentDetails: PreviewPaymentDetails): UserProfile {
   const settled = settleSubscription(user);
   if (subscriptionIsActive(settled)) {
     const direction = subscriptionChangeDirection(settled.subscriptionPlan, plan);
@@ -787,14 +870,23 @@ function changeSubscription(user: UserProfile, plan: PaidSubscriptionPlan, _paym
         pendingSubscriptionPlan: plan,
         pendingSubscriptionEffectiveAt: settled.subscriptionCurrentPeriodEnd,
         subscriptionCancelAtPeriodEnd: false,
+        paymentMethod,
+        paymentBrand: paymentDetails.paymentBrand,
+        paymentLast4: paymentDetails.paymentLast4,
         updatedAt: nowIso(),
       };
     }
   }
-  return activateSubscription(settled, plan);
+  return activateSubscription(settled, plan, Date.now(), paymentMethod, paymentDetails);
 }
 
-function activateSubscription(user: UserProfile, plan: PaidSubscriptionPlan, startsAt = Date.now()): UserProfile {
+function activateSubscription(
+  user: UserProfile,
+  plan: PaidSubscriptionPlan,
+  startsAt = Date.now(),
+  paymentMethod: PaymentMethod | null = user.paymentMethod,
+  paymentDetails: PreviewPaymentDetails = { paymentBrand: user.paymentBrand, paymentLast4: user.paymentLast4 },
+): UserProfile {
   const details = SUBSCRIPTION_PLAN_DETAILS[plan];
   return {
     ...user,
@@ -804,6 +896,9 @@ function activateSubscription(user: UserProfile, plan: PaidSubscriptionPlan, sta
     subscriptionCancelAtPeriodEnd: false,
     pendingSubscriptionPlan: null,
     pendingSubscriptionEffectiveAt: null,
+    paymentMethod,
+    paymentBrand: paymentDetails.paymentBrand,
+    paymentLast4: paymentDetails.paymentLast4,
     updatedAt: nowIso(),
   };
 }
@@ -828,6 +923,23 @@ function settleSubscription(user: UserProfile, now = Date.now()): UserProfile {
     }
   }
   return user;
+}
+
+function sanitizePaymentDetails(method: PaymentMethod, values: { paymentBrand?: unknown; paymentLast4?: unknown; idealBank?: unknown }): PreviewPaymentDetails {
+  if (method === "ideal") {
+    const bank = typeof values.idealBank === "string" && values.idealBank.trim()
+      ? values.idealBank.trim().slice(0, 40)
+      : "iDEAL";
+    return { paymentBrand: bank, paymentLast4: null };
+  }
+
+  const brand = typeof values.paymentBrand === "string" && values.paymentBrand.trim()
+    ? values.paymentBrand.trim().slice(0, 24).toUpperCase()
+    : "VISA";
+  const last4 = typeof values.paymentLast4 === "string" && /^\d{4}$/.test(values.paymentLast4)
+    ? values.paymentLast4
+    : "4242";
+  return { paymentBrand: brand, paymentLast4: last4 };
 }
 
 function normalizeAndValidateEmail(value: unknown): string {

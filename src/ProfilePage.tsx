@@ -9,7 +9,17 @@ import {
   type DeliveryCountry,
   type PaidSubscriptionPlan,
 } from "../shared/auth";
-import { cancelSubscription as cancelSubscriptionRequest, deleteAccount, getCurrentUser, logout, updatePreferences, type UserProfile } from "./authClient";
+import {
+  cancelSubscription as cancelSubscriptionRequest,
+  deleteAccount,
+  getCurrentUser,
+  logout,
+  requestEmailChangeCode,
+  updateNickname,
+  updatePreferences,
+  verifyEmailChange,
+  type UserProfile,
+} from "./authClient";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import type { Lang } from "./i18n";
 
@@ -23,6 +33,22 @@ type ProfileCopy = {
   loginFromHome: string;
   email: string;
   nickname: string;
+  edit: string;
+  nicknameModalTitle: string;
+  nicknameModalBody: string;
+  nicknamePlaceholder: string;
+  nicknameSave: string;
+  nicknameError: string;
+  emailModalTitle: string;
+  emailModalBody: string;
+  emailPlaceholder: string;
+  codePlaceholder: string;
+  sendCode: string;
+  sendCodeBusy: string;
+  codeSent: string;
+  emailSave: string;
+  emailError: string;
+  devCodeNotice: string;
   subscriptionPlan: string;
   subscriptionActiveUntil: string;
   subscriptionCancelScheduled: string;
@@ -32,6 +58,11 @@ type ProfileCopy = {
   subscriptionCancelError: string;
   changeSubscription: string;
   pendingSubscription: string;
+  currentSubscription: string;
+  paymentMethod: string;
+  noPaymentMethod: string;
+  cardPayment: string;
+  idealPayment: string;
   deleteAccount: string;
   deleteAccountBlocked: string;
   deleteAccountTitle: string;
@@ -76,6 +107,22 @@ const PROFILE_COPY: Record<Lang, ProfileCopy> = {
     loginFromHome: "回到首页登录",
     email: "邮箱",
     nickname: "昵称",
+    edit: "编辑",
+    nicknameModalTitle: "我们该如何称呼您？",
+    nicknameModalBody: "昵称会用于头像和个性化提示。",
+    nicknamePlaceholder: "我们该如何称呼您呢？",
+    nicknameSave: "保存昵称",
+    nicknameError: "昵称需要 1–40 个字符，且至少包含一个文字或数字。",
+    emailModalTitle: "更改邮箱",
+    emailModalBody: "输入新的邮箱并完成验证码验证。之后登录 ID 会切换到新邮箱。",
+    emailPlaceholder: "new@example.com",
+    codePlaceholder: "输入 6 位验证码",
+    sendCode: "发送验证码",
+    sendCodeBusy: "发送中…",
+    codeSent: "验证码已发送，请检查你的邮箱。",
+    emailSave: "保存邮箱",
+    emailError: "邮箱暂时无法更改，请检查验证码或稍后再试。",
+    devCodeNotice: "本地开发验证码：{code}",
     subscriptionPlan: "订阅方案",
     subscriptionActiveUntil: "权益有效至",
     subscriptionCancelScheduled: "已取消，权益会保留到本周期结束。",
@@ -85,6 +132,11 @@ const PROFILE_COPY: Record<Lang, ProfileCopy> = {
     subscriptionCancelError: "订阅暂时无法取消，请稍后再试。",
     changeSubscription: "更改订阅方案",
     pendingSubscription: "将在 {date} 切换为 {plan}",
+    currentSubscription: "当前订阅",
+    paymentMethod: "支付方式",
+    noPaymentMethod: "暂无支付方式",
+    cardPayment: "{brand} · 尾号 {last4}",
+    idealPayment: "iDEAL · {bank}",
     deleteAccount: "注销账户",
     deleteAccountBlocked: "订阅仍在有效期内，暂时不能注销账户。",
     deleteAccountTitle: "确认注销账户？",
@@ -127,6 +179,22 @@ const PROFILE_COPY: Record<Lang, ProfileCopy> = {
     loginFromHome: "Log in vanaf home",
     email: "E-mail",
     nickname: "Bijnaam",
+    edit: "Wijzigen",
+    nicknameModalTitle: "Hoe mogen we u noemen?",
+    nicknameModalBody: "Je bijnaam gebruiken we voor je avatar en persoonlijke meldingen.",
+    nicknamePlaceholder: "Hoe mogen we u noemen?",
+    nicknameSave: "Bijnaam opslaan",
+    nicknameError: "Gebruik 1–40 tekens en minstens één letter of cijfer.",
+    emailModalTitle: "E-mail wijzigen",
+    emailModalBody: "Vul je nieuwe e-mail in en bevestig met een verificatiecode.",
+    emailPlaceholder: "nieuw@example.com",
+    codePlaceholder: "Voer de 6-cijferige code in",
+    sendCode: "Code sturen",
+    sendCodeBusy: "Versturen…",
+    codeSent: "De code is verstuurd. Check je mailbox.",
+    emailSave: "E-mail opslaan",
+    emailError: "We konden je e-mail niet wijzigen. Controleer de code of probeer het later opnieuw.",
+    devCodeNotice: "Lokale ontwikkelcode: {code}",
     subscriptionPlan: "Abonnement",
     subscriptionActiveUntil: "Toegang geldig tot",
     subscriptionCancelScheduled: "Opgezegd; toegang blijft tot het einde van deze periode.",
@@ -136,6 +204,11 @@ const PROFILE_COPY: Record<Lang, ProfileCopy> = {
     subscriptionCancelError: "We konden je abonnement niet opzeggen. Probeer het later opnieuw.",
     changeSubscription: "Abonnement wijzigen",
     pendingSubscription: "Wordt op {date} gewijzigd naar {plan}",
+    currentSubscription: "Huidig abonnement",
+    paymentMethod: "Betaalmethode",
+    noPaymentMethod: "Geen betaalmethode",
+    cardPayment: "{brand} · eindigt op {last4}",
+    idealPayment: "iDEAL · {bank}",
     deleteAccount: "Account verwijderen",
     deleteAccountBlocked: "Je abonnement is nog actief; je kunt je account nog niet verwijderen.",
     deleteAccountTitle: "Account verwijderen?",
@@ -178,6 +251,22 @@ const PROFILE_COPY: Record<Lang, ProfileCopy> = {
     loginFromHome: "Log in from home",
     email: "Email",
     nickname: "Nickname",
+    edit: "Edit",
+    nicknameModalTitle: "What should we call you?",
+    nicknameModalBody: "Your nickname is used for your avatar and personalized prompts.",
+    nicknamePlaceholder: "What should we call you?",
+    nicknameSave: "Save nickname",
+    nicknameError: "Use 1–40 characters and include at least one letter or number.",
+    emailModalTitle: "Change email",
+    emailModalBody: "Enter a new email and verify it with a one-time code. Your login ID will move to that email.",
+    emailPlaceholder: "new@example.com",
+    codePlaceholder: "Enter 6-digit code",
+    sendCode: "Send code",
+    sendCodeBusy: "Sending…",
+    codeSent: "Code sent. Please check your inbox.",
+    emailSave: "Save email",
+    emailError: "We could not change your email. Check the code or try again later.",
+    devCodeNotice: "Local development code: {code}",
     subscriptionPlan: "Subscription plan",
     subscriptionActiveUntil: "Access active until",
     subscriptionCancelScheduled: "Canceled; access remains through the current period.",
@@ -187,6 +276,11 @@ const PROFILE_COPY: Record<Lang, ProfileCopy> = {
     subscriptionCancelError: "We could not cancel your subscription. Please try again later.",
     changeSubscription: "Change subscription",
     pendingSubscription: "Will switch to {plan} on {date}",
+    currentSubscription: "Current subscription",
+    paymentMethod: "Payment method",
+    noPaymentMethod: "No payment method yet",
+    cardPayment: "{brand} · ending {last4}",
+    idealPayment: "iDEAL · {bank}",
     deleteAccount: "Delete account",
     deleteAccountBlocked: "Your subscription is still active, so the account cannot be deleted yet.",
     deleteAccountTitle: "Delete account?",
@@ -243,6 +337,17 @@ export function ProfilePage({ lang, setLang }: ProfilePageProps) {
   const copy = PROFILE_COPY[lang];
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [nicknameModalOpen, setNicknameModalOpen] = useState(false);
+  const [nicknameDraft, setNicknameDraft] = useState("");
+  const [savingNickname, setSavingNickname] = useState(false);
+  const [nicknameError, setNicknameError] = useState("");
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
+  const [emailDraft, setEmailDraft] = useState("");
+  const [emailCode, setEmailCode] = useState("");
+  const [emailMessage, setEmailMessage] = useState("");
+  const [emailError, setEmailError] = useState("");
+  const [sendingEmailCode, setSendingEmailCode] = useState(false);
+  const [savingEmail, setSavingEmail] = useState(false);
   const [languageModalOpen, setLanguageModalOpen] = useState(false);
   const [countryModalOpen, setCountryModalOpen] = useState(false);
   const [countryConfirmOpen, setCountryConfirmOpen] = useState(false);
@@ -280,9 +385,12 @@ export function ProfilePage({ lang, setLang }: ProfilePageProps) {
   }, [lang, setLang]);
 
   useEffect(() => {
-    document.body.classList.toggle("landing-dialog-open", languageModalOpen || countryModalOpen || countryConfirmOpen || deleteModalOpen);
+    document.body.classList.toggle(
+      "landing-dialog-open",
+      nicknameModalOpen || emailModalOpen || languageModalOpen || countryModalOpen || countryConfirmOpen || deleteModalOpen,
+    );
     return () => document.body.classList.remove("landing-dialog-open");
-  }, [countryConfirmOpen, countryModalOpen, deleteModalOpen, languageModalOpen]);
+  }, [countryConfirmOpen, countryModalOpen, deleteModalOpen, emailModalOpen, languageModalOpen, nicknameModalOpen]);
 
   const handleLogout = async () => {
     await logout().catch(() => undefined);
@@ -302,6 +410,66 @@ export function ProfilePage({ lang, setLang }: ProfilePageProps) {
       setPreferenceError(copy.preferenceError);
     } finally {
       setSavingPreference(false);
+    }
+  };
+
+  const openNicknameModal = () => {
+    if (!user) return;
+    setNicknameDraft(user.nickname ?? "");
+    setNicknameError("");
+    setNicknameModalOpen(true);
+  };
+
+  const handleNicknameSave = async () => {
+    setNicknameError("");
+    setSavingNickname(true);
+    try {
+      const updated = await updateNickname(nicknameDraft);
+      setUser(updated);
+      setNicknameModalOpen(false);
+    } catch {
+      setNicknameError(copy.nicknameError);
+    } finally {
+      setSavingNickname(false);
+    }
+  };
+
+  const openEmailModal = () => {
+    if (!user) return;
+    setEmailDraft(user.email);
+    setEmailCode("");
+    setEmailMessage("");
+    setEmailError("");
+    setEmailModalOpen(true);
+  };
+
+  const handleSendEmailCode = async () => {
+    setEmailError("");
+    setEmailMessage("");
+    setSendingEmailCode(true);
+    try {
+      const result = await requestEmailChangeCode(emailDraft, lang);
+      const devCode = result.devCode ? ` ${copy.devCodeNotice.replace("{code}", result.devCode)}` : "";
+      setEmailMessage(`${copy.codeSent}${devCode}`);
+      if (result.devCode) setEmailCode(result.devCode);
+    } catch {
+      setEmailError(copy.emailError);
+    } finally {
+      setSendingEmailCode(false);
+    }
+  };
+
+  const handleEmailSave = async () => {
+    setEmailError("");
+    setSavingEmail(true);
+    try {
+      const updated = await verifyEmailChange(emailDraft, emailCode);
+      setUser(updated);
+      setEmailModalOpen(false);
+    } catch {
+      setEmailError(copy.emailError);
+    } finally {
+      setSavingEmail(false);
     }
   };
 
@@ -394,28 +562,20 @@ export function ProfilePage({ lang, setLang }: ProfilePageProps) {
             <dl className="profile-details">
               <div>
                 <dt>{copy.email}</dt>
-                <dd>{user.email}</dd>
+                <dd>
+                  <button className="profile-detail-action" type="button" onClick={openEmailModal}>
+                    <span>{user.email}</span>
+                    <span>{copy.edit}</span>
+                  </button>
+                </dd>
               </div>
               <div>
                 <dt>{copy.nickname}</dt>
-                <dd>{user.nickname || "—"}</dd>
-              </div>
-              <div>
-                <dt>{copy.subscriptionPlan}</dt>
                 <dd>
-                  <span>{user.subscriptionPlan === "none" ? copy.none : copy[PLAN_LABEL_KEYS[user.subscriptionPlan]]}</span>
-                  {user.subscriptionPlan !== "none" && (
-                    <span className="profile-subscription-note">
-                      {subscriptionSummary(user, copy, lang)}
-                    </span>
-                  )}
-                  {user.pendingSubscriptionPlan && user.pendingSubscriptionEffectiveAt && (
-                    <span className="profile-subscription-note">
-                      {copy.pendingSubscription
-                        .replace("{date}", formatSubscriptionDate(user.pendingSubscriptionEffectiveAt, lang))
-                        .replace("{plan}", copy[PLAN_LABEL_KEYS[user.pendingSubscriptionPlan]])}
-                    </span>
-                  )}
+                  <button className="profile-detail-action" type="button" onClick={openNicknameModal}>
+                    <span>{user.nickname || "—"}</span>
+                    <span>{copy.edit}</span>
+                  </button>
                 </dd>
               </div>
               <div>
@@ -437,26 +597,6 @@ export function ProfilePage({ lang, setLang }: ProfilePageProps) {
                 </dd>
               </div>
             </dl>
-            {user.subscriptionPlan !== "none" && (
-              <div className="profile-subscription-actions">
-                <a className="profile-change-subscription-link" href={`/subscribe?lang=${lang}`}>
-                  {copy.changeSubscription}
-                </a>
-                {user.subscriptionCancelAtPeriodEnd ? (
-                  <p>{copy.subscriptionCancelScheduled}</p>
-                ) : subscriptionIsActive(user) ? (
-                  <button
-                    className="profile-cancel-subscription-button"
-                    type="button"
-                    disabled={cancelingSubscription}
-                    onClick={handleCancelSubscription}
-                  >
-                    {cancelingSubscription ? copy.cancelingSubscription : copy.cancelSubscription}
-                  </button>
-                ) : null}
-                {subscriptionError && <p className="landing-login-error">{subscriptionError}</p>}
-              </div>
-            )}
             <div className="profile-account-actions">
               <button className="profile-logout-button" type="button" onClick={handleLogout}>{copy.logout}</button>
               <button
@@ -482,8 +622,39 @@ export function ProfilePage({ lang, setLang }: ProfilePageProps) {
       <section className="profile-plans">
         <div>
           <p className="landing-kicker">{copy.subscriptionPlan}</p>
-          <h2>{copy.paidPlansTitle}</h2>
-          <p>{copy.paidPlansBody}</p>
+          <h2>{copy.currentSubscription}</h2>
+          <p>{user ? subscriptionCardSummary(user, copy, lang) : copy.paidPlansBody}</p>
+          {user?.pendingSubscriptionPlan && user.pendingSubscriptionEffectiveAt && (
+            <p className="profile-subscription-note">
+              {copy.pendingSubscription
+                .replace("{date}", formatSubscriptionDate(user.pendingSubscriptionEffectiveAt, lang))
+                .replace("{plan}", copy[PLAN_LABEL_KEYS[user.pendingSubscriptionPlan]])}
+            </p>
+          )}
+          <div className="profile-payment-line">
+            <span>{copy.paymentMethod}</span>
+            <strong>{user ? paymentSummary(user, copy) : copy.noPaymentMethod}</strong>
+          </div>
+          {user && (
+            <div className="profile-subscription-actions">
+              <a className="profile-change-subscription-link" href={`/subscribe?lang=${lang}`}>
+                {copy.changeSubscription}
+              </a>
+              {user.subscriptionCancelAtPeriodEnd ? (
+                <p>{copy.subscriptionCancelScheduled}</p>
+              ) : subscriptionIsActive(user) ? (
+                <button
+                  className="profile-cancel-subscription-button"
+                  type="button"
+                  disabled={cancelingSubscription}
+                  onClick={handleCancelSubscription}
+                >
+                  {cancelingSubscription ? copy.cancelingSubscription : copy.cancelSubscription}
+                </button>
+              ) : null}
+              {subscriptionError && <p className="landing-login-error">{subscriptionError}</p>}
+            </div>
+          )}
         </div>
         <div className="profile-plan-grid">
           {PAID_SUBSCRIPTION_PLANS.map((plan) => (
@@ -494,6 +665,97 @@ export function ProfilePage({ lang, setLang }: ProfilePageProps) {
           ))}
         </div>
       </section>
+
+      {nicknameModalOpen && user && (
+        <div className="landing-login-backdrop" onMouseDown={() => setNicknameModalOpen(false)}>
+          <section
+            className="landing-login-card profile-preference-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="profile-nickname-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="landing-login-copy">
+              <p className="landing-kicker">{copy.nickname}</p>
+              <h2 id="profile-nickname-title">{copy.nicknameModalTitle}</h2>
+              <p>{copy.nicknameModalBody}</p>
+            </div>
+            <label className="landing-login-field profile-single-field">
+              <span>{copy.nickname}</span>
+              <input
+                value={nicknameDraft}
+                placeholder={copy.nicknamePlaceholder}
+                maxLength={40}
+                onChange={(event) => setNicknameDraft(event.target.value)}
+              />
+            </label>
+            {nicknameError && <p className="landing-login-error">{nicknameError}</p>}
+            <div className="profile-modal-actions">
+              <button className="landing-secondary-button" type="button" disabled={savingNickname} onClick={() => setNicknameModalOpen(false)}>
+                {copy.cancel}
+              </button>
+              <button className="landing-primary-button" type="button" disabled={savingNickname} onClick={handleNicknameSave}>
+                {savingNickname ? copy.saving : copy.nicknameSave}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {emailModalOpen && user && (
+        <div className="landing-login-backdrop" onMouseDown={() => setEmailModalOpen(false)}>
+          <section
+            className="landing-login-card profile-preference-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="profile-email-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="landing-login-copy">
+              <p className="landing-kicker">{copy.email}</p>
+              <h2 id="profile-email-title">{copy.emailModalTitle}</h2>
+              <p>{copy.emailModalBody}</p>
+            </div>
+            <label className="landing-login-field profile-single-field">
+              <span>{copy.email}</span>
+              <input
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                value={emailDraft}
+                placeholder={copy.emailPlaceholder}
+                onChange={(event) => setEmailDraft(event.target.value)}
+              />
+            </label>
+            <label className="landing-login-field landing-login-code-field profile-code-field">
+              <span>{copy.codePlaceholder}</span>
+              <input
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                placeholder={copy.codePlaceholder}
+                value={emailCode}
+                maxLength={6}
+                pattern="\d{6}"
+                onChange={(event) => setEmailCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+              />
+              <button type="button" disabled={sendingEmailCode || savingEmail} onClick={handleSendEmailCode}>
+                {sendingEmailCode ? copy.sendCodeBusy : copy.sendCode}
+              </button>
+            </label>
+            {emailMessage && <p className="landing-login-message">{emailMessage}</p>}
+            {emailError && <p className="landing-login-error">{emailError}</p>}
+            <div className="profile-modal-actions">
+              <button className="landing-secondary-button" type="button" disabled={savingEmail} onClick={() => setEmailModalOpen(false)}>
+                {copy.cancel}
+              </button>
+              <button className="landing-primary-button" type="button" disabled={savingEmail || emailCode.length !== 6} onClick={handleEmailSave}>
+                {savingEmail ? copy.saving : copy.emailSave}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
 
       {languageModalOpen && user && (
         <div className="landing-login-backdrop" onMouseDown={() => setLanguageModalOpen(false)}>
@@ -633,6 +895,25 @@ function subscriptionSummary(user: UserProfile, copy: ProfileCopy, lang: Lang): 
   if (!subscriptionIsActive(user)) return copy.subscriptionExpired;
   if (!user.subscriptionCurrentPeriodEnd) return "";
   return `${copy.subscriptionActiveUntil} ${formatSubscriptionDate(user.subscriptionCurrentPeriodEnd, lang)}`;
+}
+
+function subscriptionCardSummary(user: UserProfile, copy: ProfileCopy, lang: Lang): string {
+  if (user.subscriptionPlan === "none") return copy.none;
+  const plan = copy[PLAN_LABEL_KEYS[user.subscriptionPlan]];
+  const summary = subscriptionSummary(user, copy, lang);
+  return summary ? `${plan} · ${summary}` : plan;
+}
+
+function paymentSummary(user: UserProfile, copy: ProfileCopy): string {
+  if (user.paymentMethod === "card") {
+    return copy.cardPayment
+      .replace("{brand}", user.paymentBrand || "VISA")
+      .replace("{last4}", user.paymentLast4 || "4242");
+  }
+  if (user.paymentMethod === "ideal") {
+    return copy.idealPayment.replace("{bank}", user.paymentBrand || "iDEAL");
+  }
+  return copy.noPaymentMethod;
 }
 
 function formatSubscriptionDate(value: string, lang: Lang): string {

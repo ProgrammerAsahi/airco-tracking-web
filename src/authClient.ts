@@ -4,6 +4,12 @@ import type { Lang } from "./i18n";
 export type { DeliveryCountry, PaidSubscriptionPlan, PaymentMethod, UserProfile } from "../shared/auth";
 export { userInitials };
 
+export type PreviewPaymentDetails = {
+  paymentBrand?: string;
+  paymentLast4?: string;
+  idealBank?: string;
+};
+
 export class AuthApiError extends Error {
   constructor(
     readonly status: number,
@@ -83,13 +89,22 @@ export async function updateNickname(nickname: string): Promise<UserProfile> {
   return response.user;
 }
 
+export async function requestEmailChangeCode(email: string, lang: Lang): Promise<RequestCodeResponse> {
+  return postJson<RequestCodeResponse>("/api/auth/email-change/request", { email, lang });
+}
+
+export async function verifyEmailChange(email: string, code: string): Promise<UserProfile> {
+  const response = await postJson<AuthSessionResponse>("/api/auth/email-change/verify", { email, code });
+  return response.user;
+}
+
 export async function updatePreferences(values: { languagePreference?: Lang; deliveryCountry?: DeliveryCountry }): Promise<UserProfile> {
   const response = await postJson<AuthSessionResponse>("/api/auth/preferences", values);
   return response.user;
 }
 
-export async function completePreviewPayment(plan: PaidSubscriptionPlan, paymentMethod: PaymentMethod): Promise<UserProfile> {
-  const response = await postJson<AuthSessionResponse>("/api/auth/subscription/preview-payment", { plan, paymentMethod });
+export async function completePreviewPayment(plan: PaidSubscriptionPlan, paymentMethod: PaymentMethod, details: PreviewPaymentDetails = {}): Promise<UserProfile> {
+  const response = await postJson<AuthSessionResponse>("/api/auth/subscription/preview-payment", { plan, paymentMethod, ...details });
   return response.user;
 }
 

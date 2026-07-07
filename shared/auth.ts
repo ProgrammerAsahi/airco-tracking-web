@@ -64,6 +64,9 @@ export type UserProfile = {
   subscriptionCancelAtPeriodEnd: boolean;
   pendingSubscriptionPlan: PaidSubscriptionPlan | null;
   pendingSubscriptionEffectiveAt: string | null;
+  paymentMethod: PaymentMethod | null;
+  paymentBrand: string | null;
+  paymentLast4: string | null;
   languagePreference: Lang;
   deliveryCountry: DeliveryCountry;
   createdAt: string;

@@ -1632,6 +1632,38 @@ body.landing-dialog-open {
   font-weight: 720;
 }
 
+.profile-payment-line {
+  display: grid;
+  gap: 6px;
+  margin-top: 16px;
+  padding: 14px 16px;
+  border: 1px solid rgba(31, 91, 122, 0.10);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.56);
+}
+
+.profile-payment-line span {
+  color: #6f8797;
+  font-size: 12px;
+  font-weight: 780;
+}
+
+.profile-payment-line strong {
+  color: #173346;
+  font-size: 15px;
+}
+
+.profile-single-field,
+.profile-code-field {
+  position: relative;
+  z-index: 1;
+  margin-top: 16px;
+}
+
+.profile-code-field {
+  margin-top: 10px;
+}
+
 .profile-detail-action {
   display: flex;
   width: 100%;

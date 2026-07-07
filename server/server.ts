@@ -239,6 +239,31 @@ async function handleAuthRequest(request: IncomingMessage, response: ServerRespo
       return;
     }
 
+    if (url.pathname === "/api/auth/email-change/request") {
+      if (method !== "POST") {
+        rejectMethod(response, ["POST"]);
+        return;
+      }
+      const body = await readJsonBody(request);
+      const result = await auth.requestEmailChangeCode(request, body.email, parseLang(body.lang));
+      sendJson(response, 200, result);
+      return;
+    }
+
+    if (url.pathname === "/api/auth/email-change/verify") {
+      if (method !== "POST") {
+        rejectMethod(response, ["POST"]);
+        return;
+      }
+      const body = await readJsonBody(request);
+      const user = await auth.updateEmail(request, {
+        email: body.email,
+        code: body.code,
+      });
+      sendJson(response, 200, { user, needsOnboarding: !user.nickname });
+      return;
+    }
+
     if (url.pathname === "/api/auth/preferences") {
       if (method !== "POST") {
         rejectMethod(response, ["POST"]);
@@ -262,6 +287,9 @@ async function handleAuthRequest(request: IncomingMessage, response: ServerRespo
       const user = await auth.completePreviewSubscriptionPayment(request, {
         plan: body.plan,
         paymentMethod: body.paymentMethod,
+        paymentBrand: body.paymentBrand,
+        paymentLast4: body.paymentLast4,
+        idealBank: body.idealBank,
       });
       sendJson(response, 200, { user, needsOnboarding: !user.nickname });
       return;

@@ -34,7 +34,7 @@ const READY_COPY: Record<Lang, ReadyCopy> = {
   en: {
     productName: "Airco Tracker",
     loading: "Loading subscription…",
-    title: "Everything is ready",
+    title: "You are all set.",
     body: "As soon as an air conditioner appears in stock, we’ll notify you by email.",
     inventoryCta: "View AC stock",
     profile: "Manage account",
@@ -61,7 +61,6 @@ export function ReadyPage({ lang, setLang }: ReadyPageProps) {
           window.location.replace(`/?lang=${lang}`);
           return;
         }
-        if (nextUser.languagePreference !== lang) setLang(nextUser.languagePreference);
         if (!subscriptionIsActive(nextUser)) {
           window.location.replace(`/subscribe?lang=${nextUser.languagePreference}`);
           return;

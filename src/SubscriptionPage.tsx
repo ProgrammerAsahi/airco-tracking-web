@@ -212,6 +212,8 @@ export function SubscriptionPage({ lang, setLang }: SubscriptionPageProps) {
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("weekly");
   const [selectedPlan, setSelectedPlan] = useState<PaidSubscriptionPlan | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("card");
+  const [cardNumber, setCardNumber] = useState("4242 4242 4242 4242");
+  const [idealBank, setIdealBank] = useState("ING");
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState("");
 
@@ -248,7 +250,9 @@ export function SubscriptionPage({ lang, setLang }: SubscriptionPageProps) {
     setError("");
     setProcessing(true);
     try {
-      const updated = await completePreviewPayment(selectedPlan, paymentMethod);
+      const updated = await completePreviewPayment(selectedPlan, paymentMethod, paymentMethod === "card"
+        ? { paymentBrand: "VISA", paymentLast4: cardLast4(cardNumber) }
+        : { idealBank });
       setUser(updated);
       window.location.href = `/ready?lang=${updated.languagePreference}`;
     } catch {
@@ -341,19 +345,19 @@ export function SubscriptionPage({ lang, setLang }: SubscriptionPageProps) {
           </div>
           {paymentMethod === "card" ? (
             <div className="payment-fields">
-              <input aria-label={copy.cardNumber} placeholder="4242 4242 4242 4242" />
+              <input aria-label={copy.cardNumber} placeholder="4242 4242 4242 4242" value={cardNumber} onChange={(event) => setCardNumber(event.target.value)} />
               <input aria-label={copy.cardExpiry} placeholder="MM / YY" />
               <input aria-label={copy.cardCvc} placeholder="CVC" />
             </div>
           ) : (
             <label className="payment-bank">
               <span>{copy.idealBank}</span>
-              <select>
-                <option>ING</option>
-                <option>ABN AMRO</option>
-                <option>Rabobank</option>
-                <option>Bunq</option>
-                <option>Revolut</option>
+              <select value={idealBank} onChange={(event) => setIdealBank(event.target.value)}>
+                <option value="ING">ING</option>
+                <option value="ABN AMRO">ABN AMRO</option>
+                <option value="Rabobank">Rabobank</option>
+                <option value="Bunq">Bunq</option>
+                <option value="Revolut">Revolut</option>
               </select>
             </label>
           )}
@@ -396,4 +400,9 @@ export function SubscriptionPage({ lang, setLang }: SubscriptionPageProps) {
 function planName(plan: PaidSubscriptionPlan, copy: SubscriptionCopy): string {
   if (!isPaidSubscriptionPlan(plan)) return "";
   return SUBSCRIPTION_PLAN_DETAILS[plan].realtimeStock ? copy.stockName : copy.alertsName;
+}
+
+function cardLast4(value: string): string {
+  const digits = value.replace(/\D/g, "");
+  return digits.length >= 4 ? digits.slice(-4) : "4242";
 }
