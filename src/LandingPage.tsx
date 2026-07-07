@@ -28,6 +28,21 @@ type LandingCopy = {
   subscribeTitle: string;
   subscribeBody: string;
   subscribeNotice: string;
+  loginTitle: string;
+  loginSubtitle: string;
+  emailLabel: string;
+  emailPlaceholder: string;
+  codeLabel: string;
+  codePlaceholder: string;
+  sendCode: string;
+  loginSubmit: string;
+  socialDivider: string;
+  loginWithGoogle: string;
+  loginWithApple: string;
+  loginWithMicrosoft: string;
+  loginFinePrint: string;
+  loginPreviewNotice: string;
+  closeLogin: string;
   previewNl: string;
   statSites: string;
   statCountries: string;
@@ -61,6 +76,21 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     subscribeTitle: "清凉一夏，从少刷新一次页面开始。",
     subscribeBody: "订阅入口已经预留。现在先展示门户体验，下一步再接入账号、支付和订阅权限。",
     subscribeNotice: "订阅功能即将接入。现在展示的是交互预览：房间已经开始降温了。",
+    loginTitle: "登录后开启清凉雷达",
+    loginSubtitle: "输入邮箱获取验证码，订阅功能接入后即可解锁实时库存提醒。",
+    emailLabel: "邮箱",
+    emailPlaceholder: "you@example.com",
+    codeLabel: "验证码",
+    codePlaceholder: "输入 6 位验证码",
+    sendCode: "发送验证码",
+    loginSubmit: "登录 / 继续订阅",
+    socialDivider: "或使用第三方账号继续",
+    loginWithGoogle: "Google",
+    loginWithApple: "Apple",
+    loginWithMicrosoft: "Microsoft",
+    loginFinePrint: "继续即表示你同意之后接入的用户协议和隐私政策。",
+    loginPreviewNotice: "当前为登录界面预览，验证码发送、OAuth 和订阅支付逻辑尚未接入。",
+    closeLogin: "关闭登录弹窗",
     previewNl: "预览荷兰库存",
     statSites: "45+ 网站",
     statCountries: "法国 / 荷兰",
@@ -92,6 +122,21 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     subscribeTitle: "Een koelere zomer begint met minder refreshen.",
     subscribeBody: "De abonnementsknop is alvast voorbereid. Nu tonen we eerst de portalervaring; accounts, betaling en rechten komen in de volgende stap.",
     subscribeNotice: "Abonnementen komen binnenkort. Dit is de interactiepreview: de kamer koelt alvast af.",
+    loginTitle: "Log in voor je koele voorraad-radar",
+    loginSubtitle: "Vul je e-mail in voor een code. Zodra abonnementen live zijn, ontgrendel je realtime voorraadmeldingen.",
+    emailLabel: "E-mail",
+    emailPlaceholder: "jij@example.com",
+    codeLabel: "Code",
+    codePlaceholder: "Voer de 6-cijferige code in",
+    sendCode: "Code sturen",
+    loginSubmit: "Inloggen / doorgaan",
+    socialDivider: "Of ga verder met",
+    loginWithGoogle: "Google",
+    loginWithApple: "Apple",
+    loginWithMicrosoft: "Microsoft",
+    loginFinePrint: "Door verder te gaan ga je later akkoord met de voorwaarden en privacyverklaring.",
+    loginPreviewNotice: "Dit is alleen de login-preview; e-mailcodes, OAuth en betaling zijn nog niet gekoppeld.",
+    closeLogin: "Sluit loginvenster",
     previewNl: "Bekijk Nederland",
     statSites: "45+ sites",
     statCountries: "Frankrijk / Nederland",
@@ -123,6 +168,21 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     subscribeTitle: "A cooler summer starts with one less refresh.",
     subscribeBody: "The subscription entry point is already reserved. For now this is the portal experience; accounts, payment and access control will follow.",
     subscribeNotice: "Subscriptions are coming soon. This is the interaction preview: the room is already cooling down.",
+    loginTitle: "Log in to unlock your cooling radar",
+    loginSubtitle: "Enter your email for a code. Once subscriptions go live, this will unlock realtime stock alerts.",
+    emailLabel: "Email",
+    emailPlaceholder: "you@example.com",
+    codeLabel: "Verification code",
+    codePlaceholder: "Enter 6-digit code",
+    sendCode: "Send code",
+    loginSubmit: "Log in / continue",
+    socialDivider: "Or continue with",
+    loginWithGoogle: "Google",
+    loginWithApple: "Apple",
+    loginWithMicrosoft: "Microsoft",
+    loginFinePrint: "By continuing, you will later agree to the terms and privacy policy.",
+    loginPreviewNotice: "This is a login UI preview; email codes, OAuth and subscription payment are not wired yet.",
+    closeLogin: "Close login dialog",
     previewNl: "Preview Netherlands",
     statSites: "45+ sites",
     statCountries: "France / Netherlands",
@@ -172,6 +232,8 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
   const copy = LANDING_COPY[lang];
   const { activeStep, setStepRef } = useStoryStepObserver(3);
   const [coolingPreview, setCoolingPreview] = useState(false);
+  const [loginOpen, setLoginOpen] = useState(false);
+  const emailInputRef = useRef<HTMLInputElement | null>(null);
   const francePreviewUrl = `/deliver-to/fr?lang=${lang}`;
   const nlPreviewUrl = `/deliver-to/nl?lang=${lang}`;
 
@@ -181,6 +243,26 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
       .querySelector('meta[name="description"]')
       ?.setAttribute("content", "Airco Tracker monitors portable air-conditioner stock across European retailers.");
   }, []);
+
+  useEffect(() => {
+    document.body.classList.toggle("landing-dialog-open", loginOpen);
+    if (loginOpen) emailInputRef.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setLoginOpen(false);
+    };
+    if (loginOpen) window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.classList.remove("landing-dialog-open");
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [loginOpen]);
+
+  const openLogin = () => {
+    setCoolingPreview(true);
+    setLoginOpen(true);
+  };
+
+  const closeLogin = () => setLoginOpen(false);
 
   return (
     <main className={`landing-shell landing-story--step-${activeStep}${coolingPreview ? " landing-story--cooling" : ""}`}>
@@ -196,17 +278,11 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
         </nav>
         <div className="landing-nav-actions">
           <LanguageSwitcher lang={lang} setLang={setLang} />
-          <button className="landing-nav-cta" type="button" onClick={() => setCoolingPreview(true)}>
+          <button className="landing-nav-cta" type="button" onClick={openLogin}>
             {copy.primaryCta}
           </button>
         </div>
       </header>
-
-      {coolingPreview && (
-        <div className="landing-toast" role="status">
-          {copy.subscribeNotice}
-        </div>
-      )}
 
       <section className="landing-hero" aria-labelledby="landing-title">
         <div className="landing-hero-visual" aria-hidden="true">
@@ -226,7 +302,7 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
           <h1 id="landing-title">{renderLandingLines(copy.heroTitle)}</h1>
           <p>{copy.heroLead}</p>
           <div className="landing-hero-actions">
-            <button className="landing-primary-button" type="button" onClick={() => setCoolingPreview(true)}>
+            <button className="landing-primary-button" type="button" onClick={openLogin}>
               {copy.primaryCta}
             </button>
             <a className="landing-secondary-button" href={francePreviewUrl}>{copy.secondaryCta}</a>
@@ -285,7 +361,7 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
             <p className="landing-kicker">{copy.stepThreeKicker}</p>
             <h2>{copy.stepThreeTitle}</h2>
             <p>{copy.stepThreeBody}</p>
-            <button className="landing-primary-button" type="button" onClick={() => setCoolingPreview(true)}>
+            <button className="landing-primary-button" type="button" onClick={openLogin}>
               {copy.primaryCta}
             </button>
           </article>
@@ -298,7 +374,7 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
           <h2>{copy.productTitle}</h2>
           <p>{copy.productBody}</p>
           <div className="landing-product-actions">
-            <button className="landing-primary-button" type="button" onClick={() => setCoolingPreview(true)}>
+            <button className="landing-primary-button" type="button" onClick={openLogin}>
               {copy.primaryCta}
             </button>
             <a className="landing-secondary-button" href={francePreviewUrl}>{copy.secondaryCta}</a>
@@ -332,10 +408,56 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
           <p>{copy.subscribeBody}</p>
           {coolingPreview && <p className="landing-subscribe-note">{copy.subscribeNotice}</p>}
         </div>
-        <button className="landing-primary-button landing-primary-button--large" type="button" onClick={() => setCoolingPreview(true)}>
+        <button className="landing-primary-button landing-primary-button--large" type="button" onClick={openLogin}>
           {copy.primaryCta}
         </button>
       </section>
+
+      {loginOpen && (
+        <div className="landing-login-backdrop" onMouseDown={closeLogin}>
+          <section
+            className="landing-login-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="landing-login-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <button className="landing-login-close" type="button" onClick={closeLogin} aria-label={copy.closeLogin}>
+              ×
+            </button>
+            <div className="landing-login-brand" aria-hidden="true">
+              <span className="landing-logo-mark"><i /><i /><i /></span>
+              <span>{copy.productName}</span>
+            </div>
+            <div className="landing-login-copy">
+              <p className="landing-kicker">{copy.primaryCta}</p>
+              <h2 id="landing-login-title">{copy.loginTitle}</h2>
+              <p>{copy.loginSubtitle}</p>
+            </div>
+            <form className="landing-login-form" onSubmit={(event) => event.preventDefault()}>
+              <label className="landing-login-field">
+                <span>{copy.emailLabel}</span>
+                <input ref={emailInputRef} type="email" inputMode="email" autoComplete="email" placeholder={copy.emailPlaceholder} />
+              </label>
+              <label className="landing-login-field landing-login-code-field">
+                <span>{copy.codeLabel}</span>
+                <input type="text" inputMode="numeric" autoComplete="one-time-code" placeholder={copy.codePlaceholder} />
+                <button type="button">{copy.sendCode}</button>
+              </label>
+              <button className="landing-login-submit" type="button">{copy.loginSubmit}</button>
+            </form>
+            <div className="landing-login-divider">
+              <span>{copy.socialDivider}</span>
+            </div>
+            <div className="landing-login-socials">
+              <button type="button"><span aria-hidden="true">G</span>{copy.loginWithGoogle}</button>
+              <button type="button"><span aria-hidden="true"></span>{copy.loginWithApple}</button>
+              <button type="button"><span aria-hidden="true">▦</span>{copy.loginWithMicrosoft}</button>
+            </div>
+            <p className="landing-login-fineprint">{copy.loginFinePrint}</p>
+          </section>
+        </div>
+      )}
     </main>
   );
 }

@@ -10,6 +10,8 @@ A 2026-07-07 portal round added an Apple-style public landing page at `/`: a hea
 
 A 2026-07-07 custom-domain hardening round persisted `airco-tracker.eu` and `www.airco-tracker.eu` in `infra/app.bicep` using the existing Container Apps managed certificates. Do not remove those `customDomains` entries; otherwise a future Bicep deployment will clear the manual hostname bindings and the custom domain will reset/fail.
 
+A 2026-07-07 login-modal UI round changed all public portal subscription CTAs to open a centered cool-blue login dialog. The modal currently has email and verification-code inputs, a send-code button, a continue button, and Google/Apple/Microsoft placeholder buttons. It deliberately does not send verification codes, start OAuth, create sessions, or gate `/deliver-to/*`; those auth and subscription flows are still future work.
+
 A 2026-07-06 routing round made delivery destination a URL-level state: `/deliver-to/<country>` filters retailers by backend-provided site-level `delivery_coverage`, while `?lang=<zh|nl|en>` and the language switcher control only the interface language. Existing hash-based retailer detail routes still work under the delivery-country path.
 
 A 2026-07-06 hardening round made the frontend compatible with the backend's post-rename country-aware schema. The UI now treats `available_product_count` as total visible orderable products and uses `immediate_product_count` / `presale_product_count` (or derived product-array fallbacks) for user-facing counts, so presales are no longer shown as in-stock. Presale overview now includes mixed retailers, presale card clicks open the presale detail tab, and the footer country label is data-driven. The API validator accepts both old and new schema-v1 snapshots while enforcing stricter consistency checks; it also accepts optional site-level `delivery_coverage` tokens. The Docker image now includes the local i18n fallback file, and deployment verification cross-checks inventory totals.
@@ -55,6 +57,7 @@ The Git branch history uses the repository-local GitHub noreply author. A tempor
 
 - React 19 + TypeScript + Vite.
 - **Public portal**: `/` renders a heatwave-themed landing page with fixed glass navigation, multilingual copy, CSS-generated outdoor/indoor scenes, scroll-driven story states, subscription placeholder feedback, and preview links to `/deliver-to/fr` and `/deliver-to/nl`.
+- **Login modal placeholder**: portal subscription buttons open a centered frosted-glass login dialog with email/code fields and Google/Apple/Microsoft placeholder buttons. The modal closes on Escape, close button, or backdrop click and locks background scrolling while open. No auth/API calls are implemented yet.
 - Glacier-blue page background, hero treatment, summary metrics, and stock-status accents.
 - Retailer cards show a brand-colored initial mark, retailer name, tab-specific count, status, and outbound-link arrow.
 - Retailers with immediate stock or presale sort first by the active tab's count; ties use Dutch locale name sorting.
