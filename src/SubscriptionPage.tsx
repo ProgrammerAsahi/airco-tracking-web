@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   PAID_SUBSCRIPTION_PLANS,
   SUBSCRIPTION_PLAN_DETAILS,
@@ -8,7 +8,15 @@ import {
   type PaidSubscriptionPlan,
   type PaymentMethod,
 } from "../shared/auth";
-import { completePreviewPayment, getCurrentUser, type UserProfile } from "./authClient";
+import {
+  AuthApiError,
+  completePreviewPayment,
+  getCurrentUser,
+  requestAuthCode,
+  updateNickname,
+  verifyAuthCode,
+  type UserProfile,
+} from "./authClient";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import type { Lang } from "./i18n";
 
@@ -39,8 +47,39 @@ type SubscriptionCopy = {
   completePayment: string;
   processing: string;
   sandboxNotice: string;
-  loginRequired: string;
-  loginCta: string;
+  loginTitle: string;
+  loginSubtitle: string;
+  emailLabel: string;
+  emailPlaceholder: string;
+  codeLabel: string;
+  codePlaceholder: string;
+  sendCode: string;
+  sendCodeBusy: string;
+  codeSent: string;
+  codeCooldown: string;
+  devCodeNotice: string;
+  loginSubmit: string;
+  loginBusy: string;
+  socialDivider: string;
+  loginWithGoogle: string;
+  loginWithApple: string;
+  loginWithMicrosoft: string;
+  loginFinePrint: string;
+  loginPreviewNotice: string;
+  closeLogin: string;
+  socialComingSoon: string;
+  authErrorInvalidEmail: string;
+  authErrorInvalidCode: string;
+  authErrorTooMany: string;
+  authErrorEmailFailed: string;
+  authErrorGeneric: string;
+  nicknameTitle: string;
+  nicknameSubtitle: string;
+  nicknameLabel: string;
+  nicknamePlaceholder: string;
+  nicknameSubmit: string;
+  nicknameSaving: string;
+  nicknameError: string;
   included: string;
   alertsFeature: string;
   stockFeature: string;
@@ -87,8 +126,39 @@ const SUBSCRIPTION_COPY: Record<Lang, SubscriptionCopy> = {
     completePayment: "完成测试支付",
     processing: "处理中…",
     sandboxNotice: "Sandbox preview：不会真实扣款，也不会保存卡号或银行信息。",
-    loginRequired: "登录后即可选择订阅方案。",
-    loginCta: "回到首页登录",
+    loginTitle: "登录后继续订阅",
+    loginSubtitle: "输入邮箱获取验证码。登录成功后会继续打开你刚选择的支付选项。",
+    emailLabel: "邮箱",
+    emailPlaceholder: "you@example.com",
+    codeLabel: "验证码",
+    codePlaceholder: "输入 6 位验证码",
+    sendCode: "发送验证码",
+    sendCodeBusy: "发送中…",
+    codeSent: "验证码已发送，请检查你的邮箱。",
+    codeCooldown: "验证码刚刚发送过，请 {seconds} 秒后再试。",
+    devCodeNotice: "本地开发验证码：{code}",
+    loginSubmit: "登录并继续",
+    loginBusy: "登录中…",
+    socialDivider: "或使用第三方账号继续",
+    loginWithGoogle: "Google",
+    loginWithApple: "Apple",
+    loginWithMicrosoft: "Microsoft",
+    loginFinePrint: "继续即表示你同意之后接入的用户协议和隐私政策。",
+    loginPreviewNotice: "邮箱验证码已接入；第三方登录和真实支付会在下一阶段接入。",
+    closeLogin: "关闭登录弹窗",
+    socialComingSoon: "即将接入",
+    authErrorInvalidEmail: "请填写一个有效的邮箱地址。",
+    authErrorInvalidCode: "验证码无效或已过期，请重新检查或再发一次。",
+    authErrorTooMany: "尝试次数太多，请重新发送验证码。",
+    authErrorEmailFailed: "验证码邮件暂时发送失败，请稍后再试。",
+    authErrorGeneric: "登录服务暂时不可用，请稍后再试。",
+    nicknameTitle: "我们该如何称呼你？",
+    nicknameSubtitle: "只需要一个昵称。它会用于你的头像和之后的个性化提示。",
+    nicknameLabel: "昵称",
+    nicknamePlaceholder: "我们该如何称呼您呢？",
+    nicknameSubmit: "保存昵称并继续",
+    nicknameSaving: "保存中…",
+    nicknameError: "昵称需要 1–40 个字符，且至少包含一个文字或数字。",
     included: "包含",
     alertsFeature: "库存上线邮件提醒",
     stockFeature: "实时库存页面访问",
@@ -133,8 +203,39 @@ const SUBSCRIPTION_COPY: Record<Lang, SubscriptionCopy> = {
     completePayment: "Testbetaling afronden",
     processing: "Bezig…",
     sandboxNotice: "Sandbox preview: er wordt niets afgeschreven en we bewaren geen kaart- of bankgegevens.",
-    loginRequired: "Log in om een abonnement te kiezen.",
-    loginCta: "Terug naar login",
+    loginTitle: "Log in om door te gaan",
+    loginSubtitle: "Vul je e-mail in voor een code. Na het inloggen openen we direct de betaalopties voor je gekozen plan.",
+    emailLabel: "E-mail",
+    emailPlaceholder: "jij@example.com",
+    codeLabel: "Code",
+    codePlaceholder: "Voer de 6-cijferige code in",
+    sendCode: "Code sturen",
+    sendCodeBusy: "Versturen…",
+    codeSent: "De code is verstuurd. Check je mailbox.",
+    codeCooldown: "Er is net een code verstuurd. Probeer opnieuw over {seconds} seconden.",
+    devCodeNotice: "Lokale ontwikkelcode: {code}",
+    loginSubmit: "Inloggen en doorgaan",
+    loginBusy: "Inloggen…",
+    socialDivider: "Of ga verder met",
+    loginWithGoogle: "Google",
+    loginWithApple: "Apple",
+    loginWithMicrosoft: "Microsoft",
+    loginFinePrint: "Door verder te gaan ga je later akkoord met de voorwaarden en privacyverklaring.",
+    loginPreviewNotice: "E-mailcodes zijn gekoppeld; OAuth en echte betaling komen in de volgende stap.",
+    closeLogin: "Sluit loginvenster",
+    socialComingSoon: "Binnenkort",
+    authErrorInvalidEmail: "Vul een geldig e-mailadres in.",
+    authErrorInvalidCode: "De code is ongeldig of verlopen. Controleer hem of vraag een nieuwe aan.",
+    authErrorTooMany: "Te veel pogingen. Vraag een nieuwe code aan.",
+    authErrorEmailFailed: "De verificatiemail kon niet worden verstuurd. Probeer het later opnieuw.",
+    authErrorGeneric: "Inloggen is tijdelijk niet beschikbaar. Probeer het later opnieuw.",
+    nicknameTitle: "Hoe mogen we je noemen?",
+    nicknameSubtitle: "Alleen een bijnaam. Die gebruiken we voor je avatar en latere persoonlijke meldingen.",
+    nicknameLabel: "Bijnaam",
+    nicknamePlaceholder: "Hoe mogen we u noemen?",
+    nicknameSubmit: "Opslaan en doorgaan",
+    nicknameSaving: "Opslaan…",
+    nicknameError: "Gebruik 1–40 tekens en minstens één letter of cijfer.",
     included: "Inbegrepen",
     alertsFeature: "E-mail bij nieuwe voorraad",
     stockFeature: "Toegang tot realtime voorraad",
@@ -179,8 +280,39 @@ const SUBSCRIPTION_COPY: Record<Lang, SubscriptionCopy> = {
     completePayment: "Complete test payment",
     processing: "Processing…",
     sandboxNotice: "Sandbox preview: no real charge, and no card or bank details are stored.",
-    loginRequired: "Log in to choose a subscription.",
-    loginCta: "Back to login",
+    loginTitle: "Log in to continue",
+    loginSubtitle: "Enter your email for a code. After login, we will open payment options for the plan you selected.",
+    emailLabel: "Email",
+    emailPlaceholder: "you@example.com",
+    codeLabel: "Verification code",
+    codePlaceholder: "Enter 6-digit code",
+    sendCode: "Send code",
+    sendCodeBusy: "Sending…",
+    codeSent: "Code sent. Please check your inbox.",
+    codeCooldown: "A code was just sent. Try again in {seconds} seconds.",
+    devCodeNotice: "Local development code: {code}",
+    loginSubmit: "Log in and continue",
+    loginBusy: "Signing in…",
+    socialDivider: "Or continue with",
+    loginWithGoogle: "Google",
+    loginWithApple: "Apple",
+    loginWithMicrosoft: "Microsoft",
+    loginFinePrint: "By continuing, you will later agree to the terms and privacy policy.",
+    loginPreviewNotice: "Email codes are wired; OAuth and real payment come next.",
+    closeLogin: "Close login dialog",
+    socialComingSoon: "Coming soon",
+    authErrorInvalidEmail: "Please enter a valid email address.",
+    authErrorInvalidCode: "That code is invalid or expired. Check it or request a new one.",
+    authErrorTooMany: "Too many attempts. Please request a new code.",
+    authErrorEmailFailed: "The verification email could not be sent. Please try again later.",
+    authErrorGeneric: "Login is temporarily unavailable. Please try again later.",
+    nicknameTitle: "What should we call you?",
+    nicknameSubtitle: "Just a nickname. We use it for your avatar and future personalized alerts.",
+    nicknameLabel: "Nickname",
+    nicknamePlaceholder: "What should we call you?",
+    nicknameSubmit: "Save and continue",
+    nicknameSaving: "Saving…",
+    nicknameError: "Use 1–40 characters and include at least one letter or number.",
     included: "Included",
     alertsFeature: "Email alerts when stock appears",
     stockFeature: "Realtime stock page access",
@@ -208,7 +340,6 @@ type SubscriptionPageProps = {
 export function SubscriptionPage({ lang, setLang }: SubscriptionPageProps) {
   const copy = SUBSCRIPTION_COPY[lang];
   const [user, setUser] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("weekly");
   const [selectedPlan, setSelectedPlan] = useState<PaidSubscriptionPlan | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("card");
@@ -216,6 +347,20 @@ export function SubscriptionPage({ lang, setLang }: SubscriptionPageProps) {
   const [idealBank, setIdealBank] = useState("ING");
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState("");
+  const [loginOpen, setLoginOpen] = useState(false);
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
+  const [loginMessage, setLoginMessage] = useState("");
+  const [loginError, setLoginError] = useState("");
+  const [sendingCode, setSendingCode] = useState(false);
+  const [codeCooldownSeconds, setCodeCooldownSeconds] = useState(0);
+  const [verifyingCode, setVerifyingCode] = useState(false);
+  const [nicknameOpen, setNicknameOpen] = useState(false);
+  const [nickname, setNickname] = useState("");
+  const [nicknameError, setNicknameError] = useState("");
+  const [savingNickname, setSavingNickname] = useState(false);
+  const emailInputRef = useRef<HTMLInputElement | null>(null);
+  const nicknameInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     document.title = "Subscribe · Airco Tracker";
@@ -224,25 +369,117 @@ export function SubscriptionPage({ lang, setLang }: SubscriptionPageProps) {
       .then((nextUser) => {
         if (ignore) return;
         setUser(nextUser);
-        if (nextUser?.languagePreference && nextUser.languagePreference !== lang) setLang(nextUser.languagePreference);
       })
-      .catch(() => undefined)
-      .finally(() => {
-        if (!ignore) setLoading(false);
-      });
+      .catch(() => undefined);
     return () => {
       ignore = true;
     };
-  }, [lang, setLang]);
+  }, []);
+
+  useEffect(() => {
+    const dialogOpen = loginOpen || nicknameOpen;
+    document.body.classList.toggle("landing-dialog-open", dialogOpen);
+    if (loginOpen) emailInputRef.current?.focus();
+    if (nicknameOpen) nicknameInputRef.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && loginOpen) setLoginOpen(false);
+    };
+    if (dialogOpen) window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.classList.remove("landing-dialog-open");
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [loginOpen, nicknameOpen]);
+
+  useEffect(() => {
+    if (codeCooldownSeconds <= 0) return undefined;
+    const timer = window.setInterval(() => {
+      setCodeCooldownSeconds((seconds) => Math.max(0, seconds - 1));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [codeCooldownSeconds]);
 
   const visiblePlans = useMemo(
     () => PAID_SUBSCRIPTION_PLANS.filter((plan) => SUBSCRIPTION_PLAN_DETAILS[plan].billingCycle === billingCycle),
     [billingCycle],
   );
 
+  const scrollToCheckout = () => {
+    window.setTimeout(() => document.getElementById("checkout")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+  };
+
   const choosePlan = (plan: PaidSubscriptionPlan) => {
     setSelectedPlan(plan);
-    window.setTimeout(() => document.getElementById("checkout")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+    setError("");
+    if (!user) {
+      setLoginError("");
+      setLoginMessage("");
+      setLoginOpen(true);
+      return;
+    }
+    scrollToCheckout();
+  };
+
+  const closeLogin = () => setLoginOpen(false);
+
+  const handleSendCode = async () => {
+    setLoginError("");
+    setLoginMessage("");
+    setSendingCode(true);
+    try {
+      const result = await requestAuthCode(email, lang);
+      const devCode = result.devCode ? ` ${copy.devCodeNotice.replace("{code}", result.devCode)}` : "";
+      setLoginMessage(`${copy.codeSent}${devCode}`);
+      if (result.devCode) setCode(result.devCode);
+      setCodeCooldownSeconds(result.retryAfterSeconds || 60);
+    } catch (error) {
+      if (error instanceof AuthApiError && error.code === "code_recently_sent" && error.retryAfterSeconds) {
+        setCodeCooldownSeconds(error.retryAfterSeconds);
+      }
+      setLoginError(authErrorMessage(error, copy));
+    } finally {
+      setSendingCode(false);
+    }
+  };
+
+  const handleVerifyCode = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setLoginError("");
+    setLoginMessage("");
+    setVerifyingCode(true);
+    try {
+      const result = await verifyAuthCode(email, code, lang);
+      setUser(result.user);
+      setLoginOpen(false);
+      setCode("");
+      if (result.needsOnboarding || !result.user.nickname) {
+        setNickname("");
+        setNicknameOpen(true);
+      } else {
+        scrollToCheckout();
+      }
+    } catch (error) {
+      setLoginError(authErrorMessage(error, copy));
+    } finally {
+      setVerifyingCode(false);
+    }
+  };
+
+  const handleNicknameSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setNicknameError("");
+    setSavingNickname(true);
+    try {
+      const updated = await updateNickname(nickname);
+      setUser(updated);
+      setNicknameOpen(false);
+      setNickname("");
+      scrollToCheckout();
+    } catch {
+      setNicknameError(copy.nicknameError);
+    } finally {
+      setSavingNickname(false);
+    }
   };
 
   const completePayment = async () => {
@@ -254,7 +491,7 @@ export function SubscriptionPage({ lang, setLang }: SubscriptionPageProps) {
         ? { paymentBrand: "VISA", paymentLast4: cardLast4(cardNumber) }
         : { idealBank });
       setUser(updated);
-      window.location.href = `/ready?lang=${updated.languagePreference}`;
+      window.location.href = `/ready?lang=${lang}`;
     } catch {
       setError(copy.error);
     } finally {
@@ -289,13 +526,6 @@ export function SubscriptionPage({ lang, setLang }: SubscriptionPageProps) {
         </div>
       </section>
 
-      {!loading && !user && (
-        <section className="subscription-login-card">
-          <h2>{copy.loginRequired}</h2>
-          <a className="landing-primary-button" href={`/?lang=${lang}`}>{copy.loginCta}</a>
-        </section>
-      )}
-
       <section className="subscription-grid" aria-label="Subscription plans">
         {visiblePlans.map((plan) => {
           const details = SUBSCRIPTION_PLAN_DETAILS[plan];
@@ -315,7 +545,7 @@ export function SubscriptionPage({ lang, setLang }: SubscriptionPageProps) {
                 <li>{copy.deliveryFeature}</li>
                 <li>{copy.cancellationFeature}</li>
               </ul>
-              <button className={isStockPlan ? "landing-primary-button" : "landing-secondary-button"} type="button" disabled={!user || Boolean(isCurrent)} onClick={() => choosePlan(plan)}>
+              <button className={isStockPlan ? "landing-primary-button" : "landing-secondary-button"} type="button" disabled={Boolean(isCurrent)} onClick={() => choosePlan(plan)}>
                 {isCurrent ? copy.currentPlan : copy.choose}
               </button>
             </article>
@@ -393,6 +623,118 @@ export function SubscriptionPage({ lang, setLang }: SubscriptionPageProps) {
           <p>{copy.faqCountryA}</p>
         </details>
       </section>
+
+      {loginOpen && (
+        <div className="landing-login-backdrop" onMouseDown={closeLogin}>
+          <section
+            className="landing-login-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="subscription-login-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <button className="landing-login-close" type="button" onClick={closeLogin} aria-label={copy.closeLogin}>
+              ×
+            </button>
+            <div className="landing-login-brand" aria-hidden="true">
+              <span className="landing-logo-mark"><i /><i /><i /></span>
+              <span>{copy.productName}</span>
+            </div>
+            <div className="landing-login-copy">
+              <p className="landing-kicker">{copy.choose}</p>
+              <h2 id="subscription-login-title">{copy.loginTitle}</h2>
+              <p>{copy.loginSubtitle}</p>
+            </div>
+            <form className="landing-login-form" onSubmit={handleVerifyCode}>
+              <label className="landing-login-field">
+                <span>{copy.emailLabel}</span>
+                <input
+                  ref={emailInputRef}
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  placeholder={copy.emailPlaceholder}
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  required
+                />
+              </label>
+              <label className="landing-login-field landing-login-code-field">
+                <span>{copy.codeLabel}</span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  placeholder={copy.codePlaceholder}
+                  value={code}
+                  maxLength={6}
+                  pattern="\d{6}"
+                  onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                  required
+                />
+                <button type="button" onClick={handleSendCode} disabled={sendingCode || verifyingCode || codeCooldownSeconds > 0}>
+                  {sendingCode ? copy.sendCodeBusy : codeCooldownSeconds > 0 ? `${codeCooldownSeconds}s` : copy.sendCode}
+                </button>
+              </label>
+              {loginMessage && <p className="landing-login-message">{loginMessage}</p>}
+              {loginError && <p className="landing-login-error">{loginError}</p>}
+              <button className="landing-login-submit" type="submit" disabled={sendingCode || verifyingCode}>
+                {verifyingCode ? copy.loginBusy : copy.loginSubmit}
+              </button>
+            </form>
+            <div className="landing-login-divider">
+              <span>{copy.socialDivider}</span>
+            </div>
+            <div className="landing-login-socials">
+              <button type="button" disabled title={copy.socialComingSoon}><span aria-hidden="true">G</span>{copy.loginWithGoogle}</button>
+              <button type="button" disabled title={copy.socialComingSoon}><span aria-hidden="true"></span>{copy.loginWithApple}</button>
+              <button type="button" disabled title={copy.socialComingSoon}><span aria-hidden="true">▦</span>{copy.loginWithMicrosoft}</button>
+            </div>
+            <p className="landing-login-fineprint">{copy.loginFinePrint}</p>
+            <p className="landing-login-preview">{copy.loginPreviewNotice}</p>
+          </section>
+        </div>
+      )}
+
+      {nicknameOpen && (
+        <div className="landing-login-backdrop">
+          <section
+            className="landing-login-card landing-nickname-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="subscription-nickname-title"
+          >
+            <div className="landing-login-brand" aria-hidden="true">
+              <span className="landing-logo-mark"><i /><i /><i /></span>
+              <span>{copy.productName}</span>
+            </div>
+            <div className="landing-login-copy">
+              <p className="landing-kicker">{email}</p>
+              <h2 id="subscription-nickname-title">{copy.nicknameTitle}</h2>
+              <p>{copy.nicknameSubtitle}</p>
+            </div>
+            <form className="landing-login-form" onSubmit={handleNicknameSubmit}>
+              <label className="landing-login-field">
+                <span>{copy.nicknameLabel}</span>
+                <input
+                  ref={nicknameInputRef}
+                  type="text"
+                  autoComplete="nickname"
+                  placeholder={copy.nicknamePlaceholder}
+                  value={nickname}
+                  maxLength={40}
+                  onChange={(event) => setNickname(event.target.value)}
+                  required
+                />
+              </label>
+              {nicknameError && <p className="landing-login-error">{nicknameError}</p>}
+              <button className="landing-login-submit" type="submit" disabled={savingNickname}>
+                {savingNickname ? copy.nicknameSaving : copy.nicknameSubmit}
+              </button>
+            </form>
+          </section>
+        </div>
+      )}
     </main>
   );
 }
@@ -405,4 +747,17 @@ function planName(plan: PaidSubscriptionPlan, copy: SubscriptionCopy): string {
 function cardLast4(value: string): string {
   const digits = value.replace(/\D/g, "");
   return digits.length >= 4 ? digits.slice(-4) : "4242";
+}
+
+function authErrorMessage(error: unknown, copy: SubscriptionCopy): string {
+  if (error instanceof AuthApiError) {
+    if (error.code === "invalid_email") return copy.authErrorInvalidEmail;
+    if (error.code === "invalid_code" || error.code === "invalid_or_expired_code") return copy.authErrorInvalidCode;
+    if (error.code === "too_many_code_attempts") return copy.authErrorTooMany;
+    if (error.code === "email_send_failed") return copy.authErrorEmailFailed;
+    if (error.code === "code_recently_sent" && error.retryAfterSeconds) {
+      return copy.codeCooldown.replace("{seconds}", String(error.retryAfterSeconds));
+    }
+  }
+  return copy.authErrorGeneric;
 }

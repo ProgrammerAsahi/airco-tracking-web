@@ -343,10 +343,9 @@ function InventoryApp({ lang, setLang, t }: AppLocaleProps) {
           return false;
         }
         setCurrentUser(user);
-        if (user.languagePreference !== lang) setLang(user.languagePreference);
 
         if (!hasRealtimeStockAccess(user)) {
-          window.location.replace(`/ready?lang=${user.languagePreference}`);
+          window.location.replace(`/ready?lang=${lang}`);
           return false;
         }
 
@@ -367,7 +366,7 @@ function InventoryApp({ lang, setLang, t }: AppLocaleProps) {
     return () => {
       ignore = true;
     };
-  }, [lang, setLang]);
+  }, [lang]);
 
   useEffect(() => {
     if (!accessChecked) return;
