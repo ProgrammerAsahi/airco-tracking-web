@@ -4,6 +4,7 @@ import type { InventoryProduct, InventorySnapshot, SiteInventory } from "./types
 import { useTranslation } from "./i18n";
 import type { Lang } from "./i18n";
 import { LanguageSwitcher } from "./LanguageSwitcher";
+import { LandingPage } from "./LandingPage";
 import { canonicalDeliveryPath, destinationCountryFromPath, visibleSiteEntries } from "../shared/delivery";
 import "./styles.css";
 
@@ -12,6 +13,11 @@ const inventoryUrl = import.meta.env.VITE_INVENTORY_URL ?? "/api/inventory";
 type Translator = (key: string, params?: Record<string, string | number>) => string;
 type InventoryTab = "immediate" | "presale";
 type SelectedRetailer = { key: string; tab: InventoryTab };
+type AppLocaleProps = {
+  lang: Lang;
+  setLang: (next: Lang) => void;
+  t: Translator;
+};
 
 const LOCALES: Record<Lang, string> = {
   zh: "zh-CN",
@@ -260,8 +266,7 @@ function RetailerDetail({ siteKey, inventory, initialTab, onBack, t, lang }: { s
   );
 }
 
-export default function App() {
-  const { lang, setLang, t } = useTranslation();
+function InventoryApp({ lang, setLang, t }: AppLocaleProps) {
   const [destinationCountry, setDestinationCountry] = useState(() => destinationCountryFromPath(window.location.pathname));
   const [snapshot, setSnapshot] = useState<InventorySnapshot | null>(null);
   const [error, setError] = useState<{ kind: "http"; status: number } | { kind: "generic" } | null>(null);
@@ -479,4 +484,25 @@ export default function App() {
       )}
     </main>
   );
+}
+
+function isInventoryRoute(pathname: string): boolean {
+  return pathname === "/deliver-to" || pathname.startsWith("/deliver-to/");
+}
+
+export default function App() {
+  const { lang, setLang, t } = useTranslation();
+  const [pathname, setPathname] = useState(() => window.location.pathname);
+
+  useEffect(() => {
+    const syncPathname = () => setPathname(window.location.pathname);
+    window.addEventListener("popstate", syncPathname);
+    return () => window.removeEventListener("popstate", syncPathname);
+  }, []);
+
+  if (isInventoryRoute(pathname)) {
+    return <InventoryApp lang={lang} setLang={setLang} t={t} />;
+  }
+
+  return <LandingPage lang={lang} setLang={setLang} />;
 }

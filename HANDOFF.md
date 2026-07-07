@@ -1,12 +1,14 @@
 # Airco Tracking Web — current handoff
 
-Last updated: 2026-07-06 (Europe/Amsterdam)
+Last updated: 2026-07-07 (Europe/Amsterdam)
 
 ## Current objective
 
-Provide a public, low-cost, read-only dashboard for the private Airco Tracker inventory snapshot. The first production version is complete: it lists immediate-stock and presale counts for all tracked retailers, uses a glacier-blue responsive UI, and reads live inventory through a same-origin API backed by Managed Identity.
+Provide a public, low-cost portal plus a read-only dashboard for the private Airco Tracker inventory snapshot. The production dashboard lists immediate-stock and presale counts for all tracked retailers, uses a glacier-blue responsive UI, and reads live inventory through a same-origin API backed by Managed Identity. The homepage (`/`) is now a heatwave-themed public landing portal; login and paid subscription gating are planned but not yet implemented.
 
-A 2026-07-06 routing round made delivery destination a URL-level state: `/deliver-to/<country>` filters retailers by backend-provided site-level `delivery_coverage`, while `?lang=<zh|nl|en>` and the language switcher control only the interface language. `/` and unknown app paths canonicalize to `/deliver-to/nl`; existing hash-based retailer detail routes still work under the delivery-country path.
+A 2026-07-07 portal round added an Apple-style public landing page at `/`: a heatwave story, CSS-generated Seine/Paris apartment visuals, multilingual copy, subscription placeholder CTA, and preview links into the inventory dashboards. `/deliver-to/<country>` remains the inventory dashboard route. Unknown non-dashboard paths currently render the landing portal.
+
+A 2026-07-06 routing round made delivery destination a URL-level state: `/deliver-to/<country>` filters retailers by backend-provided site-level `delivery_coverage`, while `?lang=<zh|nl|en>` and the language switcher control only the interface language. Existing hash-based retailer detail routes still work under the delivery-country path.
 
 A 2026-07-06 hardening round made the frontend compatible with the backend's post-rename country-aware schema. The UI now treats `available_product_count` as total visible orderable products and uses `immediate_product_count` / `presale_product_count` (or derived product-array fallbacks) for user-facing counts, so presales are no longer shown as in-stock. Presale overview now includes mixed retailers, presale card clicks open the presale detail tab, and the footer country label is data-driven. The API validator accepts both old and new schema-v1 snapshots while enforcing stricter consistency checks; it also accepts optional site-level `delivery_coverage` tokens. The Docker image now includes the local i18n fallback file, and deployment verification cross-checks inventory totals.
 
@@ -31,7 +33,7 @@ No active blocker exists. The next agent should first confirm what the user want
 - Repository: `https://github.com/ProgrammerAsahi/airco-tracking-web`
 - Branch: `main`
 - Local path: `~/airco-tracking-web`
-- Live URL: `https://airco-tracking-web.livelystone-5966d837.westeurope.azurecontainerapps.io/deliver-to/nl`
+- Live URL: `https://airco-tracker.eu/`
 - Feature commit: `3ab3508` (delivery-country routes and filtering)
 - Deployed image tag: `3ab350822b83185fe48f008447ab67d982ef5565`
 - Successful deployment workflow: GitHub Actions run `28791599824`
@@ -50,6 +52,7 @@ The Git branch history uses the repository-local GitHub noreply author. A tempor
 ### Browser UI
 
 - React 19 + TypeScript + Vite.
+- **Public portal**: `/` renders a heatwave-themed landing page with fixed glass navigation, multilingual copy, CSS-generated outdoor/indoor scenes, scroll-driven story states, subscription placeholder feedback, and preview links to `/deliver-to/fr` and `/deliver-to/nl`.
 - Glacier-blue page background, hero treatment, summary metrics, and stock-status accents.
 - Retailer cards show a brand-colored initial mark, retailer name, tab-specific count, status, and outbound-link arrow.
 - Retailers with immediate stock or presale sort first by the active tab's count; ties use Dutch locale name sorting.
