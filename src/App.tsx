@@ -3,11 +3,13 @@ import { getBrand } from "./brands";
 import type { InventoryProduct, InventorySnapshot, SiteInventory } from "./types";
 import { useTranslation } from "./i18n";
 import type { Lang } from "./i18n";
+import { AccountMenu } from "./AccountMenu";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { LandingPage } from "./LandingPage";
 import { ProfilePage } from "./ProfilePage";
+import { ReadyPage } from "./ReadyPage";
 import { SubscriptionPage } from "./SubscriptionPage";
-import { getCurrentUser } from "./authClient";
+import { getCurrentUser, type UserProfile } from "./authClient";
 import { hasRealtimeStockAccess } from "../shared/auth";
 import { canonicalDeliveryPath, destinationCountryFromPath, visibleSiteEntries } from "../shared/delivery";
 import "./styles.css";
@@ -273,6 +275,7 @@ function RetailerDetail({ siteKey, inventory, initialTab, onBack, t, lang }: { s
 function InventoryApp({ lang, setLang, t }: AppLocaleProps) {
   const [destinationCountry, setDestinationCountry] = useState(() => destinationCountryFromPath(window.location.pathname));
   const [accessChecked, setAccessChecked] = useState(false);
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [snapshot, setSnapshot] = useState<InventorySnapshot | null>(null);
   const [error, setError] = useState<{ kind: "http"; status: number } | { kind: "generic" } | null>(null);
   const [selectedRetailer, setSelectedRetailer] = useState<SelectedRetailer | null>(selectedRetailFromHash);
@@ -339,10 +342,11 @@ function InventoryApp({ lang, setLang, t }: AppLocaleProps) {
           window.location.replace(`/subscribe?lang=${lang}`);
           return false;
         }
+        setCurrentUser(user);
         if (user.languagePreference !== lang) setLang(user.languagePreference);
 
         if (!hasRealtimeStockAccess(user)) {
-          window.location.replace(`/subscribe?lang=${user.languagePreference}`);
+          window.location.replace(`/ready?lang=${user.languagePreference}`);
           return false;
         }
 
@@ -444,6 +448,10 @@ function InventoryApp({ lang, setLang, t }: AppLocaleProps) {
   if (!accessChecked) {
     return (
       <main className="page-shell">
+        <div className="inventory-topbar">
+          <LanguageSwitcher lang={lang} setLang={setLang} />
+          {currentUser && <AccountMenu user={currentUser} lang={lang} onLogout={() => { window.location.href = `/?lang=${lang}`; }} />}
+        </div>
         <div className="notice">Checking subscription…</div>
       </main>
     );
@@ -451,8 +459,9 @@ function InventoryApp({ lang, setLang, t }: AppLocaleProps) {
 
   return (
     <main className="page-shell">
-      <div className="lang-switcher-container">
+      <div className="inventory-topbar">
         <LanguageSwitcher lang={lang} setLang={setLang} />
+        {currentUser && <AccountMenu user={currentUser} lang={lang} onLogout={() => { window.location.href = `/?lang=${lang}`; }} />}
       </div>
       <header className="hero">
         <div className="product-name" aria-label="Airco Watch">
@@ -547,6 +556,10 @@ function isSubscribeRoute(pathname: string): boolean {
   return pathname === "/subscribe";
 }
 
+function isReadyRoute(pathname: string): boolean {
+  return pathname === "/ready";
+}
+
 export default function App() {
   const { lang, setLang, t } = useTranslation();
   const [pathname, setPathname] = useState(() => window.location.pathname);
@@ -567,6 +580,10 @@ export default function App() {
 
   if (isSubscribeRoute(pathname)) {
     return <SubscriptionPage lang={lang} setLang={setLang} />;
+  }
+
+  if (isReadyRoute(pathname)) {
+    return <ReadyPage lang={lang} setLang={setLang} />;
   }
 
   return <LandingPage lang={lang} setLang={setLang} />;

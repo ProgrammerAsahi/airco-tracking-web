@@ -13,6 +13,8 @@ import {
   isValidEmail,
   normalizeEmail,
   SUBSCRIPTION_PLAN_DETAILS,
+  subscriptionChangeDirection,
+  subscriptionIsActive,
   validateNickname,
   type DeliveryCountry,
   type PaidSubscriptionPlan,
@@ -44,12 +46,14 @@ type SessionRecord = {
 type AuthStore = {
   getUser(email: string): Promise<UserProfile | null>;
   upsertUser(user: UserProfile): Promise<void>;
+  deleteUser(email: string): Promise<void>;
   getCode(email: string): Promise<AuthCodeRecord | null>;
   upsertCode(record: AuthCodeRecord): Promise<void>;
   deleteCode(email: string): Promise<void>;
   getSession(sessionHash: string): Promise<SessionRecord | null>;
   upsertSession(record: SessionRecord): Promise<void>;
   deleteSession(sessionHash: string): Promise<void>;
+  deleteSessionsForEmail(email: string): Promise<void>;
 };
 
 type SendCodeResult = {
@@ -263,6 +267,15 @@ class TableAuthStore implements AuthStore {
     await this.users.upsertEntity(userToEntity(user), "Replace");
   }
 
+  async deleteUser(email: string): Promise<void> {
+    await this.ensureTables();
+    try {
+      await this.users.deleteEntity(USER_PARTITION, base64Url(email));
+    } catch (error) {
+      if (!isNotFoundError(error)) throw error;
+    }
+  }
+
   async getCode(email: string): Promise<AuthCodeRecord | null> {
     await this.ensureTables();
     try {
@@ -312,6 +325,18 @@ class TableAuthStore implements AuthStore {
       if (!isNotFoundError(error)) throw error;
     }
   }
+
+  async deleteSessionsForEmail(email: string): Promise<void> {
+    await this.ensureTables();
+    const normalized = normalizeEmail(email);
+    const entities = this.sessions.listEntities<SessionEntity>({
+      queryOptions: { filter: `PartitionKey eq '${SESSION_PARTITION}'` },
+    });
+    for await (const entity of entities) {
+      if (normalizeEmail(entity.email) !== normalized) continue;
+      await this.deleteSession(String(entity.sessionHash));
+    }
+  }
 }
 
 class MemoryAuthStore implements AuthStore {
@@ -326,6 +351,10 @@ class MemoryAuthStore implements AuthStore {
 
   async upsertUser(user: UserProfile): Promise<void> {
     this.users.set(user.email, { ...user });
+  }
+
+  async deleteUser(email: string): Promise<void> {
+    this.users.delete(email);
   }
 
   async getCode(email: string): Promise<AuthCodeRecord | null> {
@@ -353,6 +382,13 @@ class MemoryAuthStore implements AuthStore {
   async deleteSession(hash: string): Promise<void> {
     this.sessions.delete(hash);
   }
+
+  async deleteSessionsForEmail(email: string): Promise<void> {
+    const normalized = normalizeEmail(email);
+    for (const [hash, session] of this.sessions) {
+      if (normalizeEmail(session.email) === normalized) this.sessions.delete(hash);
+    }
+  }
 }
 
 type UserEntity = {
@@ -362,6 +398,8 @@ type UserEntity = {
   subscriptionStatus?: string;
   subscriptionCurrentPeriodEnd?: string;
   subscriptionCancelAtPeriodEnd?: boolean;
+  pendingSubscriptionPlan?: string;
+  pendingSubscriptionEffectiveAt?: string;
   languagePreference?: string;
   deliveryCountry?: string;
   createdAt: string;
@@ -381,6 +419,8 @@ function userToEntity(user: UserProfile): UserEntity & { partitionKey: string; r
     subscriptionStatus: user.subscriptionStatus,
     subscriptionCurrentPeriodEnd: user.subscriptionCurrentPeriodEnd ?? "",
     subscriptionCancelAtPeriodEnd: user.subscriptionCancelAtPeriodEnd,
+    pendingSubscriptionPlan: user.pendingSubscriptionPlan ?? "",
+    pendingSubscriptionEffectiveAt: user.pendingSubscriptionEffectiveAt ?? "",
     languagePreference: user.languagePreference,
     deliveryCountry: user.deliveryCountry,
     createdAt: user.createdAt,
@@ -391,6 +431,7 @@ function userToEntity(user: UserProfile): UserEntity & { partitionKey: string; r
 function userFromEntity(entity: TableEntityResult<UserEntity>): UserProfile {
   const subscriptionPlan = isSubscriptionPlan(entity.subscriptionPlan) ? entity.subscriptionPlan : AUTH_SUBSCRIPTION_PLAN_DEFAULT;
   const subscriptionStatus = isSubscriptionStatus(entity.subscriptionStatus) ? entity.subscriptionStatus : AUTH_SUBSCRIPTION_STATUS_DEFAULT;
+  const pendingSubscriptionPlan = isPaidSubscriptionPlan(entity.pendingSubscriptionPlan) ? entity.pendingSubscriptionPlan : null;
   const languagePreference = isLanguagePreference(entity.languagePreference) ? entity.languagePreference : AUTH_LANGUAGE_DEFAULT;
   const deliveryCountry = isDeliveryCountry(entity.deliveryCountry) ? entity.deliveryCountry : AUTH_DELIVERY_COUNTRY_DEFAULT;
   return {
@@ -402,6 +443,10 @@ function userFromEntity(entity: TableEntityResult<UserEntity>): UserProfile {
       ? entity.subscriptionCurrentPeriodEnd.trim()
       : null,
     subscriptionCancelAtPeriodEnd: Boolean(entity.subscriptionCancelAtPeriodEnd),
+    pendingSubscriptionPlan,
+    pendingSubscriptionEffectiveAt: typeof entity.pendingSubscriptionEffectiveAt === "string" && entity.pendingSubscriptionEffectiveAt.trim()
+      ? entity.pendingSubscriptionEffectiveAt.trim()
+      : null,
     languagePreference,
     deliveryCountry,
     createdAt: String(entity.createdAt),
@@ -583,6 +628,8 @@ export class AuthService {
       subscriptionStatus: AUTH_SUBSCRIPTION_STATUS_DEFAULT,
       subscriptionCurrentPeriodEnd: null,
       subscriptionCancelAtPeriodEnd: false,
+      pendingSubscriptionPlan: null,
+      pendingSubscriptionEffectiveAt: null,
       languagePreference: isLanguagePreference(lang) ? lang : AUTH_LANGUAGE_DEFAULT,
       deliveryCountry: AUTH_DELIVERY_COUNTRY_DEFAULT,
       createdAt: timestamp,
@@ -622,8 +669,10 @@ export class AuthService {
       await this.store.deleteSession(hash);
       return null;
     }
+    const settled = settleSubscription(user);
+    if (settled !== user) await this.store.upsertUser(settled);
     await this.store.upsertSession({ ...session, lastSeenAt: nowIso() });
-    return user;
+    return settled;
   }
 
   async requireUser(request: IncomingMessage): Promise<UserProfile> {
@@ -650,7 +699,7 @@ export class AuthService {
     if (!isPaidSubscriptionPlan(values.plan)) throw new AuthHttpError(400, "invalid_subscription_plan");
     if (!isPaymentMethod(values.paymentMethod)) throw new AuthHttpError(400, "invalid_payment_method");
 
-    const updated = activateSubscription(user, values.plan, values.paymentMethod);
+    const updated = changeSubscription(user, values.plan, values.paymentMethod);
     await this.store.upsertUser(updated);
     return updated;
   }
@@ -664,10 +713,21 @@ export class AuthService {
       ...user,
       subscriptionStatus: "canceled",
       subscriptionCancelAtPeriodEnd: true,
+      pendingSubscriptionPlan: null,
+      pendingSubscriptionEffectiveAt: null,
       updatedAt: nowIso(),
     };
     await this.store.upsertUser(updated);
     return updated;
+  }
+
+  async deleteAccount(request: IncomingMessage): Promise<void> {
+    const user = await this.requireUser(request);
+    const settled = settleSubscription(user);
+    if (subscriptionIsActive(settled)) throw new AuthHttpError(409, "active_subscription");
+    await this.store.deleteCode(user.email);
+    await this.store.deleteSessionsForEmail(user.email);
+    await this.store.deleteUser(user.email);
   }
 
   async updatePreferences(request: IncomingMessage, values: { languagePreference?: unknown; deliveryCountry?: unknown }): Promise<UserProfile> {
@@ -717,16 +777,57 @@ export function authServiceFromEnvironment(): AuthService {
   });
 }
 
-function activateSubscription(user: UserProfile, plan: PaidSubscriptionPlan, _paymentMethod: PaymentMethod): UserProfile {
+function changeSubscription(user: UserProfile, plan: PaidSubscriptionPlan, _paymentMethod: PaymentMethod): UserProfile {
+  const settled = settleSubscription(user);
+  if (subscriptionIsActive(settled)) {
+    const direction = subscriptionChangeDirection(settled.subscriptionPlan, plan);
+    if (direction === "downgrade") {
+      return {
+        ...settled,
+        pendingSubscriptionPlan: plan,
+        pendingSubscriptionEffectiveAt: settled.subscriptionCurrentPeriodEnd,
+        subscriptionCancelAtPeriodEnd: false,
+        updatedAt: nowIso(),
+      };
+    }
+  }
+  return activateSubscription(settled, plan);
+}
+
+function activateSubscription(user: UserProfile, plan: PaidSubscriptionPlan, startsAt = Date.now()): UserProfile {
   const details = SUBSCRIPTION_PLAN_DETAILS[plan];
   return {
     ...user,
     subscriptionPlan: plan,
     subscriptionStatus: "active",
-    subscriptionCurrentPeriodEnd: nowIso(Date.now() + details.intervalDays * 24 * 60 * 60 * 1000),
+    subscriptionCurrentPeriodEnd: nowIso(startsAt + details.intervalDays * 24 * 60 * 60 * 1000),
     subscriptionCancelAtPeriodEnd: false,
+    pendingSubscriptionPlan: null,
+    pendingSubscriptionEffectiveAt: null,
     updatedAt: nowIso(),
   };
+}
+
+function settleSubscription(user: UserProfile, now = Date.now()): UserProfile {
+  const periodEnd = user.subscriptionCurrentPeriodEnd ? Date.parse(user.subscriptionCurrentPeriodEnd) : NaN;
+  if (Number.isFinite(periodEnd) && periodEnd <= now) {
+    if (user.pendingSubscriptionPlan) {
+      return activateSubscription(user, user.pendingSubscriptionPlan, Math.max(now, periodEnd));
+    }
+    if (user.subscriptionPlan !== "none" || user.subscriptionStatus !== "none") {
+      return {
+        ...user,
+        subscriptionPlan: "none",
+        subscriptionStatus: "none",
+        subscriptionCurrentPeriodEnd: null,
+        subscriptionCancelAtPeriodEnd: false,
+        pendingSubscriptionPlan: null,
+        pendingSubscriptionEffectiveAt: null,
+        updatedAt: nowIso(now),
+      };
+    }
+  }
+  return user;
 }
 
 function normalizeAndValidateEmail(value: unknown): string {

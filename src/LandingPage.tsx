@@ -10,7 +10,7 @@ import {
   type UserProfile,
 } from "./authClient";
 import { LanguageSwitcher } from "./LanguageSwitcher";
-import { hasRealtimeStockAccess, subscriptionIsActive } from "../shared/auth";
+import { subscriptionIsActive } from "../shared/auth";
 import type { Lang } from "./i18n";
 
 type LandingCopy = {
@@ -348,8 +348,6 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
   const emailInputRef = useRef<HTMLInputElement | null>(null);
   const nicknameInputRef = useRef<HTMLInputElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
-  const francePreviewUrl = `/deliver-to/fr?lang=${lang}`;
-  const nlPreviewUrl = `/deliver-to/nl?lang=${lang}`;
 
   useEffect(() => {
     document.title = "Airco Tracker · European AC stock radar";
@@ -373,6 +371,8 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
         if (nextUser && !nextUser.nickname) {
           setNickname("");
           setNicknameOpen(true);
+        } else if (nextUser && subscriptionIsActive(nextUser)) {
+          window.location.replace(`/ready?lang=${nextUser.languagePreference}`);
         }
       })
       .catch(() => undefined)
@@ -412,7 +412,9 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
     setLoginError("");
     setLoginMessage("");
     if (user) {
-      window.location.href = `/subscribe?lang=${user.languagePreference}`;
+      window.location.href = subscriptionIsActive(user)
+        ? `/ready?lang=${user.languagePreference}`
+        : `/subscribe?lang=${user.languagePreference}`;
       return;
     }
     setLoginOpen(true);
@@ -452,10 +454,8 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
         setNicknameOpen(true);
       } else if (!subscriptionIsActive(result.user)) {
         window.location.href = `/subscribe?lang=${result.user.languagePreference}`;
-      } else if (hasRealtimeStockAccess(result.user)) {
-        window.location.href = `/deliver-to/${result.user.deliveryCountry}?lang=${result.user.languagePreference}`;
       } else {
-        window.location.href = `/?lang=${result.user.languagePreference}&subscribed=alerts`;
+        window.location.href = `/ready?lang=${result.user.languagePreference}`;
       }
     } catch (error) {
       setLoginError(authErrorMessage(error, copy));
@@ -475,10 +475,8 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
       setNickname("");
       if (!subscriptionIsActive(updated)) {
         window.location.href = `/subscribe?lang=${updated.languagePreference}`;
-      } else if (hasRealtimeStockAccess(updated)) {
-        window.location.href = `/deliver-to/${updated.deliveryCountry}?lang=${updated.languagePreference}`;
       } else {
-        window.location.href = `/?lang=${updated.languagePreference}&subscribed=alerts`;
+        window.location.href = `/ready?lang=${updated.languagePreference}`;
       }
     } catch {
       setNicknameError(copy.nicknameError);
@@ -504,11 +502,7 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
           <span className="landing-logo-mark" aria-hidden="true"><i /><i /><i /></span>
           <span>{copy.productName}</span>
         </a>
-        <nav className="landing-nav-links" aria-label="Landing page sections">
-          <a href="#heatwave">{copy.navStory}</a>
-          <a href="#product">{copy.navProduct}</a>
-          <a href={francePreviewUrl}>{copy.navPreview}</a>
-        </nav>
+        <span className="landing-nav-spacer" aria-hidden="true" />
         <div className="landing-nav-actions">
           <LanguageSwitcher lang={lang} setLang={setLang} />
           {user?.nickname ? (
@@ -561,7 +555,6 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
             <button className="landing-primary-button" type="button" onClick={openLogin}>
               {copy.primaryCta}
             </button>
-            <a className="landing-secondary-button" href={francePreviewUrl}>{copy.secondaryCta}</a>
           </div>
         </div>
         <div className="landing-hero-card" aria-label="Airco Tracker status">
@@ -633,27 +626,6 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
             <button className="landing-primary-button" type="button" onClick={openLogin}>
               {copy.primaryCta}
             </button>
-            <a className="landing-secondary-button" href={francePreviewUrl}>{copy.secondaryCta}</a>
-            <a className="landing-text-link" href={nlPreviewUrl}>{copy.previewNl}</a>
-          </div>
-        </div>
-        <div className="landing-dashboard-preview" aria-hidden="true">
-          <div className="landing-dashboard-bar">
-            <span />
-            <span />
-            <span />
-          </div>
-          <div className="landing-dashboard-metric">
-            <strong>23</strong>
-            <span>in stock</span>
-          </div>
-          <div className="landing-dashboard-grid">
-            <i />
-            <i />
-            <i />
-            <i />
-            <i />
-            <i />
           </div>
         </div>
       </section>

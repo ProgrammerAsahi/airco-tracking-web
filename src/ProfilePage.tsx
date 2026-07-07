@@ -5,10 +5,11 @@ import {
   SUPPORTED_LANGUAGE_PREFERENCES,
   userInitials,
   subscriptionIsActive,
+  isPaidSubscriptionPlan,
   type DeliveryCountry,
   type PaidSubscriptionPlan,
 } from "../shared/auth";
-import { cancelSubscription as cancelSubscriptionRequest, getCurrentUser, logout, updatePreferences, type UserProfile } from "./authClient";
+import { cancelSubscription as cancelSubscriptionRequest, deleteAccount, getCurrentUser, logout, updatePreferences, type UserProfile } from "./authClient";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import type { Lang } from "./i18n";
 
@@ -29,6 +30,15 @@ type ProfileCopy = {
   cancelSubscription: string;
   cancelingSubscription: string;
   subscriptionCancelError: string;
+  changeSubscription: string;
+  pendingSubscription: string;
+  deleteAccount: string;
+  deleteAccountBlocked: string;
+  deleteAccountTitle: string;
+  deleteAccountBody: string;
+  deleteAccountConfirm: string;
+  deletingAccount: string;
+  deleteAccountError: string;
   languagePreference: string;
   country: string;
   change: string;
@@ -73,6 +83,15 @@ const PROFILE_COPY: Record<Lang, ProfileCopy> = {
     cancelSubscription: "取消订阅",
     cancelingSubscription: "取消中…",
     subscriptionCancelError: "订阅暂时无法取消，请稍后再试。",
+    changeSubscription: "更改订阅方案",
+    pendingSubscription: "将在 {date} 切换为 {plan}",
+    deleteAccount: "注销账户",
+    deleteAccountBlocked: "订阅仍在有效期内，暂时不能注销账户。",
+    deleteAccountTitle: "确认注销账户？",
+    deleteAccountBody: "注销后会删除你的邮箱、昵称、偏好和登录会话。这个操作不能撤销。",
+    deleteAccountConfirm: "确认注销",
+    deletingAccount: "注销中…",
+    deleteAccountError: "账户暂时无法注销，请确认订阅已到期后再试。",
     languagePreference: "语言偏好",
     country: "国家",
     change: "更改",
@@ -115,6 +134,15 @@ const PROFILE_COPY: Record<Lang, ProfileCopy> = {
     cancelSubscription: "Abonnement opzeggen",
     cancelingSubscription: "Opzeggen…",
     subscriptionCancelError: "We konden je abonnement niet opzeggen. Probeer het later opnieuw.",
+    changeSubscription: "Abonnement wijzigen",
+    pendingSubscription: "Wordt op {date} gewijzigd naar {plan}",
+    deleteAccount: "Account verwijderen",
+    deleteAccountBlocked: "Je abonnement is nog actief; je kunt je account nog niet verwijderen.",
+    deleteAccountTitle: "Account verwijderen?",
+    deleteAccountBody: "We verwijderen je e-mail, bijnaam, voorkeuren en sessies. Dit kan niet ongedaan worden gemaakt.",
+    deleteAccountConfirm: "Verwijderen",
+    deletingAccount: "Verwijderen…",
+    deleteAccountError: "We konden je account niet verwijderen. Controleer of je abonnement is verlopen.",
     languagePreference: "Taalvoorkeur",
     country: "Land",
     change: "Wijzigen",
@@ -157,6 +185,15 @@ const PROFILE_COPY: Record<Lang, ProfileCopy> = {
     cancelSubscription: "Cancel subscription",
     cancelingSubscription: "Canceling…",
     subscriptionCancelError: "We could not cancel your subscription. Please try again later.",
+    changeSubscription: "Change subscription",
+    pendingSubscription: "Will switch to {plan} on {date}",
+    deleteAccount: "Delete account",
+    deleteAccountBlocked: "Your subscription is still active, so the account cannot be deleted yet.",
+    deleteAccountTitle: "Delete account?",
+    deleteAccountBody: "We will delete your email, nickname, preferences and sessions. This cannot be undone.",
+    deleteAccountConfirm: "Delete account",
+    deletingAccount: "Deleting…",
+    deleteAccountError: "We could not delete your account. Please make sure your subscription has expired.",
     languagePreference: "Language preference",
     country: "Country",
     change: "Change",
@@ -215,6 +252,9 @@ export function ProfilePage({ lang, setLang }: ProfilePageProps) {
   const [preferenceError, setPreferenceError] = useState("");
   const [cancelingSubscription, setCancelingSubscription] = useState(false);
   const [subscriptionError, setSubscriptionError] = useState("");
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   useEffect(() => {
     document.title = "Profile · Airco Tracker";
@@ -240,9 +280,9 @@ export function ProfilePage({ lang, setLang }: ProfilePageProps) {
   }, [lang, setLang]);
 
   useEffect(() => {
-    document.body.classList.toggle("landing-dialog-open", languageModalOpen || countryModalOpen || countryConfirmOpen);
+    document.body.classList.toggle("landing-dialog-open", languageModalOpen || countryModalOpen || countryConfirmOpen || deleteModalOpen);
     return () => document.body.classList.remove("landing-dialog-open");
-  }, [countryConfirmOpen, countryModalOpen, languageModalOpen]);
+  }, [countryConfirmOpen, countryModalOpen, deleteModalOpen, languageModalOpen]);
 
   const handleLogout = async () => {
     await logout().catch(() => undefined);
@@ -312,6 +352,19 @@ export function ProfilePage({ lang, setLang }: ProfilePageProps) {
     }
   };
 
+  const handleDeleteAccount = async () => {
+    setDeleteError("");
+    setDeletingAccount(true);
+    try {
+      await deleteAccount();
+      window.location.href = `/?lang=${lang}`;
+    } catch {
+      setDeleteError(copy.deleteAccountError);
+    } finally {
+      setDeletingAccount(false);
+    }
+  };
+
   return (
     <main className="profile-shell">
       <header className="profile-nav">
@@ -356,6 +409,13 @@ export function ProfilePage({ lang, setLang }: ProfilePageProps) {
                       {subscriptionSummary(user, copy, lang)}
                     </span>
                   )}
+                  {user.pendingSubscriptionPlan && user.pendingSubscriptionEffectiveAt && (
+                    <span className="profile-subscription-note">
+                      {copy.pendingSubscription
+                        .replace("{date}", formatSubscriptionDate(user.pendingSubscriptionEffectiveAt, lang))
+                        .replace("{plan}", copy[PLAN_LABEL_KEYS[user.pendingSubscriptionPlan]])}
+                    </span>
+                  )}
                 </dd>
               </div>
               <div>
@@ -379,6 +439,9 @@ export function ProfilePage({ lang, setLang }: ProfilePageProps) {
             </dl>
             {user.subscriptionPlan !== "none" && (
               <div className="profile-subscription-actions">
+                <a className="profile-change-subscription-link" href={`/subscribe?lang=${lang}`}>
+                  {copy.changeSubscription}
+                </a>
                 {user.subscriptionCancelAtPeriodEnd ? (
                   <p>{copy.subscriptionCancelScheduled}</p>
                 ) : subscriptionIsActive(user) ? (
@@ -394,7 +457,19 @@ export function ProfilePage({ lang, setLang }: ProfilePageProps) {
                 {subscriptionError && <p className="landing-login-error">{subscriptionError}</p>}
               </div>
             )}
-            <button className="profile-logout-button" type="button" onClick={handleLogout}>{copy.logout}</button>
+            <div className="profile-account-actions">
+              <button className="profile-logout-button" type="button" onClick={handleLogout}>{copy.logout}</button>
+              <button
+                className="profile-delete-account-button"
+                type="button"
+                disabled={subscriptionIsActive(user)}
+                title={subscriptionIsActive(user) ? copy.deleteAccountBlocked : undefined}
+                onClick={() => setDeleteModalOpen(true)}
+              >
+                {copy.deleteAccount}
+              </button>
+            </div>
+            {subscriptionIsActive(user) && <p className="profile-delete-hint">{copy.deleteAccountBlocked}</p>}
           </>
         ) : (
           <div className="profile-empty">
@@ -518,6 +593,33 @@ export function ProfilePage({ lang, setLang }: ProfilePageProps) {
           </section>
         </div>
       )}
+
+      {deleteModalOpen && user && (
+        <div className="landing-login-backdrop" onMouseDown={() => setDeleteModalOpen(false)}>
+          <section
+            className="landing-login-card profile-preference-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="profile-delete-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="landing-login-copy">
+              <p className="landing-kicker">{user.email}</p>
+              <h2 id="profile-delete-title">{copy.deleteAccountTitle}</h2>
+              <p>{copy.deleteAccountBody}</p>
+            </div>
+            {deleteError && <p className="landing-login-error">{deleteError}</p>}
+            <div className="profile-modal-actions">
+              <button className="landing-secondary-button" type="button" disabled={deletingAccount} onClick={() => setDeleteModalOpen(false)}>
+                {copy.cancel}
+              </button>
+              <button className="profile-delete-confirm-button" type="button" disabled={deletingAccount} onClick={handleDeleteAccount}>
+                {deletingAccount ? copy.deletingAccount : copy.deleteAccountConfirm}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </main>
   );
 }
@@ -527,6 +629,7 @@ function countryLabel(country: DeliveryCountry, copy: ProfileCopy): string {
 }
 
 function subscriptionSummary(user: UserProfile, copy: ProfileCopy, lang: Lang): string {
+  if (isPaidSubscriptionPlan(user.subscriptionPlan) && user.subscriptionStatus === "none") return copy.subscriptionExpired;
   if (!subscriptionIsActive(user)) return copy.subscriptionExpired;
   if (!user.subscriptionCurrentPeriodEnd) return "";
   return `${copy.subscriptionActiveUntil} ${formatSubscriptionDate(user.subscriptionCurrentPeriodEnd, lang)}`;

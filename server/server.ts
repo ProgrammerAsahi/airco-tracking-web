@@ -277,6 +277,17 @@ async function handleAuthRequest(request: IncomingMessage, response: ServerRespo
       return;
     }
 
+    if (url.pathname === "/api/auth/account/delete") {
+      if (method !== "POST") {
+        rejectMethod(response, ["POST"]);
+        return;
+      }
+      await auth.deleteAccount(request);
+      clearSessionCookie(response, request, auth.cookieName);
+      sendJson(response, 200, { ok: true });
+      return;
+    }
+
     if (url.pathname === "/api/auth/logout") {
       if (method !== "POST") {
         rejectMethod(response, ["POST"]);

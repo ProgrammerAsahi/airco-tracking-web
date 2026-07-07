@@ -62,6 +62,8 @@ export type UserProfile = {
   subscriptionStatus: SubscriptionStatus;
   subscriptionCurrentPeriodEnd: string | null;
   subscriptionCancelAtPeriodEnd: boolean;
+  pendingSubscriptionPlan: PaidSubscriptionPlan | null;
+  pendingSubscriptionEffectiveAt: string | null;
   languagePreference: Lang;
   deliveryCountry: DeliveryCountry;
   createdAt: string;
@@ -136,6 +138,18 @@ export function subscriptionIsActive(user: Pick<UserProfile, "subscriptionPlan" 
 
 export function planIncludesRealtimeStock(plan: SubscriptionPlan): boolean {
   return isPaidSubscriptionPlan(plan) && SUBSCRIPTION_PLAN_DETAILS[plan].realtimeStock;
+}
+
+export function subscriptionTierRank(plan: SubscriptionPlan): number {
+  return planIncludesRealtimeStock(plan) ? 2 : isPaidSubscriptionPlan(plan) ? 1 : 0;
+}
+
+export function subscriptionChangeDirection(currentPlan: SubscriptionPlan, nextPlan: PaidSubscriptionPlan): "upgrade" | "downgrade" | "lateral" {
+  const currentRank = subscriptionTierRank(currentPlan);
+  const nextRank = subscriptionTierRank(nextPlan);
+  if (nextRank > currentRank) return "upgrade";
+  if (nextRank < currentRank) return "downgrade";
+  return "lateral";
 }
 
 export function hasRealtimeStockAccess(user: Pick<UserProfile, "subscriptionPlan" | "subscriptionStatus" | "subscriptionCurrentPeriodEnd">, now = Date.now()): boolean {

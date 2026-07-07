@@ -12,6 +12,7 @@ import {
   hasEmailAlertAccess,
   hasRealtimeStockAccess,
   normalizeEmail,
+  subscriptionChangeDirection,
   subscriptionIsActive,
   userInitials,
   validateNickname,
@@ -73,6 +74,9 @@ test("evaluates subscription entitlements through the current period", () => {
   assert.equal(hasRealtimeStockAccess(canceledButValid), true);
   assert.equal(subscriptionIsActive(expired), false);
   assert.equal(hasRealtimeStockAccess(expired), false);
+  assert.equal(subscriptionChangeDirection("weekly_basic", "weekly_priority"), "upgrade");
+  assert.equal(subscriptionChangeDirection("monthly_priority", "monthly_basic"), "downgrade");
+  assert.equal(subscriptionChangeDirection("weekly_basic", "monthly_basic"), "lateral");
 });
 
 test("derives compact avatar initials", () => {

@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import {
   PAID_SUBSCRIPTION_PLANS,
   SUBSCRIPTION_PLAN_DETAILS,
-  hasRealtimeStockAccess,
   isPaidSubscriptionPlan,
   subscriptionIsActive,
   type BillingCycle,
@@ -251,11 +250,7 @@ export function SubscriptionPage({ lang, setLang }: SubscriptionPageProps) {
     try {
       const updated = await completePreviewPayment(selectedPlan, paymentMethod);
       setUser(updated);
-      if (hasRealtimeStockAccess(updated)) {
-        window.location.href = `/deliver-to/${updated.deliveryCountry}?lang=${updated.languagePreference}`;
-      } else {
-        window.location.href = `/?lang=${updated.languagePreference}&subscribed=alerts`;
-      }
+      window.location.href = `/ready?lang=${updated.languagePreference}`;
     } catch {
       setError(copy.error);
     } finally {

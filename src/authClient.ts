@@ -98,6 +98,10 @@ export async function cancelSubscription(): Promise<UserProfile> {
   return response.user;
 }
 
+export async function deleteAccount(): Promise<void> {
+  await postJson<{ ok: true }>("/api/auth/account/delete", {});
+}
+
 export async function logout(): Promise<void> {
   await postJson<{ ok: true }>("/api/auth/logout", {});
 }
