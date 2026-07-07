@@ -6,7 +6,9 @@ import type { Lang } from "./i18n";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { LandingPage } from "./LandingPage";
 import { ProfilePage } from "./ProfilePage";
+import { SubscriptionPage } from "./SubscriptionPage";
 import { getCurrentUser } from "./authClient";
+import { hasRealtimeStockAccess } from "../shared/auth";
 import { canonicalDeliveryPath, destinationCountryFromPath, visibleSiteEntries } from "../shared/delivery";
 import "./styles.css";
 
@@ -270,6 +272,7 @@ function RetailerDetail({ siteKey, inventory, initialTab, onBack, t, lang }: { s
 
 function InventoryApp({ lang, setLang, t }: AppLocaleProps) {
   const [destinationCountry, setDestinationCountry] = useState(() => destinationCountryFromPath(window.location.pathname));
+  const [accessChecked, setAccessChecked] = useState(false);
   const [snapshot, setSnapshot] = useState<InventorySnapshot | null>(null);
   const [error, setError] = useState<{ kind: "http"; status: number } | { kind: "generic" } | null>(null);
   const [selectedRetailer, setSelectedRetailer] = useState<SelectedRetailer | null>(selectedRetailFromHash);
@@ -331,8 +334,17 @@ function InventoryApp({ lang, setLang, t }: AppLocaleProps) {
     let ignore = false;
     getCurrentUser()
       .then((user) => {
-        if (ignore || !user) return;
+        if (ignore) return false;
+        if (!user) {
+          window.location.replace(`/subscribe?lang=${lang}`);
+          return false;
+        }
         if (user.languagePreference !== lang) setLang(user.languagePreference);
+
+        if (!hasRealtimeStockAccess(user)) {
+          window.location.replace(`/subscribe?lang=${user.languagePreference}`);
+          return false;
+        }
 
         const canonicalPath = canonicalDeliveryPath(user.deliveryCountry);
         setDestinationCountry(user.deliveryCountry);
@@ -340,14 +352,21 @@ function InventoryApp({ lang, setLang, t }: AppLocaleProps) {
           window.history.replaceState(window.history.state, "", `${canonicalPath}${window.location.search}`);
           setSelectedRetailer(null);
         }
+        return true;
       })
-      .catch(() => undefined);
+      .then((allowed) => {
+        if (!ignore && allowed) setAccessChecked(true);
+      })
+      .catch(() => {
+        if (!ignore) window.location.replace(`/subscribe?lang=${lang}`);
+      });
     return () => {
       ignore = true;
     };
   }, [lang, setLang]);
 
   useEffect(() => {
+    if (!accessChecked) return;
     fetchInventory();
     const intervalMs = Math.max(60, (snapshot?.refresh_interval_seconds ?? 600)) * 1000;
     const timer = setInterval(fetchInventory, intervalMs);
@@ -361,7 +380,7 @@ function InventoryApp({ lang, setLang, t }: AppLocaleProps) {
       abortRef.current?.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fetchInventory, snapshot?.refresh_interval_seconds]);
+  }, [accessChecked, fetchInventory, snapshot?.refresh_interval_seconds]);
 
   useEffect(() => {
     const onHashChange = () => setSelectedRetailer(selectedRetailFromHash());
@@ -421,6 +440,14 @@ function InventoryApp({ lang, setLang, t }: AppLocaleProps) {
     if (direct) return [selectedRetailer.key, direct] as const;
     return sites.find(([siteKey, site]) => siteDisplayName(siteKey, site) === selectedRetailer.key);
   }, [selectedRetailer, sites, snapshot]);
+
+  if (!accessChecked) {
+    return (
+      <main className="page-shell">
+        <div className="notice">Checking subscription…</div>
+      </main>
+    );
+  }
 
   return (
     <main className="page-shell">
@@ -516,6 +543,10 @@ function isProfileRoute(pathname: string): boolean {
   return pathname === "/profile";
 }
 
+function isSubscribeRoute(pathname: string): boolean {
+  return pathname === "/subscribe";
+}
+
 export default function App() {
   const { lang, setLang, t } = useTranslation();
   const [pathname, setPathname] = useState(() => window.location.pathname);
@@ -532,6 +563,10 @@ export default function App() {
 
   if (isProfileRoute(pathname)) {
     return <ProfilePage lang={lang} setLang={setLang} />;
+  }
+
+  if (isSubscribeRoute(pathname)) {
+    return <SubscriptionPage lang={lang} setLang={setLang} />;
   }
 
   return <LandingPage lang={lang} setLang={setLang} />;

@@ -9,7 +9,10 @@ import {
   isValidEmail,
   isDeliveryCountry,
   isLanguagePreference,
+  hasEmailAlertAccess,
+  hasRealtimeStockAccess,
   normalizeEmail,
+  subscriptionIsActive,
   userInitials,
   validateNickname,
 } from "../shared/auth.js";
@@ -37,6 +40,39 @@ test("validates stored language and delivery country preferences", () => {
   assert.equal(isDeliveryCountry("fr"), true);
   assert.equal(isDeliveryCountry("nl"), true);
   assert.equal(isDeliveryCountry("de"), false);
+});
+
+test("evaluates subscription entitlements through the current period", () => {
+  const future = new Date(Date.now() + 60_000).toISOString();
+  const past = new Date(Date.now() - 60_000).toISOString();
+  const emailOnly = {
+    subscriptionPlan: "weekly_basic" as const,
+    subscriptionStatus: "active" as const,
+    subscriptionCurrentPeriodEnd: future,
+  };
+  const stock = {
+    subscriptionPlan: "monthly_priority" as const,
+    subscriptionStatus: "active" as const,
+    subscriptionCurrentPeriodEnd: future,
+  };
+  const canceledButValid = {
+    subscriptionPlan: "monthly_priority" as const,
+    subscriptionStatus: "canceled" as const,
+    subscriptionCurrentPeriodEnd: future,
+  };
+  const expired = {
+    subscriptionPlan: "monthly_priority" as const,
+    subscriptionStatus: "active" as const,
+    subscriptionCurrentPeriodEnd: past,
+  };
+
+  assert.equal(subscriptionIsActive(emailOnly), true);
+  assert.equal(hasEmailAlertAccess(emailOnly), true);
+  assert.equal(hasRealtimeStockAccess(emailOnly), false);
+  assert.equal(hasRealtimeStockAccess(stock), true);
+  assert.equal(hasRealtimeStockAccess(canceledButValid), true);
+  assert.equal(subscriptionIsActive(expired), false);
+  assert.equal(hasRealtimeStockAccess(expired), false);
 });
 
 test("derives compact avatar initials", () => {

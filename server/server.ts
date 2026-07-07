@@ -12,6 +12,7 @@ import {
 } from "./auth.js";
 import { parseInventory, type InventorySnapshot } from "./inventory.js";
 import { buildI18nDataElement, type TranslationMap } from "../shared/i18n.js";
+import { hasRealtimeStockAccess } from "../shared/auth.js";
 import type { Lang } from "../shared/i18n.js";
 import { loadI18n } from "./i18n.js";
 
@@ -252,6 +253,30 @@ async function handleAuthRequest(request: IncomingMessage, response: ServerRespo
       return;
     }
 
+    if (url.pathname === "/api/auth/subscription/preview-payment") {
+      if (method !== "POST") {
+        rejectMethod(response, ["POST"]);
+        return;
+      }
+      const body = await readJsonBody(request);
+      const user = await auth.completePreviewSubscriptionPayment(request, {
+        plan: body.plan,
+        paymentMethod: body.paymentMethod,
+      });
+      sendJson(response, 200, { user, needsOnboarding: !user.nickname });
+      return;
+    }
+
+    if (url.pathname === "/api/auth/subscription/cancel") {
+      if (method !== "POST") {
+        rejectMethod(response, ["POST"]);
+        return;
+      }
+      const user = await auth.cancelSubscription(request);
+      sendJson(response, 200, { user, needsOnboarding: !user.nickname });
+      return;
+    }
+
     if (url.pathname === "/api/auth/logout") {
       if (method !== "POST") {
         rejectMethod(response, ["POST"]);
@@ -382,6 +407,24 @@ const server = createServer(async (request, response) => {
       response.setHeader("Cache-Control", "no-store");
       response.setHeader("Retry-After", String(rateLimit.retryAfterSeconds));
       sendJson(response, 429, { error: "Too many requests" });
+      return;
+    }
+    try {
+      const user = await getAuthService().currentUser(request);
+      if (!user) {
+        response.setHeader("Cache-Control", "no-store");
+        sendJson(response, 401, { error: "not_authenticated" });
+        return;
+      }
+      if (!hasRealtimeStockAccess(user)) {
+        response.setHeader("Cache-Control", "no-store");
+        sendJson(response, 403, { error: "subscription_required" });
+        return;
+      }
+    } catch (error) {
+      console.error("Inventory auth check failed", error);
+      response.setHeader("Cache-Control", "no-store");
+      sendJson(response, 503, { error: "Inventory is temporarily unavailable" });
       return;
     }
     try {

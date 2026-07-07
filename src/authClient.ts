@@ -1,7 +1,7 @@
-import { userInitials, type DeliveryCountry, type UserProfile } from "../shared/auth";
+import { userInitials, type DeliveryCountry, type PaidSubscriptionPlan, type PaymentMethod, type UserProfile } from "../shared/auth";
 import type { Lang } from "./i18n";
 
-export type { DeliveryCountry, UserProfile } from "../shared/auth";
+export type { DeliveryCountry, PaidSubscriptionPlan, PaymentMethod, UserProfile } from "../shared/auth";
 export { userInitials };
 
 export class AuthApiError extends Error {
@@ -85,6 +85,16 @@ export async function updateNickname(nickname: string): Promise<UserProfile> {
 
 export async function updatePreferences(values: { languagePreference?: Lang; deliveryCountry?: DeliveryCountry }): Promise<UserProfile> {
   const response = await postJson<AuthSessionResponse>("/api/auth/preferences", values);
+  return response.user;
+}
+
+export async function completePreviewPayment(plan: PaidSubscriptionPlan, paymentMethod: PaymentMethod): Promise<UserProfile> {
+  const response = await postJson<AuthSessionResponse>("/api/auth/subscription/preview-payment", { plan, paymentMethod });
+  return response.user;
+}
+
+export async function cancelSubscription(): Promise<UserProfile> {
+  const response = await postJson<AuthSessionResponse>("/api/auth/subscription/cancel", {});
   return response.user;
 }
 

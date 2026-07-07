@@ -4,10 +4,11 @@ import {
   SUPPORTED_DELIVERY_COUNTRIES,
   SUPPORTED_LANGUAGE_PREFERENCES,
   userInitials,
+  subscriptionIsActive,
   type DeliveryCountry,
   type PaidSubscriptionPlan,
 } from "../shared/auth";
-import { getCurrentUser, logout, updatePreferences, type UserProfile } from "./authClient";
+import { cancelSubscription as cancelSubscriptionRequest, getCurrentUser, logout, updatePreferences, type UserProfile } from "./authClient";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import type { Lang } from "./i18n";
 
@@ -22,6 +23,12 @@ type ProfileCopy = {
   email: string;
   nickname: string;
   subscriptionPlan: string;
+  subscriptionActiveUntil: string;
+  subscriptionCancelScheduled: string;
+  subscriptionExpired: string;
+  cancelSubscription: string;
+  cancelingSubscription: string;
+  subscriptionCancelError: string;
   languagePreference: string;
   country: string;
   change: string;
@@ -60,6 +67,12 @@ const PROFILE_COPY: Record<Lang, ProfileCopy> = {
     email: "邮箱",
     nickname: "昵称",
     subscriptionPlan: "订阅方案",
+    subscriptionActiveUntil: "权益有效至",
+    subscriptionCancelScheduled: "已取消，权益会保留到本周期结束。",
+    subscriptionExpired: "订阅已过期",
+    cancelSubscription: "取消订阅",
+    cancelingSubscription: "取消中…",
+    subscriptionCancelError: "订阅暂时无法取消，请稍后再试。",
     languagePreference: "语言偏好",
     country: "国家",
     change: "更改",
@@ -67,10 +80,10 @@ const PROFILE_COPY: Record<Lang, ProfileCopy> = {
     logout: "登出",
     paidPlansTitle: "预留的订阅档位",
     paidPlansBody: "支付接入后，会从下面四个付费档位里选择一个写入用户资料。",
-    weeklyBasic: "周订阅 · 标准",
-    weeklyPriority: "周订阅 · 优先提醒",
-    monthlyBasic: "月订阅 · 标准",
-    monthlyPriority: "月订阅 · 优先提醒",
+    weeklyBasic: "周订阅 · 库存提醒",
+    weeklyPriority: "周订阅 · 实时雷达",
+    monthlyBasic: "月订阅 · 库存提醒",
+    monthlyPriority: "月订阅 · 实时雷达",
     languageModalTitle: "选择语言偏好",
     languageModalBody: "这会保存到你的账号里，并立即切换当前页面语言。",
     countryModalTitle: "选择配送国家",
@@ -96,6 +109,12 @@ const PROFILE_COPY: Record<Lang, ProfileCopy> = {
     email: "E-mail",
     nickname: "Bijnaam",
     subscriptionPlan: "Abonnement",
+    subscriptionActiveUntil: "Toegang geldig tot",
+    subscriptionCancelScheduled: "Opgezegd; toegang blijft tot het einde van deze periode.",
+    subscriptionExpired: "Abonnement verlopen",
+    cancelSubscription: "Abonnement opzeggen",
+    cancelingSubscription: "Opzeggen…",
+    subscriptionCancelError: "We konden je abonnement niet opzeggen. Probeer het later opnieuw.",
     languagePreference: "Taalvoorkeur",
     country: "Land",
     change: "Wijzigen",
@@ -103,10 +122,10 @@ const PROFILE_COPY: Record<Lang, ProfileCopy> = {
     logout: "Uitloggen",
     paidPlansTitle: "Voorbereide abonnementen",
     paidPlansBody: "Zodra betaling gekoppeld is, wordt één van deze vier betaalde plannen opgeslagen.",
-    weeklyBasic: "Week · standaard",
-    weeklyPriority: "Week · prioriteitsmeldingen",
-    monthlyBasic: "Maand · standaard",
-    monthlyPriority: "Maand · prioriteitsmeldingen",
+    weeklyBasic: "Week · voorraadmeldingen",
+    weeklyPriority: "Week · realtime radar",
+    monthlyBasic: "Maand · voorraadmeldingen",
+    monthlyPriority: "Maand · realtime radar",
     languageModalTitle: "Kies je taalvoorkeur",
     languageModalBody: "We slaan dit op in je account en wisselen de huidige pagina meteen om.",
     countryModalTitle: "Kies bezorgland",
@@ -132,6 +151,12 @@ const PROFILE_COPY: Record<Lang, ProfileCopy> = {
     email: "Email",
     nickname: "Nickname",
     subscriptionPlan: "Subscription plan",
+    subscriptionActiveUntil: "Access active until",
+    subscriptionCancelScheduled: "Canceled; access remains through the current period.",
+    subscriptionExpired: "Subscription expired",
+    cancelSubscription: "Cancel subscription",
+    cancelingSubscription: "Canceling…",
+    subscriptionCancelError: "We could not cancel your subscription. Please try again later.",
     languagePreference: "Language preference",
     country: "Country",
     change: "Change",
@@ -139,10 +164,10 @@ const PROFILE_COPY: Record<Lang, ProfileCopy> = {
     logout: "Log out",
     paidPlansTitle: "Prepared subscription plans",
     paidPlansBody: "Once payment is wired, one of these four paid plans will be stored on the user profile.",
-    weeklyBasic: "Weekly · standard",
-    weeklyPriority: "Weekly · priority alerts",
-    monthlyBasic: "Monthly · standard",
-    monthlyPriority: "Monthly · priority alerts",
+    weeklyBasic: "Weekly · stock alerts",
+    weeklyPriority: "Weekly · realtime radar",
+    monthlyBasic: "Monthly · stock alerts",
+    monthlyPriority: "Monthly · realtime radar",
     languageModalTitle: "Choose language preference",
     languageModalBody: "We save this to your account and switch the current page immediately.",
     countryModalTitle: "Choose delivery country",
@@ -188,6 +213,8 @@ export function ProfilePage({ lang, setLang }: ProfilePageProps) {
   const [pendingCountry, setPendingCountry] = useState<DeliveryCountry | null>(null);
   const [savingPreference, setSavingPreference] = useState(false);
   const [preferenceError, setPreferenceError] = useState("");
+  const [cancelingSubscription, setCancelingSubscription] = useState(false);
+  const [subscriptionError, setSubscriptionError] = useState("");
 
   useEffect(() => {
     document.title = "Profile · Airco Tracker";
@@ -271,6 +298,20 @@ export function ProfilePage({ lang, setLang }: ProfilePageProps) {
     }
   };
 
+  const handleCancelSubscription = async () => {
+    if (!user) return;
+    setSubscriptionError("");
+    setCancelingSubscription(true);
+    try {
+      const updated = await cancelSubscriptionRequest();
+      setUser(updated);
+    } catch {
+      setSubscriptionError(copy.subscriptionCancelError);
+    } finally {
+      setCancelingSubscription(false);
+    }
+  };
+
   return (
     <main className="profile-shell">
       <header className="profile-nav">
@@ -308,7 +349,14 @@ export function ProfilePage({ lang, setLang }: ProfilePageProps) {
               </div>
               <div>
                 <dt>{copy.subscriptionPlan}</dt>
-                <dd>{user.subscriptionPlan === "none" ? copy.none : copy[PLAN_LABEL_KEYS[user.subscriptionPlan]]}</dd>
+                <dd>
+                  <span>{user.subscriptionPlan === "none" ? copy.none : copy[PLAN_LABEL_KEYS[user.subscriptionPlan]]}</span>
+                  {user.subscriptionPlan !== "none" && (
+                    <span className="profile-subscription-note">
+                      {subscriptionSummary(user, copy, lang)}
+                    </span>
+                  )}
+                </dd>
               </div>
               <div>
                 <dt>{copy.languagePreference}</dt>
@@ -329,6 +377,23 @@ export function ProfilePage({ lang, setLang }: ProfilePageProps) {
                 </dd>
               </div>
             </dl>
+            {user.subscriptionPlan !== "none" && (
+              <div className="profile-subscription-actions">
+                {user.subscriptionCancelAtPeriodEnd ? (
+                  <p>{copy.subscriptionCancelScheduled}</p>
+                ) : subscriptionIsActive(user) ? (
+                  <button
+                    className="profile-cancel-subscription-button"
+                    type="button"
+                    disabled={cancelingSubscription}
+                    onClick={handleCancelSubscription}
+                  >
+                    {cancelingSubscription ? copy.cancelingSubscription : copy.cancelSubscription}
+                  </button>
+                ) : null}
+                {subscriptionError && <p className="landing-login-error">{subscriptionError}</p>}
+              </div>
+            )}
             <button className="profile-logout-button" type="button" onClick={handleLogout}>{copy.logout}</button>
           </>
         ) : (
@@ -459,4 +524,19 @@ export function ProfilePage({ lang, setLang }: ProfilePageProps) {
 
 function countryLabel(country: DeliveryCountry, copy: ProfileCopy): string {
   return country === "fr" ? copy.france : copy.netherlands;
+}
+
+function subscriptionSummary(user: UserProfile, copy: ProfileCopy, lang: Lang): string {
+  if (!subscriptionIsActive(user)) return copy.subscriptionExpired;
+  if (!user.subscriptionCurrentPeriodEnd) return "";
+  return `${copy.subscriptionActiveUntil} ${formatSubscriptionDate(user.subscriptionCurrentPeriodEnd, lang)}`;
+}
+
+function formatSubscriptionDate(value: string, lang: Lang): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat(lang === "zh" ? "zh-CN" : lang === "nl" ? "nl-NL" : "en-GB", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
 }

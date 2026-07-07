@@ -7,11 +7,18 @@ import {
   isSubscriptionPlan,
   isDeliveryCountry,
   isLanguagePreference,
+  isPaidSubscriptionPlan,
+  isPaymentMethod,
+  isSubscriptionStatus,
   isValidEmail,
   normalizeEmail,
+  SUBSCRIPTION_PLAN_DETAILS,
   validateNickname,
   type DeliveryCountry,
+  type PaidSubscriptionPlan,
+  type PaymentMethod,
   type SubscriptionPlan,
+  type SubscriptionStatus,
   type UserProfile,
 } from "../shared/auth.js";
 import type { Lang } from "../shared/i18n.js";
@@ -98,6 +105,7 @@ const DEFAULT_SESSION_TTL_SECONDS = 30 * 24 * 60 * 60;
 const DEFAULT_COOKIE_NAME = "airco_session";
 
 export const AUTH_SUBSCRIPTION_PLAN_DEFAULT: SubscriptionPlan = "none";
+export const AUTH_SUBSCRIPTION_STATUS_DEFAULT: SubscriptionStatus = "none";
 export const AUTH_LANGUAGE_DEFAULT: Lang = "zh";
 export const AUTH_DELIVERY_COUNTRY_DEFAULT: DeliveryCountry = "fr";
 
@@ -351,6 +359,9 @@ type UserEntity = {
   email: string;
   nickname?: string;
   subscriptionPlan?: string;
+  subscriptionStatus?: string;
+  subscriptionCurrentPeriodEnd?: string;
+  subscriptionCancelAtPeriodEnd?: boolean;
   languagePreference?: string;
   deliveryCountry?: string;
   createdAt: string;
@@ -367,6 +378,9 @@ function userToEntity(user: UserProfile): UserEntity & { partitionKey: string; r
     email: user.email,
     nickname: user.nickname ?? "",
     subscriptionPlan: user.subscriptionPlan,
+    subscriptionStatus: user.subscriptionStatus,
+    subscriptionCurrentPeriodEnd: user.subscriptionCurrentPeriodEnd ?? "",
+    subscriptionCancelAtPeriodEnd: user.subscriptionCancelAtPeriodEnd,
     languagePreference: user.languagePreference,
     deliveryCountry: user.deliveryCountry,
     createdAt: user.createdAt,
@@ -376,12 +390,18 @@ function userToEntity(user: UserProfile): UserEntity & { partitionKey: string; r
 
 function userFromEntity(entity: TableEntityResult<UserEntity>): UserProfile {
   const subscriptionPlan = isSubscriptionPlan(entity.subscriptionPlan) ? entity.subscriptionPlan : AUTH_SUBSCRIPTION_PLAN_DEFAULT;
+  const subscriptionStatus = isSubscriptionStatus(entity.subscriptionStatus) ? entity.subscriptionStatus : AUTH_SUBSCRIPTION_STATUS_DEFAULT;
   const languagePreference = isLanguagePreference(entity.languagePreference) ? entity.languagePreference : AUTH_LANGUAGE_DEFAULT;
   const deliveryCountry = isDeliveryCountry(entity.deliveryCountry) ? entity.deliveryCountry : AUTH_DELIVERY_COUNTRY_DEFAULT;
   return {
     email: normalizeEmail(entity.email),
     nickname: typeof entity.nickname === "string" && entity.nickname.trim() ? entity.nickname.trim() : null,
     subscriptionPlan,
+    subscriptionStatus,
+    subscriptionCurrentPeriodEnd: typeof entity.subscriptionCurrentPeriodEnd === "string" && entity.subscriptionCurrentPeriodEnd.trim()
+      ? entity.subscriptionCurrentPeriodEnd.trim()
+      : null,
+    subscriptionCancelAtPeriodEnd: Boolean(entity.subscriptionCancelAtPeriodEnd),
     languagePreference,
     deliveryCountry,
     createdAt: String(entity.createdAt),
@@ -560,6 +580,9 @@ export class AuthService {
       email,
       nickname: null,
       subscriptionPlan: AUTH_SUBSCRIPTION_PLAN_DEFAULT,
+      subscriptionStatus: AUTH_SUBSCRIPTION_STATUS_DEFAULT,
+      subscriptionCurrentPeriodEnd: null,
+      subscriptionCancelAtPeriodEnd: false,
       languagePreference: isLanguagePreference(lang) ? lang : AUTH_LANGUAGE_DEFAULT,
       deliveryCountry: AUTH_DELIVERY_COUNTRY_DEFAULT,
       createdAt: timestamp,
@@ -622,6 +645,31 @@ export class AuthService {
     return updated;
   }
 
+  async completePreviewSubscriptionPayment(request: IncomingMessage, values: { plan?: unknown; paymentMethod?: unknown }): Promise<UserProfile> {
+    const user = await this.requireUser(request);
+    if (!isPaidSubscriptionPlan(values.plan)) throw new AuthHttpError(400, "invalid_subscription_plan");
+    if (!isPaymentMethod(values.paymentMethod)) throw new AuthHttpError(400, "invalid_payment_method");
+
+    const updated = activateSubscription(user, values.plan, values.paymentMethod);
+    await this.store.upsertUser(updated);
+    return updated;
+  }
+
+  async cancelSubscription(request: IncomingMessage): Promise<UserProfile> {
+    const user = await this.requireUser(request);
+    if (!isPaidSubscriptionPlan(user.subscriptionPlan) || !user.subscriptionCurrentPeriodEnd) {
+      throw new AuthHttpError(400, "no_active_subscription");
+    }
+    const updated: UserProfile = {
+      ...user,
+      subscriptionStatus: "canceled",
+      subscriptionCancelAtPeriodEnd: true,
+      updatedAt: nowIso(),
+    };
+    await this.store.upsertUser(updated);
+    return updated;
+  }
+
   async updatePreferences(request: IncomingMessage, values: { languagePreference?: unknown; deliveryCountry?: unknown }): Promise<UserProfile> {
     const user = await this.requireUser(request);
     const nextLanguage = values.languagePreference === undefined
@@ -667,6 +715,18 @@ export function authServiceFromEnvironment(): AuthService {
     sessionTtlSeconds: parsePositiveInteger(process.env.AUTH_SESSION_TTL_SECONDS, DEFAULT_SESSION_TTL_SECONDS),
     cookieName: process.env.AUTH_COOKIE_NAME?.trim() || DEFAULT_COOKIE_NAME,
   });
+}
+
+function activateSubscription(user: UserProfile, plan: PaidSubscriptionPlan, _paymentMethod: PaymentMethod): UserProfile {
+  const details = SUBSCRIPTION_PLAN_DETAILS[plan];
+  return {
+    ...user,
+    subscriptionPlan: plan,
+    subscriptionStatus: "active",
+    subscriptionCurrentPeriodEnd: nowIso(Date.now() + details.intervalDays * 24 * 60 * 60 * 1000),
+    subscriptionCancelAtPeriodEnd: false,
+    updatedAt: nowIso(),
+  };
 }
 
 function normalizeAndValidateEmail(value: unknown): string {

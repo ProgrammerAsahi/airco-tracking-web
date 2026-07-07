@@ -7,17 +7,61 @@ export const PAID_SUBSCRIPTION_PLANS = [
   "monthly_priority",
 ] as const;
 
+export const SUBSCRIPTION_PLAN_DETAILS = {
+  weekly_basic: {
+    billingCycle: "weekly",
+    tier: "alerts",
+    priceEur: 5,
+    intervalDays: 7,
+    realtimeStock: false,
+    emailAlerts: true,
+  },
+  weekly_priority: {
+    billingCycle: "weekly",
+    tier: "stock",
+    priceEur: 15,
+    intervalDays: 7,
+    realtimeStock: true,
+    emailAlerts: true,
+  },
+  monthly_basic: {
+    billingCycle: "monthly",
+    tier: "alerts",
+    priceEur: 10,
+    intervalDays: 30,
+    realtimeStock: false,
+    emailAlerts: true,
+  },
+  monthly_priority: {
+    billingCycle: "monthly",
+    tier: "stock",
+    priceEur: 30,
+    intervalDays: 30,
+    realtimeStock: true,
+    emailAlerts: true,
+  },
+} as const;
+
 export const SUPPORTED_LANGUAGE_PREFERENCES = ["zh", "nl", "en"] as const satisfies readonly Lang[];
 export const SUPPORTED_DELIVERY_COUNTRIES = ["fr", "nl"] as const;
+export const SUPPORTED_PAYMENT_METHODS = ["card", "ideal"] as const;
+export const SUBSCRIPTION_STATUSES = ["none", "active", "canceled"] as const;
 
 export type PaidSubscriptionPlan = (typeof PAID_SUBSCRIPTION_PLANS)[number];
 export type SubscriptionPlan = "none" | PaidSubscriptionPlan;
 export type DeliveryCountry = (typeof SUPPORTED_DELIVERY_COUNTRIES)[number];
+export type PaymentMethod = (typeof SUPPORTED_PAYMENT_METHODS)[number];
+export type SubscriptionStatus = (typeof SUBSCRIPTION_STATUSES)[number];
+export type BillingCycle = (typeof SUBSCRIPTION_PLAN_DETAILS)[PaidSubscriptionPlan]["billingCycle"];
+export type SubscriptionTier = (typeof SUBSCRIPTION_PLAN_DETAILS)[PaidSubscriptionPlan]["tier"];
 
 export type UserProfile = {
   email: string;
   nickname: string | null;
   subscriptionPlan: SubscriptionPlan;
+  subscriptionStatus: SubscriptionStatus;
+  subscriptionCurrentPeriodEnd: string | null;
+  subscriptionCancelAtPeriodEnd: boolean;
   languagePreference: Lang;
   deliveryCountry: DeliveryCountry;
   createdAt: string;
@@ -68,6 +112,38 @@ export function userInitials(nickname: string | null | undefined, email = ""): s
 
 export function isSubscriptionPlan(value: unknown): value is SubscriptionPlan {
   return value === "none" || PAID_SUBSCRIPTION_PLANS.includes(value as PaidSubscriptionPlan);
+}
+
+export function isPaidSubscriptionPlan(value: unknown): value is PaidSubscriptionPlan {
+  return PAID_SUBSCRIPTION_PLANS.includes(value as PaidSubscriptionPlan);
+}
+
+export function isPaymentMethod(value: unknown): value is PaymentMethod {
+  return SUPPORTED_PAYMENT_METHODS.includes(value as PaymentMethod);
+}
+
+export function isSubscriptionStatus(value: unknown): value is SubscriptionStatus {
+  return SUBSCRIPTION_STATUSES.includes(value as SubscriptionStatus);
+}
+
+export function subscriptionIsActive(user: Pick<UserProfile, "subscriptionPlan" | "subscriptionStatus" | "subscriptionCurrentPeriodEnd">, now = Date.now()): boolean {
+  if (!isPaidSubscriptionPlan(user.subscriptionPlan)) return false;
+  if (user.subscriptionStatus !== "active" && user.subscriptionStatus !== "canceled") return false;
+  if (!user.subscriptionCurrentPeriodEnd) return false;
+  const periodEnd = Date.parse(user.subscriptionCurrentPeriodEnd);
+  return Number.isFinite(periodEnd) && periodEnd > now;
+}
+
+export function planIncludesRealtimeStock(plan: SubscriptionPlan): boolean {
+  return isPaidSubscriptionPlan(plan) && SUBSCRIPTION_PLAN_DETAILS[plan].realtimeStock;
+}
+
+export function hasRealtimeStockAccess(user: Pick<UserProfile, "subscriptionPlan" | "subscriptionStatus" | "subscriptionCurrentPeriodEnd">, now = Date.now()): boolean {
+  return subscriptionIsActive(user, now) && planIncludesRealtimeStock(user.subscriptionPlan);
+}
+
+export function hasEmailAlertAccess(user: Pick<UserProfile, "subscriptionPlan" | "subscriptionStatus" | "subscriptionCurrentPeriodEnd">, now = Date.now()): boolean {
+  return subscriptionIsActive(user, now) && isPaidSubscriptionPlan(user.subscriptionPlan) && SUBSCRIPTION_PLAN_DETAILS[user.subscriptionPlan].emailAlerts;
 }
 
 export function isLanguagePreference(value: unknown): value is Lang {

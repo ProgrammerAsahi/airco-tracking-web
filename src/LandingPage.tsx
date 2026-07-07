@@ -10,6 +10,7 @@ import {
   type UserProfile,
 } from "./authClient";
 import { LanguageSwitcher } from "./LanguageSwitcher";
+import { hasRealtimeStockAccess, subscriptionIsActive } from "../shared/auth";
 import type { Lang } from "./i18n";
 
 type LandingCopy = {
@@ -355,6 +356,9 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
     document
       .querySelector('meta[name="description"]')
       ?.setAttribute("content", "Airco Tracker monitors portable air-conditioner stock across European retailers.");
+    if (new URLSearchParams(window.location.search).get("subscribed") === "alerts") {
+      setCoolingPreview(true);
+    }
   }, []);
 
   useEffect(() => {
@@ -407,7 +411,10 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
     setCoolingPreview(true);
     setLoginError("");
     setLoginMessage("");
-    if (user) return;
+    if (user) {
+      window.location.href = `/subscribe?lang=${user.languagePreference}`;
+      return;
+    }
     setLoginOpen(true);
   };
 
@@ -443,6 +450,12 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
       if (result.needsOnboarding || !result.user.nickname) {
         setNickname("");
         setNicknameOpen(true);
+      } else if (!subscriptionIsActive(result.user)) {
+        window.location.href = `/subscribe?lang=${result.user.languagePreference}`;
+      } else if (hasRealtimeStockAccess(result.user)) {
+        window.location.href = `/deliver-to/${result.user.deliveryCountry}?lang=${result.user.languagePreference}`;
+      } else {
+        window.location.href = `/?lang=${result.user.languagePreference}&subscribed=alerts`;
       }
     } catch (error) {
       setLoginError(authErrorMessage(error, copy));
@@ -460,6 +473,13 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
       setUser(updated);
       setNicknameOpen(false);
       setNickname("");
+      if (!subscriptionIsActive(updated)) {
+        window.location.href = `/subscribe?lang=${updated.languagePreference}`;
+      } else if (hasRealtimeStockAccess(updated)) {
+        window.location.href = `/deliver-to/${updated.deliveryCountry}?lang=${updated.languagePreference}`;
+      } else {
+        window.location.href = `/?lang=${updated.languagePreference}&subscribed=alerts`;
+      }
     } catch {
       setNicknameError(copy.nicknameError);
     } finally {

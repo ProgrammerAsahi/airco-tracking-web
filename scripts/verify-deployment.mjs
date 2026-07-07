@@ -39,73 +39,13 @@ while (Date.now() < deadline) {
     }
 
     const response = await fetch(`${appUrl}/api/inventory`, { signal: AbortSignal.timeout(15_000) });
-    if (!response.ok) throw new Error(`inventory returned ${response.status}`);
-    const inventory = await response.json();
-    if (
-      inventory.version !== 1
-      || typeof inventory.sites !== "object"
-      || inventory.sites === null
-      || Array.isArray(inventory.sites)
-      || !Number.isInteger(inventory.site_count)
-      || inventory.site_count < 1
-      || inventory.site_count !== Object.keys(inventory.sites).length
-      || !Number.isInteger(inventory.available_product_count)
-    ) {
-      throw new Error("inventory response failed schema checks");
-    }
-    const siteEntries = Object.entries(inventory.sites);
-    const staleSiteCount = siteEntries.filter(([, site]) => site?.stale === true).length;
-    if (inventory.stale_site_count !== staleSiteCount) {
-      throw new Error("inventory stale_site_count does not match site entries");
-    }
-    let availableProductCount = 0;
-    let immediateProductCount = 0;
-    let presaleProductCount = 0;
-    for (const [siteKey, site] of siteEntries) {
-      if (!Array.isArray(site?.products)) {
-        throw new Error(`inventory site ${siteKey} is missing products`);
-      }
-      if (site.available_product_count !== site.products.length) {
-        throw new Error(`inventory site ${siteKey} has mismatched available_product_count`);
-      }
-      if (!Array.isArray(site.delivery_coverage) || site.delivery_coverage.length === 0) {
-        throw new Error(`inventory site ${siteKey} is missing delivery_coverage`);
-      }
-      const displayName = site.site ?? siteKey.replace(/^[a-z]{2}:/i, "");
-      const siteId = site.site_id ?? siteKey;
-      const siteImmediate = site.products.filter((product) => product && product.presale === false).length;
-      const sitePresale = site.products.filter((product) => product && product.presale === true).length;
-      if (site.immediate_product_count !== undefined && site.immediate_product_count !== siteImmediate) {
-        throw new Error(`inventory site ${siteKey} has mismatched immediate_product_count`);
-      }
-      if (site.presale_product_count !== undefined && site.presale_product_count !== sitePresale) {
-        throw new Error(`inventory site ${siteKey} has mismatched presale_product_count`);
-      }
-      for (const product of site.products) {
-        if (product.site !== displayName) {
-          throw new Error(`inventory site ${siteKey} contains a product for another site`);
-        }
-        if (product.site_id !== undefined && product.site_id !== siteId) {
-          throw new Error(`inventory site ${siteKey} contains a product for another site_id`);
-        }
-      }
-      availableProductCount += site.products.length;
-      immediateProductCount += siteImmediate;
-      presaleProductCount += sitePresale;
-    }
-    if (inventory.available_product_count !== availableProductCount) {
-      throw new Error("inventory available_product_count does not match products");
-    }
-    if (inventory.immediate_product_count !== undefined && inventory.immediate_product_count !== immediateProductCount) {
-      throw new Error("inventory immediate_product_count does not match products");
-    }
-    if (inventory.presale_product_count !== undefined && inventory.presale_product_count !== presaleProductCount) {
-      throw new Error("inventory presale_product_count does not match products");
+    if (response.status !== 401) throw new Error(`anonymous inventory should be protected; returned ${response.status}`);
+    const inventoryError = await response.json();
+    if (inventoryError?.error !== "not_authenticated") {
+      throw new Error("anonymous inventory did not return the expected auth error");
     }
 
-    console.log(
-      `Verified ${appUrl}: ${inventory.site_count} sites, ${immediateProductCount} immediate products, ${presaleProductCount} presale products`,
-    );
+    console.log(`Verified ${appUrl}: app shell healthy and anonymous inventory access is protected`);
     process.exit(0);
   } catch (error) {
     lastError = error;
