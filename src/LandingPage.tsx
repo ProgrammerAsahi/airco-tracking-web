@@ -1,4 +1,14 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import {
+  AuthApiError,
+  getCurrentUser,
+  logout,
+  requestAuthCode,
+  updateNickname,
+  userInitials,
+  verifyAuthCode,
+  type UserProfile,
+} from "./authClient";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import type { Lang } from "./i18n";
 
@@ -35,7 +45,9 @@ type LandingCopy = {
   codeLabel: string;
   codePlaceholder: string;
   sendCode: string;
+  sendCodeBusy: string;
   loginSubmit: string;
+  loginBusy: string;
   socialDivider: string;
   loginWithGoogle: string;
   loginWithApple: string;
@@ -43,6 +55,26 @@ type LandingCopy = {
   loginFinePrint: string;
   loginPreviewNotice: string;
   closeLogin: string;
+  codeSent: string;
+  codeCooldown: string;
+  devCodeNotice: string;
+  authErrorInvalidEmail: string;
+  authErrorInvalidCode: string;
+  authErrorTooMany: string;
+  authErrorEmailFailed: string;
+  authErrorGeneric: string;
+  nicknameTitle: string;
+  nicknameSubtitle: string;
+  nicknameLabel: string;
+  nicknamePlaceholder: string;
+  nicknameSubmit: string;
+  nicknameSaving: string;
+  nicknameError: string;
+  accountMenu: string;
+  signedInAs: string;
+  profile: string;
+  logout: string;
+  socialComingSoon: string;
   previewNl: string;
   statSites: string;
   statCountries: string;
@@ -83,14 +115,36 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     codeLabel: "验证码",
     codePlaceholder: "输入 6 位验证码",
     sendCode: "发送验证码",
+    sendCodeBusy: "发送中…",
     loginSubmit: "登录 / 继续订阅",
+    loginBusy: "登录中…",
     socialDivider: "或使用第三方账号继续",
     loginWithGoogle: "Google",
     loginWithApple: "Apple",
     loginWithMicrosoft: "Microsoft",
     loginFinePrint: "继续即表示你同意之后接入的用户协议和隐私政策。",
-    loginPreviewNotice: "当前为登录界面预览，验证码发送、OAuth 和订阅支付逻辑尚未接入。",
+    loginPreviewNotice: "邮箱验证码已接入；第三方登录和订阅支付会在下一阶段接入。",
     closeLogin: "关闭登录弹窗",
+    codeSent: "验证码已发送，请检查你的邮箱。",
+    codeCooldown: "验证码刚刚发送过，请 {seconds} 秒后再试。",
+    devCodeNotice: "本地开发验证码：{code}",
+    authErrorInvalidEmail: "请填写一个有效的邮箱地址。",
+    authErrorInvalidCode: "验证码无效或已过期，请重新检查或再发一次。",
+    authErrorTooMany: "尝试次数太多，请重新发送验证码。",
+    authErrorEmailFailed: "验证码邮件暂时发送失败，请稍后再试。",
+    authErrorGeneric: "登录服务暂时不可用，请稍后再试。",
+    nicknameTitle: "我们该如何称呼你？",
+    nicknameSubtitle: "只需要一个昵称。它会用于你的头像和之后的个性化提示。",
+    nicknameLabel: "昵称",
+    nicknamePlaceholder: "例如 Asahi Lee、Mike、李开复",
+    nicknameSubmit: "保存昵称",
+    nicknameSaving: "保存中…",
+    nicknameError: "昵称需要 1–40 个字符，且至少包含一个文字或数字。",
+    accountMenu: "打开账号菜单",
+    signedInAs: "已登录：{email}",
+    profile: "Profile",
+    logout: "登出",
+    socialComingSoon: "即将接入",
     previewNl: "预览荷兰库存",
     statSites: "45+ 网站",
     statCountries: "法国 / 荷兰",
@@ -129,14 +183,36 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     codeLabel: "Code",
     codePlaceholder: "Voer de 6-cijferige code in",
     sendCode: "Code sturen",
+    sendCodeBusy: "Versturen…",
     loginSubmit: "Inloggen / doorgaan",
+    loginBusy: "Inloggen…",
     socialDivider: "Of ga verder met",
     loginWithGoogle: "Google",
     loginWithApple: "Apple",
     loginWithMicrosoft: "Microsoft",
     loginFinePrint: "Door verder te gaan ga je later akkoord met de voorwaarden en privacyverklaring.",
-    loginPreviewNotice: "Dit is alleen de login-preview; e-mailcodes, OAuth en betaling zijn nog niet gekoppeld.",
+    loginPreviewNotice: "E-mailcodes zijn gekoppeld; OAuth en betaling komen in de volgende stap.",
     closeLogin: "Sluit loginvenster",
+    codeSent: "De code is verstuurd. Check je mailbox.",
+    codeCooldown: "Er is net een code verstuurd. Probeer opnieuw over {seconds} seconden.",
+    devCodeNotice: "Lokale ontwikkelcode: {code}",
+    authErrorInvalidEmail: "Vul een geldig e-mailadres in.",
+    authErrorInvalidCode: "De code is ongeldig of verlopen. Controleer hem of vraag een nieuwe aan.",
+    authErrorTooMany: "Te veel pogingen. Vraag een nieuwe code aan.",
+    authErrorEmailFailed: "De verificatiemail kon niet worden verstuurd. Probeer het later opnieuw.",
+    authErrorGeneric: "Inloggen is tijdelijk niet beschikbaar. Probeer het later opnieuw.",
+    nicknameTitle: "Hoe mogen we je noemen?",
+    nicknameSubtitle: "Alleen een bijnaam. Die gebruiken we voor je avatar en latere persoonlijke meldingen.",
+    nicknameLabel: "Bijnaam",
+    nicknamePlaceholder: "Bijv. Asahi Lee, Mike, 李开复",
+    nicknameSubmit: "Bijnaam opslaan",
+    nicknameSaving: "Opslaan…",
+    nicknameError: "Gebruik 1–40 tekens en minstens één letter of cijfer.",
+    accountMenu: "Open accountmenu",
+    signedInAs: "Ingelogd als {email}",
+    profile: "Profile",
+    logout: "Uitloggen",
+    socialComingSoon: "Binnenkort",
     previewNl: "Bekijk Nederland",
     statSites: "45+ sites",
     statCountries: "Frankrijk / Nederland",
@@ -175,14 +251,36 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     codeLabel: "Verification code",
     codePlaceholder: "Enter 6-digit code",
     sendCode: "Send code",
+    sendCodeBusy: "Sending…",
     loginSubmit: "Log in / continue",
+    loginBusy: "Signing in…",
     socialDivider: "Or continue with",
     loginWithGoogle: "Google",
     loginWithApple: "Apple",
     loginWithMicrosoft: "Microsoft",
     loginFinePrint: "By continuing, you will later agree to the terms and privacy policy.",
-    loginPreviewNotice: "This is a login UI preview; email codes, OAuth and subscription payment are not wired yet.",
+    loginPreviewNotice: "Email codes are wired; OAuth and subscription payment come next.",
     closeLogin: "Close login dialog",
+    codeSent: "Code sent. Please check your inbox.",
+    codeCooldown: "A code was just sent. Try again in {seconds} seconds.",
+    devCodeNotice: "Local development code: {code}",
+    authErrorInvalidEmail: "Please enter a valid email address.",
+    authErrorInvalidCode: "That code is invalid or expired. Check it or request a new one.",
+    authErrorTooMany: "Too many attempts. Please request a new code.",
+    authErrorEmailFailed: "The verification email could not be sent. Please try again later.",
+    authErrorGeneric: "Login is temporarily unavailable. Please try again later.",
+    nicknameTitle: "What should we call you?",
+    nicknameSubtitle: "Just a nickname. We use it for your avatar and future personalized alerts.",
+    nicknameLabel: "Nickname",
+    nicknamePlaceholder: "e.g. Asahi Lee, Mike, 李开复",
+    nicknameSubmit: "Save nickname",
+    nicknameSaving: "Saving…",
+    nicknameError: "Use 1–40 characters and include at least one letter or number.",
+    accountMenu: "Open account menu",
+    signedInAs: "Signed in as {email}",
+    profile: "Profile",
+    logout: "Log out",
+    socialComingSoon: "Coming soon",
     previewNl: "Preview Netherlands",
     statSites: "45+ sites",
     statCountries: "France / Netherlands",
@@ -233,7 +331,22 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
   const { activeStep, setStepRef } = useStoryStepObserver(3);
   const [coolingPreview, setCoolingPreview] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
+  const [loginMessage, setLoginMessage] = useState("");
+  const [loginError, setLoginError] = useState("");
+  const [sendingCode, setSendingCode] = useState(false);
+  const [verifyingCode, setVerifyingCode] = useState(false);
+  const [nicknameOpen, setNicknameOpen] = useState(false);
+  const [nickname, setNickname] = useState("");
+  const [nicknameError, setNicknameError] = useState("");
+  const [savingNickname, setSavingNickname] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const emailInputRef = useRef<HTMLInputElement | null>(null);
+  const nicknameInputRef = useRef<HTMLInputElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
   const francePreviewUrl = `/deliver-to/fr?lang=${lang}`;
   const nlPreviewUrl = `/deliver-to/nl?lang=${lang}`;
 
@@ -245,24 +358,121 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
   }, []);
 
   useEffect(() => {
-    document.body.classList.toggle("landing-dialog-open", loginOpen);
+    let ignore = false;
+    getCurrentUser()
+      .then((nextUser) => {
+        if (ignore) return;
+        setUser(nextUser);
+        if (nextUser && !nextUser.nickname) {
+          setNickname("");
+          setNicknameOpen(true);
+        }
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!ignore) setAuthReady(true);
+      });
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    const dialogOpen = loginOpen || nicknameOpen;
+    document.body.classList.toggle("landing-dialog-open", dialogOpen);
     if (loginOpen) emailInputRef.current?.focus();
+    if (nicknameOpen) nicknameInputRef.current?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") setLoginOpen(false);
     };
-    if (loginOpen) window.addEventListener("keydown", onKeyDown);
+    if (dialogOpen) window.addEventListener("keydown", onKeyDown);
     return () => {
       document.body.classList.remove("landing-dialog-open");
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [loginOpen]);
+  }, [loginOpen, nicknameOpen]);
+
+  useEffect(() => {
+    const onPointerDown = (event: PointerEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) setMenuOpen(false);
+    };
+    if (menuOpen) window.addEventListener("pointerdown", onPointerDown);
+    return () => window.removeEventListener("pointerdown", onPointerDown);
+  }, [menuOpen]);
 
   const openLogin = () => {
     setCoolingPreview(true);
+    setLoginError("");
+    setLoginMessage("");
+    if (user) return;
     setLoginOpen(true);
   };
 
   const closeLogin = () => setLoginOpen(false);
+
+  const handleSendCode = async () => {
+    setLoginError("");
+    setLoginMessage("");
+    setSendingCode(true);
+    try {
+      const result = await requestAuthCode(email, lang);
+      const devCode = result.devCode ? ` ${copy.devCodeNotice.replace("{code}", result.devCode)}` : "";
+      setLoginMessage(`${copy.codeSent}${devCode}`);
+      if (result.devCode) setCode(result.devCode);
+    } catch (error) {
+      setLoginError(authErrorMessage(error, copy));
+    } finally {
+      setSendingCode(false);
+    }
+  };
+
+  const handleVerifyCode = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setLoginError("");
+    setLoginMessage("");
+    setVerifyingCode(true);
+    try {
+      const result = await verifyAuthCode(email, code);
+      setUser(result.user);
+      setCoolingPreview(true);
+      setLoginOpen(false);
+      setCode("");
+      if (result.needsOnboarding || !result.user.nickname) {
+        setNickname("");
+        setNicknameOpen(true);
+      }
+    } catch (error) {
+      setLoginError(authErrorMessage(error, copy));
+    } finally {
+      setVerifyingCode(false);
+    }
+  };
+
+  const handleNicknameSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setNicknameError("");
+    setSavingNickname(true);
+    try {
+      const updated = await updateNickname(nickname);
+      setUser(updated);
+      setNicknameOpen(false);
+      setNickname("");
+    } catch {
+      setNicknameError(copy.nicknameError);
+    } finally {
+      setSavingNickname(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    setMenuOpen(false);
+    await logout().catch(() => undefined);
+    setUser(null);
+    setNicknameOpen(false);
+    setLoginOpen(false);
+    setEmail("");
+    setCode("");
+  };
 
   return (
     <main className={`landing-shell landing-story--step-${activeStep}${coolingPreview ? " landing-story--cooling" : ""}`}>
@@ -278,9 +488,32 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
         </nav>
         <div className="landing-nav-actions">
           <LanguageSwitcher lang={lang} setLang={setLang} />
-          <button className="landing-nav-cta" type="button" onClick={openLogin}>
-            {copy.primaryCta}
-          </button>
+          {user?.nickname ? (
+            <div className="landing-account" ref={menuRef}>
+              <button
+                className="landing-avatar-button"
+                type="button"
+                aria-label={copy.accountMenu}
+                aria-expanded={menuOpen}
+                onClick={() => setMenuOpen((open) => !open)}
+              >
+                {userInitials(user.nickname, user.email)}
+              </button>
+              {menuOpen && (
+                <div className="landing-account-menu" role="menu">
+                  <p>{copy.signedInAs.replace("{email}", user.email)}</p>
+                  <a role="menuitem" href={`/profile?lang=${lang}`}>{copy.profile}</a>
+                  <button role="menuitem" className="landing-account-logout" type="button" onClick={handleLogout}>
+                    {copy.logout}
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <button className="landing-nav-cta" type="button" onClick={openLogin} disabled={!authReady}>
+              {copy.primaryCta}
+            </button>
+          )}
         </div>
       </header>
 
@@ -434,27 +667,93 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
               <h2 id="landing-login-title">{copy.loginTitle}</h2>
               <p>{copy.loginSubtitle}</p>
             </div>
-            <form className="landing-login-form" onSubmit={(event) => event.preventDefault()}>
+            <form className="landing-login-form" onSubmit={handleVerifyCode}>
               <label className="landing-login-field">
                 <span>{copy.emailLabel}</span>
-                <input ref={emailInputRef} type="email" inputMode="email" autoComplete="email" placeholder={copy.emailPlaceholder} />
+                <input
+                  ref={emailInputRef}
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  placeholder={copy.emailPlaceholder}
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  required
+                />
               </label>
               <label className="landing-login-field landing-login-code-field">
                 <span>{copy.codeLabel}</span>
-                <input type="text" inputMode="numeric" autoComplete="one-time-code" placeholder={copy.codePlaceholder} />
-                <button type="button">{copy.sendCode}</button>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  placeholder={copy.codePlaceholder}
+                  value={code}
+                  maxLength={6}
+                  pattern="\d{6}"
+                  onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                  required
+                />
+                <button type="button" onClick={handleSendCode} disabled={sendingCode || verifyingCode}>
+                  {sendingCode ? copy.sendCodeBusy : copy.sendCode}
+                </button>
               </label>
-              <button className="landing-login-submit" type="button">{copy.loginSubmit}</button>
+              {loginMessage && <p className="landing-login-message">{loginMessage}</p>}
+              {loginError && <p className="landing-login-error">{loginError}</p>}
+              <button className="landing-login-submit" type="submit" disabled={sendingCode || verifyingCode}>
+                {verifyingCode ? copy.loginBusy : copy.loginSubmit}
+              </button>
             </form>
             <div className="landing-login-divider">
               <span>{copy.socialDivider}</span>
             </div>
             <div className="landing-login-socials">
-              <button type="button"><span aria-hidden="true">G</span>{copy.loginWithGoogle}</button>
-              <button type="button"><span aria-hidden="true"></span>{copy.loginWithApple}</button>
-              <button type="button"><span aria-hidden="true">▦</span>{copy.loginWithMicrosoft}</button>
+              <button type="button" disabled title={copy.socialComingSoon}><span aria-hidden="true">G</span>{copy.loginWithGoogle}</button>
+              <button type="button" disabled title={copy.socialComingSoon}><span aria-hidden="true"></span>{copy.loginWithApple}</button>
+              <button type="button" disabled title={copy.socialComingSoon}><span aria-hidden="true">▦</span>{copy.loginWithMicrosoft}</button>
             </div>
             <p className="landing-login-fineprint">{copy.loginFinePrint}</p>
+            <p className="landing-login-preview">{copy.loginPreviewNotice}</p>
+          </section>
+        </div>
+      )}
+
+      {nicknameOpen && (
+        <div className="landing-login-backdrop">
+          <section
+            className="landing-login-card landing-nickname-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="landing-nickname-title"
+          >
+            <div className="landing-login-brand" aria-hidden="true">
+              <span className="landing-logo-mark"><i /><i /><i /></span>
+              <span>{copy.productName}</span>
+            </div>
+            <div className="landing-login-copy">
+              <p className="landing-kicker">{copy.signedInAs.replace("{email}", user?.email ?? "")}</p>
+              <h2 id="landing-nickname-title">{copy.nicknameTitle}</h2>
+              <p>{copy.nicknameSubtitle}</p>
+            </div>
+            <form className="landing-login-form" onSubmit={handleNicknameSubmit}>
+              <label className="landing-login-field">
+                <span>{copy.nicknameLabel}</span>
+                <input
+                  ref={nicknameInputRef}
+                  type="text"
+                  autoComplete="nickname"
+                  placeholder={copy.nicknamePlaceholder}
+                  value={nickname}
+                  maxLength={40}
+                  onChange={(event) => setNickname(event.target.value)}
+                  required
+                />
+              </label>
+              {nicknameError && <p className="landing-login-error">{nicknameError}</p>}
+              <button className="landing-login-submit" type="submit" disabled={savingNickname}>
+                {savingNickname ? copy.nicknameSaving : copy.nicknameSubmit}
+              </button>
+            </form>
           </section>
         </div>
       )}
@@ -468,4 +767,17 @@ function renderLandingLines(value: string) {
       {line}
     </span>
   ));
+}
+
+function authErrorMessage(error: unknown, copy: LandingCopy): string {
+  if (error instanceof AuthApiError) {
+    if (error.code === "invalid_email") return copy.authErrorInvalidEmail;
+    if (error.code === "invalid_code" || error.code === "invalid_or_expired_code") return copy.authErrorInvalidCode;
+    if (error.code === "too_many_code_attempts") return copy.authErrorTooMany;
+    if (error.code === "email_send_failed") return copy.authErrorEmailFailed;
+    if (error.code === "code_recently_sent" && error.retryAfterSeconds) {
+      return copy.codeCooldown.replace("{seconds}", String(error.retryAfterSeconds));
+    }
+  }
+  return copy.authErrorGeneric;
 }

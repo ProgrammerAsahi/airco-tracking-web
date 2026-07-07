@@ -33,6 +33,30 @@ single_resource_name() {
   printf '%s\n' "$names" | awk 'NF { print; exit }'
 }
 
+single_resource_id() {
+  local env_var="$1"
+  local resource_type="$2"
+  local configured="${!env_var:-}"
+  if [ -n "$configured" ]; then
+    echo "$configured"
+    return
+  fi
+
+  local ids
+  ids="$(az resource list \
+    --resource-group "$RESOURCE_GROUP" \
+    --resource-type "$resource_type" \
+    --query "[].id" \
+    --output tsv)"
+  local count
+  count="$(printf '%s\n' "$ids" | awk 'NF { count++ } END { print count + 0 }')"
+  if [ "$count" != "1" ]; then
+    echo "Expected exactly one $resource_type in $RESOURCE_GROUP; found $count. Set $env_var explicitly." >&2
+    return 1
+  fi
+  printf '%s\n' "$ids" | awk 'NF { print; exit }'
+}
+
 runtime_identity_name() {
   if [ -n "${IDENTITY_NAME:-}" ]; then
     echo "$IDENTITY_NAME"
@@ -70,6 +94,20 @@ IDENTITY_NAME="$(runtime_identity_name)"
 require_value IDENTITY_NAME "$IDENTITY_NAME"
 STORAGE_NAME="$(single_resource_name STORAGE_ACCOUNT_NAME Microsoft.Storage/storageAccounts)"
 require_value STORAGE_ACCOUNT_NAME "$STORAGE_NAME"
+COMMUNICATION_SERVICE_NAME="$(single_resource_name COMMUNICATION_SERVICE_NAME Microsoft.Communication/CommunicationServices)"
+require_value COMMUNICATION_SERVICE_NAME "$COMMUNICATION_SERVICE_NAME"
+EMAIL_DOMAIN_ID="$(single_resource_id EMAIL_DOMAIN_ID Microsoft.Communication/EmailServices/Domains)"
+require_value EMAIL_DOMAIN_ID "$EMAIL_DOMAIN_ID"
+MAIL_FROM_DOMAIN="$(
+  az resource show \
+    --ids "$EMAIL_DOMAIN_ID" \
+    --api-version 2023-04-01-preview \
+    --query properties.mailFromSenderDomain \
+    --output tsv
+)"
+require_value MAIL_FROM_DOMAIN "$MAIL_FROM_DOMAIN"
+AUTH_EMAIL_FROM="${AUTH_EMAIL_FROM:-DoNotReply@$MAIL_FROM_DOMAIN}"
+require_value AUTH_EMAIL_FROM "$AUTH_EMAIL_FROM"
 IMAGE="$ACR_LOGIN_SERVER/airco-tracking-web:$IMAGE_TAG"
 
 az acr build \
@@ -87,6 +125,8 @@ az deployment group create \
     acrName="$ACR_NAME" \
     identityName="$IDENTITY_NAME" \
     storageAccountName="$STORAGE_NAME" \
+    communicationServiceName="$COMMUNICATION_SERVICE_NAME" \
+    authEmailFrom="$AUTH_EMAIL_FROM" \
   --output none
 
 APP_URL="$(

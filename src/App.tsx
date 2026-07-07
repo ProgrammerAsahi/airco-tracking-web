@@ -5,6 +5,7 @@ import { useTranslation } from "./i18n";
 import type { Lang } from "./i18n";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { LandingPage } from "./LandingPage";
+import { ProfilePage } from "./ProfilePage";
 import { canonicalDeliveryPath, destinationCountryFromPath, visibleSiteEntries } from "../shared/delivery";
 import "./styles.css";
 
@@ -490,6 +491,10 @@ function isInventoryRoute(pathname: string): boolean {
   return pathname === "/deliver-to" || pathname.startsWith("/deliver-to/");
 }
 
+function isProfileRoute(pathname: string): boolean {
+  return pathname === "/profile";
+}
+
 export default function App() {
   const { lang, setLang, t } = useTranslation();
   const [pathname, setPathname] = useState(() => window.location.pathname);
@@ -502,6 +507,10 @@ export default function App() {
 
   if (isInventoryRoute(pathname)) {
     return <InventoryApp lang={lang} setLang={setLang} t={t} />;
+  }
+
+  if (isProfileRoute(pathname)) {
+    return <ProfilePage lang={lang} setLang={setLang} />;
   }
 
   return <LandingPage lang={lang} setLang={setLang} />;

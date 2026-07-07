@@ -6,6 +6,12 @@ param containerEnvironmentName string
 param acrName string
 param identityName string
 param storageAccountName string
+param communicationServiceName string = ''
+param authEmailFrom string = ''
+
+param authUsersTableName string = 'users'
+param authCodesTableName string = 'authcodes'
+param authSessionsTableName string = 'authsessions'
 
 param apexHostname string = 'airco-tracker.eu'
 param wwwHostname string = 'www.airco-tracker.eu'
@@ -24,6 +30,30 @@ resource identity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' 
   name: identityName
 }
 
+resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' existing = {
+  name: storageAccountName
+}
+
+resource tableService 'Microsoft.Storage/storageAccounts/tableServices@2023-05-01' existing = {
+  parent: storageAccount
+  name: 'default'
+}
+
+resource usersTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-05-01' = {
+  parent: tableService
+  name: authUsersTableName
+}
+
+resource codesTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-05-01' = {
+  parent: tableService
+  name: authCodesTableName
+}
+
+resource sessionsTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-05-01' = {
+  parent: tableService
+  name: authSessionsTableName
+}
+
 resource apexCertificate 'Microsoft.App/managedEnvironments/managedCertificates@2024-03-01' existing = {
   parent: containerEnvironment
   name: apexCertificateName
@@ -37,6 +67,11 @@ resource wwwCertificate 'Microsoft.App/managedEnvironments/managedCertificates@2
 resource app 'Microsoft.App/containerApps@2025-01-01' = {
   name: appName
   location: resourceGroup().location
+  dependsOn: [
+    usersTable
+    codesTable
+    sessionsTable
+  ]
   identity: {
     type: 'UserAssigned'
     userAssignedIdentities: {
@@ -84,6 +119,16 @@ resource app 'Microsoft.App/containerApps@2025-01-01' = {
             { name: 'AZURE_INVENTORY_BLOB', value: 'inventory.json' }
             { name: 'AZURE_CLIENT_ID', value: identity.properties.clientId }
             { name: 'INVENTORY_CACHE_SECONDS', value: '30' }
+            { name: 'AUTH_USERS_TABLE', value: authUsersTableName }
+            { name: 'AUTH_CODES_TABLE', value: authCodesTableName }
+            { name: 'AUTH_SESSIONS_TABLE', value: authSessionsTableName }
+            { name: 'AUTH_EMAIL_ENDPOINT', value: empty(communicationServiceName) ? '' : 'https://${communicationServiceName}.communication.azure.com' }
+            { name: 'AUTH_EMAIL_FROM', value: authEmailFrom }
+            { name: 'AUTH_COOKIE_SECURE', value: 'true' }
+            { name: 'AUTH_CODE_TTL_SECONDS', value: '600' }
+            { name: 'AUTH_CODE_RESEND_SECONDS', value: '60' }
+            { name: 'AUTH_CODE_MAX_ATTEMPTS', value: '5' }
+            { name: 'AUTH_SESSION_TTL_SECONDS', value: '2592000' }
           ]
           probes: [
             {

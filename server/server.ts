@@ -4,8 +4,15 @@ import { dirname, extname, join, normalize, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { DefaultAzureCredential } from "@azure/identity";
 import { BlobServiceClient } from "@azure/storage-blob";
+import {
+  AuthHttpError,
+  authServiceFromEnvironment,
+  clearSessionCookie,
+  setSessionCookie,
+} from "./auth.js";
 import { parseInventory, type InventorySnapshot } from "./inventory.js";
 import { buildI18nDataElement, type TranslationMap } from "../shared/i18n.js";
+import type { Lang } from "../shared/i18n.js";
 import { loadI18n } from "./i18n.js";
 
 const currentDirectory = dirname(fileURLToPath(import.meta.url));
@@ -47,6 +54,7 @@ function getBlobClient(): BlobServiceClient {
 
 let cachedInventory: { expiresAt: number; snapshot: InventorySnapshot } | undefined;
 let inFlightRead: Promise<InventorySnapshot> | undefined;
+let authService: ReturnType<typeof authServiceFromEnvironment> | undefined;
 let lastRateLimitCleanup = 0;
 const rateLimitBuckets = new Map<string, { count: number; resetAt: number }>();
 
@@ -116,6 +124,135 @@ function sendJson(response: ServerResponse, status: number, value: unknown): voi
   response.setHeader("Content-Type", "application/json; charset=utf-8");
   response.setHeader("Content-Length", Buffer.byteLength(body));
   response.end(body);
+}
+
+function getAuthService(): ReturnType<typeof authServiceFromEnvironment> {
+  if (!authService) authService = authServiceFromEnvironment();
+  return authService;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function parseLang(value: unknown): Lang {
+  return value === "nl" || value === "en" || value === "zh" ? value : "zh";
+}
+
+async function readJsonBody(request: IncomingMessage, maxBytes = 4096): Promise<Record<string, unknown>> {
+  const chunks: Buffer[] = [];
+  let total = 0;
+  for await (const chunk of request) {
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    total += buffer.byteLength;
+    if (total > maxBytes) throw new AuthHttpError(413, "request_too_large");
+    chunks.push(buffer);
+  }
+  const raw = Buffer.concat(chunks).toString("utf8").trim();
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!isRecord(parsed)) throw new Error("JSON body must be an object");
+    return parsed;
+  } catch {
+    throw new AuthHttpError(400, "invalid_json");
+  }
+}
+
+function rejectMethod(response: ServerResponse, allowed: string[]): void {
+  response.setHeader("Allow", allowed.join(", "));
+  sendJson(response, 405, { error: "Method not allowed" });
+}
+
+function sendAuthError(response: ServerResponse, error: unknown): void {
+  response.setHeader("Cache-Control", "no-store");
+  if (error instanceof AuthHttpError) {
+    if (error.retryAfterSeconds) response.setHeader("Retry-After", String(error.retryAfterSeconds));
+    sendJson(response, error.status, {
+      error: error.code,
+      retry_after_seconds: error.retryAfterSeconds,
+    });
+    return;
+  }
+  console.error("Auth API error", error);
+  sendJson(response, 500, { error: "auth_unavailable" });
+}
+
+async function handleAuthRequest(request: IncomingMessage, response: ServerResponse, url: URL): Promise<void> {
+  response.setHeader("Cache-Control", "no-store");
+  const method = request.method ?? "GET";
+  const rateLimit = checkRateLimit(request);
+  if (!rateLimit.allowed) {
+    response.setHeader("Retry-After", String(rateLimit.retryAfterSeconds));
+    sendJson(response, 429, { error: "too_many_requests", retry_after_seconds: rateLimit.retryAfterSeconds });
+    return;
+  }
+
+  const auth = getAuthService();
+  try {
+    if (url.pathname === "/api/auth/me") {
+      if (method !== "GET") {
+        rejectMethod(response, ["GET"]);
+        return;
+      }
+      const user = await auth.currentUser(request);
+      sendJson(response, 200, { user, needsOnboarding: Boolean(user && !user.nickname) });
+      return;
+    }
+
+    if (url.pathname === "/api/auth/request-code") {
+      if (method !== "POST") {
+        rejectMethod(response, ["POST"]);
+        return;
+      }
+      const body = await readJsonBody(request);
+      const result = await auth.requestCode(body.email, parseLang(body.lang));
+      sendJson(response, 200, result);
+      return;
+    }
+
+    if (url.pathname === "/api/auth/verify-code") {
+      if (method !== "POST") {
+        rejectMethod(response, ["POST"]);
+        return;
+      }
+      const body = await readJsonBody(request);
+      const result = await auth.verifyCode(body.email, body.code);
+      setSessionCookie(response, request, result.sessionToken, result.sessionTtlSeconds, auth.cookieName);
+      sendJson(response, 200, {
+        user: result.user,
+        isNewUser: result.isNewUser,
+        needsOnboarding: !result.user.nickname,
+      });
+      return;
+    }
+
+    if (url.pathname === "/api/auth/profile") {
+      if (method !== "POST") {
+        rejectMethod(response, ["POST"]);
+        return;
+      }
+      const body = await readJsonBody(request);
+      const user = await auth.updateNickname(request, body.nickname);
+      sendJson(response, 200, { user, needsOnboarding: !user.nickname });
+      return;
+    }
+
+    if (url.pathname === "/api/auth/logout") {
+      if (method !== "POST") {
+        rejectMethod(response, ["POST"]);
+        return;
+      }
+      await auth.logout(request);
+      clearSessionCookie(response, request, auth.cookieName);
+      sendJson(response, 200, { ok: true });
+      return;
+    }
+
+    sendJson(response, 404, { error: "Unknown auth endpoint" });
+  } catch (error) {
+    sendAuthError(response, error);
+  }
 }
 
 async function readInventorySource(): Promise<InventorySnapshot> {
@@ -207,13 +344,19 @@ async function sendStatic(pathname: string, response: ServerResponse, headOnly: 
 const server = createServer(async (request, response) => {
   securityHeaders(response);
   const method = request.method ?? "GET";
+  const url = new URL(request.url ?? "/", "http://localhost");
+
+  if (url.pathname.startsWith("/api/auth/")) {
+    await handleAuthRequest(request, response, url);
+    return;
+  }
+
   if (method !== "GET" && method !== "HEAD") {
     response.setHeader("Allow", "GET, HEAD");
     sendJson(response, 405, { error: "Method not allowed" });
     return;
   }
 
-  const url = new URL(request.url ?? "/", "http://localhost");
   if (url.pathname === "/health") {
     response.setHeader("Cache-Control", "no-store");
     sendJson(response, 200, { status: "ok" });
