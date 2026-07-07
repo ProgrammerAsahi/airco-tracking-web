@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import {
-  PAID_SUBSCRIPTION_PLANS,
   SUPPORTED_DELIVERY_COUNTRIES,
   SUPPORTED_LANGUAGE_PREFERENCES,
   userInitials,
@@ -10,6 +9,7 @@ import {
   type PaidSubscriptionPlan,
 } from "../shared/auth";
 import {
+  AuthApiError,
   cancelSubscription as cancelSubscriptionRequest,
   deleteAccount,
   getCurrentUser,
@@ -347,6 +347,7 @@ export function ProfilePage({ lang, setLang }: ProfilePageProps) {
   const [emailMessage, setEmailMessage] = useState("");
   const [emailError, setEmailError] = useState("");
   const [sendingEmailCode, setSendingEmailCode] = useState(false);
+  const [emailCodeCooldownSeconds, setEmailCodeCooldownSeconds] = useState(0);
   const [savingEmail, setSavingEmail] = useState(false);
   const [languageModalOpen, setLanguageModalOpen] = useState(false);
   const [countryModalOpen, setCountryModalOpen] = useState(false);
@@ -391,6 +392,14 @@ export function ProfilePage({ lang, setLang }: ProfilePageProps) {
     );
     return () => document.body.classList.remove("landing-dialog-open");
   }, [countryConfirmOpen, countryModalOpen, deleteModalOpen, emailModalOpen, languageModalOpen, nicknameModalOpen]);
+
+  useEffect(() => {
+    if (emailCodeCooldownSeconds <= 0) return undefined;
+    const timer = window.setInterval(() => {
+      setEmailCodeCooldownSeconds((seconds) => Math.max(0, seconds - 1));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [emailCodeCooldownSeconds]);
 
   const handleLogout = async () => {
     await logout().catch(() => undefined);
@@ -440,6 +449,7 @@ export function ProfilePage({ lang, setLang }: ProfilePageProps) {
     setEmailCode("");
     setEmailMessage("");
     setEmailError("");
+    setEmailCodeCooldownSeconds(0);
     setEmailModalOpen(true);
   };
 
@@ -452,7 +462,11 @@ export function ProfilePage({ lang, setLang }: ProfilePageProps) {
       const devCode = result.devCode ? ` ${copy.devCodeNotice.replace("{code}", result.devCode)}` : "";
       setEmailMessage(`${copy.codeSent}${devCode}`);
       if (result.devCode) setEmailCode(result.devCode);
-    } catch {
+      setEmailCodeCooldownSeconds(result.retryAfterSeconds || 60);
+    } catch (error) {
+      if (error instanceof AuthApiError && error.code === "code_recently_sent" && error.retryAfterSeconds) {
+        setEmailCodeCooldownSeconds(error.retryAfterSeconds);
+      }
       setEmailError(copy.emailError);
     } finally {
       setSendingEmailCode(false);
@@ -656,14 +670,6 @@ export function ProfilePage({ lang, setLang }: ProfilePageProps) {
             </div>
           )}
         </div>
-        <div className="profile-plan-grid">
-          {PAID_SUBSCRIPTION_PLANS.map((plan) => (
-            <article key={plan}>
-              <strong>{copy[PLAN_LABEL_KEYS[plan]]}</strong>
-              <span>{plan}</span>
-            </article>
-          ))}
-        </div>
       </section>
 
       {nicknameModalOpen && user && (
@@ -739,8 +745,8 @@ export function ProfilePage({ lang, setLang }: ProfilePageProps) {
                 pattern="\d{6}"
                 onChange={(event) => setEmailCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
               />
-              <button type="button" disabled={sendingEmailCode || savingEmail} onClick={handleSendEmailCode}>
-                {sendingEmailCode ? copy.sendCodeBusy : copy.sendCode}
+              <button type="button" disabled={sendingEmailCode || savingEmail || emailCodeCooldownSeconds > 0} onClick={handleSendEmailCode}>
+                {sendingEmailCode ? copy.sendCodeBusy : emailCodeCooldownSeconds > 0 ? `${emailCodeCooldownSeconds}s` : copy.sendCode}
               </button>
             </label>
             {emailMessage && <p className="landing-login-message">{emailMessage}</p>}

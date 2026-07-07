@@ -339,6 +339,7 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
   const [loginMessage, setLoginMessage] = useState("");
   const [loginError, setLoginError] = useState("");
   const [sendingCode, setSendingCode] = useState(false);
+  const [codeCooldownSeconds, setCodeCooldownSeconds] = useState(0);
   const [verifyingCode, setVerifyingCode] = useState(false);
   const [nicknameOpen, setNicknameOpen] = useState(false);
   const [nickname, setNickname] = useState("");
@@ -407,6 +408,14 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
     return () => window.removeEventListener("pointerdown", onPointerDown);
   }, [menuOpen]);
 
+  useEffect(() => {
+    if (codeCooldownSeconds <= 0) return undefined;
+    const timer = window.setInterval(() => {
+      setCodeCooldownSeconds((seconds) => Math.max(0, seconds - 1));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [codeCooldownSeconds]);
+
   const openLogin = () => {
     setCoolingPreview(true);
     setLoginError("");
@@ -431,7 +440,11 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
       const devCode = result.devCode ? ` ${copy.devCodeNotice.replace("{code}", result.devCode)}` : "";
       setLoginMessage(`${copy.codeSent}${devCode}`);
       if (result.devCode) setCode(result.devCode);
+      setCodeCooldownSeconds(result.retryAfterSeconds || 60);
     } catch (error) {
+      if (error instanceof AuthApiError && error.code === "code_recently_sent" && error.retryAfterSeconds) {
+        setCodeCooldownSeconds(error.retryAfterSeconds);
+      }
       setLoginError(authErrorMessage(error, copy));
     } finally {
       setSendingCode(false);
@@ -689,8 +702,8 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
                   onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
                   required
                 />
-                <button type="button" onClick={handleSendCode} disabled={sendingCode || verifyingCode}>
-                  {sendingCode ? copy.sendCodeBusy : copy.sendCode}
+                <button type="button" onClick={handleSendCode} disabled={sendingCode || verifyingCode || codeCooldownSeconds > 0}>
+                  {sendingCode ? copy.sendCodeBusy : codeCooldownSeconds > 0 ? `${codeCooldownSeconds}s` : copy.sendCode}
                 </button>
               </label>
               {loginMessage && <p className="landing-login-message">{loginMessage}</p>}

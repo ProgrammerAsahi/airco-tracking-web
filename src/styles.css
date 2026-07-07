@@ -1789,7 +1789,6 @@ body.landing-dialog-open {
 
 .profile-plans {
   display: grid;
-  grid-template-columns: 0.8fr 1fr;
   gap: 24px;
   margin-top: 22px;
   padding: clamp(22px, 4vw, 34px);
@@ -1799,32 +1798,6 @@ body.landing-dialog-open {
   margin: 0;
   font-size: clamp(28px, 4vw, 42px);
   letter-spacing: -0.055em;
-}
-
-.profile-plan-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.profile-plan-grid article {
-  display: grid;
-  gap: 8px;
-  padding: 16px;
-  border: 1px solid rgba(31, 91, 122, 0.10);
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.64);
-}
-
-.profile-plan-grid strong {
-  color: #173346;
-  font-size: 14px;
-}
-
-.profile-plan-grid span {
-  color: #7b93a2;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 12px;
 }
 
 .profile-preference-card {
@@ -2547,10 +2520,6 @@ body.landing-dialog-open {
 
   .profile-card-header,
   .profile-details div {
-    grid-template-columns: 1fr;
-  }
-
-  .profile-plan-grid {
     grid-template-columns: 1fr;
   }
 
