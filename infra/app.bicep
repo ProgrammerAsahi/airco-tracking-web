@@ -7,6 +7,11 @@ param acrName string
 param identityName string
 param storageAccountName string
 
+param apexHostname string = 'airco-tracker.eu'
+param wwwHostname string = 'www.airco-tracker.eu'
+param apexCertificateName string = 'mc-aircontrack-en-airco-tracker-eu-0707'
+param wwwCertificateName string = 'mc-aircontrack-en-www-airco-tracke-6234'
+
 resource containerEnvironment 'Microsoft.App/managedEnvironments@2024-03-01' existing = {
   name: containerEnvironmentName
 }
@@ -17,6 +22,16 @@ resource registry 'Microsoft.ContainerRegistry/registries@2023-07-01' existing =
 
 resource identity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' existing = {
   name: identityName
+}
+
+resource apexCertificate 'Microsoft.App/managedEnvironments/managedCertificates@2024-03-01' existing = {
+  parent: containerEnvironment
+  name: apexCertificateName
+}
+
+resource wwwCertificate 'Microsoft.App/managedEnvironments/managedCertificates@2024-03-01' existing = {
+  parent: containerEnvironment
+  name: wwwCertificateName
 }
 
 resource app 'Microsoft.App/containerApps@2025-01-01' = {
@@ -37,6 +52,18 @@ resource app 'Microsoft.App/containerApps@2025-01-01' = {
         allowInsecure: false
         targetPort: 3000
         transport: 'auto'
+        customDomains: [
+          {
+            name: apexHostname
+            bindingType: 'SniEnabled'
+            certificateId: apexCertificate.id
+          }
+          {
+            name: wwwHostname
+            bindingType: 'SniEnabled'
+            certificateId: wwwCertificate.id
+          }
+        ]
       }
       registries: [
         {
