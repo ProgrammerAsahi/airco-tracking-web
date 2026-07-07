@@ -136,7 +136,7 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     nicknameTitle: "我们该如何称呼你？",
     nicknameSubtitle: "只需要一个昵称。它会用于你的头像和之后的个性化提示。",
     nicknameLabel: "昵称",
-    nicknamePlaceholder: "例如 Asahi Lee、Mike、李开复",
+    nicknamePlaceholder: "我们该如何称呼您呢？",
     nicknameSubmit: "保存昵称",
     nicknameSaving: "保存中…",
     nicknameError: "昵称需要 1–40 个字符，且至少包含一个文字或数字。",
@@ -204,7 +204,7 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     nicknameTitle: "Hoe mogen we je noemen?",
     nicknameSubtitle: "Alleen een bijnaam. Die gebruiken we voor je avatar en latere persoonlijke meldingen.",
     nicknameLabel: "Bijnaam",
-    nicknamePlaceholder: "Bijv. Asahi Lee, Mike, 李开复",
+    nicknamePlaceholder: "Hoe mogen we u noemen?",
     nicknameSubmit: "Bijnaam opslaan",
     nicknameSaving: "Opslaan…",
     nicknameError: "Gebruik 1–40 tekens en minstens één letter of cijfer.",
@@ -272,7 +272,7 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     nicknameTitle: "What should we call you?",
     nicknameSubtitle: "Just a nickname. We use it for your avatar and future personalized alerts.",
     nicknameLabel: "Nickname",
-    nicknamePlaceholder: "e.g. Asahi Lee, Mike, 李开复",
+    nicknamePlaceholder: "What should we call you?",
     nicknameSubmit: "Save nickname",
     nicknameSaving: "Saving…",
     nicknameError: "Use 1–40 characters and include at least one letter or number.",
@@ -363,6 +363,9 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
       .then((nextUser) => {
         if (ignore) return;
         setUser(nextUser);
+        if (nextUser?.languagePreference && nextUser.languagePreference !== lang) {
+          setLang(nextUser.languagePreference);
+        }
         if (nextUser && !nextUser.nickname) {
           setNickname("");
           setNicknameOpen(true);
@@ -432,7 +435,7 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
     setLoginMessage("");
     setVerifyingCode(true);
     try {
-      const result = await verifyAuthCode(email, code);
+      const result = await verifyAuthCode(email, code, lang);
       setUser(result.user);
       setCoolingPreview(true);
       setLoginOpen(false);

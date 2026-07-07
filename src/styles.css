@@ -1592,6 +1592,33 @@ body.landing-dialog-open {
   overflow-wrap: anywhere;
 }
 
+.profile-detail-action {
+  display: flex;
+  width: 100%;
+  min-height: 34px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #173346;
+  font: inherit;
+  font-weight: 780;
+  text-align: left;
+  cursor: pointer;
+}
+
+.profile-detail-action span:last-child {
+  color: #0d78ad;
+  font-size: 13px;
+  font-weight: 820;
+}
+
+.profile-detail-action:hover span:last-child {
+  color: #075b8d;
+}
+
 .profile-logout-button {
   min-height: 44px;
   margin-top: 24px;
@@ -1649,6 +1676,56 @@ body.landing-dialog-open {
   color: #7b93a2;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 12px;
+}
+
+.profile-preference-card {
+  width: min(100%, 460px);
+}
+
+.profile-option-list {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.profile-option {
+  display: flex;
+  min-height: 54px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 0 16px;
+  border: 1px solid rgba(30, 91, 122, 0.12);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.62);
+  color: #173346;
+  font-size: 15px;
+  font-weight: 790;
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.profile-option:hover,
+.profile-option--active {
+  border-color: rgba(13, 128, 184, 0.30);
+  background: rgba(228, 249, 254, 0.86);
+  transform: translateY(-1px);
+}
+
+.profile-option span:last-child {
+  color: #0d78ad;
+  font-weight: 900;
+}
+
+.profile-modal-actions {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 22px;
 }
 
 @media (max-width: 860px) {
@@ -1833,6 +1910,11 @@ body.landing-dialog-open {
 
   .profile-plan-grid {
     grid-template-columns: 1fr;
+  }
+
+  .profile-modal-actions {
+    align-items: stretch;
+    flex-direction: column-reverse;
   }
 
   .landing-hero {

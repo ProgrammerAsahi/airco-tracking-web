@@ -1,3 +1,5 @@
+import type { Lang } from "./i18n.js";
+
 export const PAID_SUBSCRIPTION_PLANS = [
   "weekly_basic",
   "weekly_priority",
@@ -5,13 +7,19 @@ export const PAID_SUBSCRIPTION_PLANS = [
   "monthly_priority",
 ] as const;
 
+export const SUPPORTED_LANGUAGE_PREFERENCES = ["zh", "nl", "en"] as const satisfies readonly Lang[];
+export const SUPPORTED_DELIVERY_COUNTRIES = ["fr", "nl"] as const;
+
 export type PaidSubscriptionPlan = (typeof PAID_SUBSCRIPTION_PLANS)[number];
 export type SubscriptionPlan = "none" | PaidSubscriptionPlan;
+export type DeliveryCountry = (typeof SUPPORTED_DELIVERY_COUNTRIES)[number];
 
 export type UserProfile = {
   email: string;
   nickname: string | null;
   subscriptionPlan: SubscriptionPlan;
+  languagePreference: Lang;
+  deliveryCountry: DeliveryCountry;
   createdAt: string;
   updatedAt: string;
 };
@@ -60,4 +68,12 @@ export function userInitials(nickname: string | null | undefined, email = ""): s
 
 export function isSubscriptionPlan(value: unknown): value is SubscriptionPlan {
   return value === "none" || PAID_SUBSCRIPTION_PLANS.includes(value as PaidSubscriptionPlan);
+}
+
+export function isLanguagePreference(value: unknown): value is Lang {
+  return SUPPORTED_LANGUAGE_PREFERENCES.includes(value as Lang);
+}
+
+export function isDeliveryCountry(value: unknown): value is DeliveryCountry {
+  return SUPPORTED_DELIVERY_COUNTRIES.includes(value as DeliveryCountry);
 }

@@ -7,6 +7,8 @@ import {
 } from "./auth.js";
 import {
   isValidEmail,
+  isDeliveryCountry,
+  isLanguagePreference,
   normalizeEmail,
   userInitials,
   validateNickname,
@@ -25,6 +27,16 @@ test("validates nicknames with minimal stored profile data", () => {
   assert.equal(validateNickname("").ok, false);
   assert.equal(validateNickname("   ").ok, false);
   assert.equal(validateNickname("🙂🙂").ok, false);
+});
+
+test("validates stored language and delivery country preferences", () => {
+  assert.equal(isLanguagePreference("zh"), true);
+  assert.equal(isLanguagePreference("nl"), true);
+  assert.equal(isLanguagePreference("en"), true);
+  assert.equal(isLanguagePreference("fr"), false);
+  assert.equal(isDeliveryCountry("fr"), true);
+  assert.equal(isDeliveryCountry("nl"), true);
+  assert.equal(isDeliveryCountry("de"), false);
 });
 
 test("derives compact avatar initials", () => {

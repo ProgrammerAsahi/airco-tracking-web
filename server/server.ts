@@ -217,7 +217,7 @@ async function handleAuthRequest(request: IncomingMessage, response: ServerRespo
         return;
       }
       const body = await readJsonBody(request);
-      const result = await auth.verifyCode(body.email, body.code);
+      const result = await auth.verifyCode(body.email, body.code, parseLang(body.lang));
       setSessionCookie(response, request, result.sessionToken, result.sessionTtlSeconds, auth.cookieName);
       sendJson(response, 200, {
         user: result.user,
@@ -234,6 +234,20 @@ async function handleAuthRequest(request: IncomingMessage, response: ServerRespo
       }
       const body = await readJsonBody(request);
       const user = await auth.updateNickname(request, body.nickname);
+      sendJson(response, 200, { user, needsOnboarding: !user.nickname });
+      return;
+    }
+
+    if (url.pathname === "/api/auth/preferences") {
+      if (method !== "POST") {
+        rejectMethod(response, ["POST"]);
+        return;
+      }
+      const body = await readJsonBody(request);
+      const user = await auth.updatePreferences(request, {
+        languagePreference: body.languagePreference,
+        deliveryCountry: body.deliveryCountry,
+      });
       sendJson(response, 200, { user, needsOnboarding: !user.nickname });
       return;
     }

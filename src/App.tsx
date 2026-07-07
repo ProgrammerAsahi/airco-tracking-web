@@ -6,6 +6,7 @@ import type { Lang } from "./i18n";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { LandingPage } from "./LandingPage";
 import { ProfilePage } from "./ProfilePage";
+import { getCurrentUser } from "./authClient";
 import { canonicalDeliveryPath, destinationCountryFromPath, visibleSiteEntries } from "../shared/delivery";
 import "./styles.css";
 
@@ -325,6 +326,26 @@ function InventoryApp({ lang, setLang, t }: AppLocaleProps) {
     window.addEventListener("popstate", syncDestinationFromPath);
     return () => window.removeEventListener("popstate", syncDestinationFromPath);
   }, []);
+
+  useEffect(() => {
+    let ignore = false;
+    getCurrentUser()
+      .then((user) => {
+        if (ignore || !user) return;
+        if (user.languagePreference !== lang) setLang(user.languagePreference);
+
+        const canonicalPath = canonicalDeliveryPath(user.deliveryCountry);
+        setDestinationCountry(user.deliveryCountry);
+        if (window.location.pathname !== canonicalPath) {
+          window.history.replaceState(window.history.state, "", `${canonicalPath}${window.location.search}`);
+          setSelectedRetailer(null);
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      ignore = true;
+    };
+  }, [lang, setLang]);
 
   useEffect(() => {
     fetchInventory();

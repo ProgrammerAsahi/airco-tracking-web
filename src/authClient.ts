@@ -1,7 +1,7 @@
-import { userInitials, type UserProfile } from "../shared/auth";
+import { userInitials, type DeliveryCountry, type UserProfile } from "../shared/auth";
 import type { Lang } from "./i18n";
 
-export type { UserProfile } from "../shared/auth";
+export type { DeliveryCountry, UserProfile } from "../shared/auth";
 export { userInitials };
 
 export class AuthApiError extends Error {
@@ -74,12 +74,17 @@ export async function requestAuthCode(email: string, lang: Lang): Promise<Reques
   return postJson<RequestCodeResponse>("/api/auth/request-code", { email, lang });
 }
 
-export async function verifyAuthCode(email: string, code: string): Promise<AuthSessionResponse> {
-  return postJson<AuthSessionResponse>("/api/auth/verify-code", { email, code });
+export async function verifyAuthCode(email: string, code: string, lang: Lang): Promise<AuthSessionResponse> {
+  return postJson<AuthSessionResponse>("/api/auth/verify-code", { email, code, lang });
 }
 
 export async function updateNickname(nickname: string): Promise<UserProfile> {
   const response = await postJson<AuthSessionResponse>("/api/auth/profile", { nickname });
+  return response.user;
+}
+
+export async function updatePreferences(values: { languagePreference?: Lang; deliveryCountry?: DeliveryCountry }): Promise<UserProfile> {
+  const response = await postJson<AuthSessionResponse>("/api/auth/preferences", values);
   return response.user;
 }
 

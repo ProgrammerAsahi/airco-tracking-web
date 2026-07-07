@@ -5,9 +5,12 @@ import { EmailClient, type EmailMessage } from "@azure/communication-email";
 import { DefaultAzureCredential } from "@azure/identity";
 import {
   isSubscriptionPlan,
+  isDeliveryCountry,
+  isLanguagePreference,
   isValidEmail,
   normalizeEmail,
   validateNickname,
+  type DeliveryCountry,
   type SubscriptionPlan,
   type UserProfile,
 } from "../shared/auth.js";
@@ -95,6 +98,8 @@ const DEFAULT_SESSION_TTL_SECONDS = 30 * 24 * 60 * 60;
 const DEFAULT_COOKIE_NAME = "airco_session";
 
 export const AUTH_SUBSCRIPTION_PLAN_DEFAULT: SubscriptionPlan = "none";
+export const AUTH_LANGUAGE_DEFAULT: Lang = "zh";
+export const AUTH_DELIVERY_COUNTRY_DEFAULT: DeliveryCountry = "fr";
 
 function nowIso(now = Date.now()): string {
   return new Date(now).toISOString();
@@ -346,6 +351,8 @@ type UserEntity = {
   email: string;
   nickname?: string;
   subscriptionPlan?: string;
+  languagePreference?: string;
+  deliveryCountry?: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -360,6 +367,8 @@ function userToEntity(user: UserProfile): UserEntity & { partitionKey: string; r
     email: user.email,
     nickname: user.nickname ?? "",
     subscriptionPlan: user.subscriptionPlan,
+    languagePreference: user.languagePreference,
+    deliveryCountry: user.deliveryCountry,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
   };
@@ -367,10 +376,14 @@ function userToEntity(user: UserProfile): UserEntity & { partitionKey: string; r
 
 function userFromEntity(entity: TableEntityResult<UserEntity>): UserProfile {
   const subscriptionPlan = isSubscriptionPlan(entity.subscriptionPlan) ? entity.subscriptionPlan : AUTH_SUBSCRIPTION_PLAN_DEFAULT;
+  const languagePreference = isLanguagePreference(entity.languagePreference) ? entity.languagePreference : AUTH_LANGUAGE_DEFAULT;
+  const deliveryCountry = isDeliveryCountry(entity.deliveryCountry) ? entity.deliveryCountry : AUTH_DELIVERY_COUNTRY_DEFAULT;
   return {
     email: normalizeEmail(entity.email),
     nickname: typeof entity.nickname === "string" && entity.nickname.trim() ? entity.nickname.trim() : null,
     subscriptionPlan,
+    languagePreference,
+    deliveryCountry,
     createdAt: String(entity.createdAt),
     updatedAt: String(entity.updatedAt),
   };
@@ -521,7 +534,7 @@ export class AuthService {
     }
   }
 
-  async verifyCode(rawEmail: unknown, rawCode: unknown): Promise<VerifyCodeResult> {
+  async verifyCode(rawEmail: unknown, rawCode: unknown, lang: Lang = AUTH_LANGUAGE_DEFAULT): Promise<VerifyCodeResult> {
     const email = normalizeAndValidateEmail(rawEmail);
     const code = sanitizeCode(rawCode);
     if (!/^\d{6}$/.test(code)) throw new AuthHttpError(400, "invalid_code");
@@ -547,6 +560,8 @@ export class AuthService {
       email,
       nickname: null,
       subscriptionPlan: AUTH_SUBSCRIPTION_PLAN_DEFAULT,
+      languagePreference: isLanguagePreference(lang) ? lang : AUTH_LANGUAGE_DEFAULT,
+      deliveryCountry: AUTH_DELIVERY_COUNTRY_DEFAULT,
       createdAt: timestamp,
       updatedAt: timestamp,
     };
@@ -601,6 +616,28 @@ export class AuthService {
     const updated: UserProfile = {
       ...user,
       nickname: validation.nickname,
+      updatedAt: nowIso(),
+    };
+    await this.store.upsertUser(updated);
+    return updated;
+  }
+
+  async updatePreferences(request: IncomingMessage, values: { languagePreference?: unknown; deliveryCountry?: unknown }): Promise<UserProfile> {
+    const user = await this.requireUser(request);
+    const nextLanguage = values.languagePreference === undefined
+      ? user.languagePreference
+      : values.languagePreference;
+    const nextCountry = values.deliveryCountry === undefined
+      ? user.deliveryCountry
+      : values.deliveryCountry;
+
+    if (!isLanguagePreference(nextLanguage)) throw new AuthHttpError(400, "invalid_language_preference");
+    if (!isDeliveryCountry(nextCountry)) throw new AuthHttpError(400, "invalid_delivery_country");
+
+    const updated: UserProfile = {
+      ...user,
+      languagePreference: nextLanguage,
+      deliveryCountry: nextCountry,
       updatedAt: nowIso(),
     };
     await this.store.upsertUser(updated);
