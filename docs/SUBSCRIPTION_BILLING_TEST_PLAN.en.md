@@ -65,7 +65,7 @@ Status markers:
 
 | Status | Scenario | Expected result | Notes |
 | --- | --- | --- | --- |
-| ⬜ | Anonymous user opens `/deliver-to/nl` or `/deliver-to/fr` | Inventory data is hidden; user is guided to log in or subscribe | Not tested yet |
+| ✅ | Anonymous user opens `/deliver-to/nl` or `/deliver-to/fr` | Inventory data is hidden; user is guided to log in or subscribe | Verified in production on 2026-07-08: after logout, direct inventory-page access redirects to the subscription page |
 | ⬜ | User without a subscription opens `/deliver-to/nl` or `/deliver-to/fr` | Inventory data is hidden; user is guided to subscribe | Not tested yet |
 | ⬜ | `basic` user opens a realtime inventory page | Inventory data is hidden; page explains the plan only includes email alerts | Not tested yet |
 | ⬜ | `priority` user opens a realtime inventory page | User lands on `/deliver-to/nl` or `/deliver-to/fr` based on the saved country and sees deliverable retailers | Not tested yet |
