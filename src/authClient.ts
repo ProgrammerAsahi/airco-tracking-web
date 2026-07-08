@@ -42,6 +42,10 @@ type AuthSessionResponse = {
   needsOnboarding?: boolean;
 };
 
+type CheckoutSessionResponse = {
+  url: string;
+};
+
 async function parseJsonResponse<T>(response: Response): Promise<T> {
   const body = (await response.json().catch(() => ({}))) as unknown;
   if (!response.ok) {
@@ -108,8 +112,12 @@ export async function completePreviewPayment(plan: PaidSubscriptionPlan, payment
   return response.user;
 }
 
+export async function createCheckoutSession(plan: PaidSubscriptionPlan, lang: Lang): Promise<CheckoutSessionResponse> {
+  return postJson<CheckoutSessionResponse>("/api/billing/create-checkout-session", { plan, lang });
+}
+
 export async function cancelSubscription(): Promise<UserProfile> {
-  const response = await postJson<AuthSessionResponse>("/api/auth/subscription/cancel", {});
+  const response = await postJson<AuthSessionResponse>("/api/billing/cancel-subscription", {});
   return response.user;
 }
 

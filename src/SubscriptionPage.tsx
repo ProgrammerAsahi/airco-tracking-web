@@ -6,11 +6,10 @@ import {
   subscriptionIsActive,
   type BillingCycle,
   type PaidSubscriptionPlan,
-  type PaymentMethod,
 } from "../shared/auth";
 import {
   AuthApiError,
-  completePreviewPayment,
+  createCheckoutSession,
   getCurrentUser,
   requestAuthCode,
   updateNickname,
@@ -115,7 +114,7 @@ const SUBSCRIPTION_COPY: Record<Lang, SubscriptionCopy> = {
     choose: "选择方案",
     currentPlan: "当前方案",
     checkoutTitle: "确认订阅",
-    checkoutBody: "选择支付方式。当前为支付流程预览，不会扣款；接入支付商后这里会跳转真实 Checkout。",
+    checkoutBody: "下一步会跳转到 Stripe 安全结账页完成信用卡付款。卡号不会经过 Airco Tracker 服务器。",
     paymentMethod: "支付方式",
     card: "信用卡",
     ideal: "iDEAL",
@@ -123,9 +122,9 @@ const SUBSCRIPTION_COPY: Record<Lang, SubscriptionCopy> = {
     cardExpiry: "有效期",
     cardCvc: "CVC",
     idealBank: "选择银行",
-    completePayment: "完成测试支付",
+    completePayment: "前往 Stripe 安全支付",
     processing: "处理中…",
-    sandboxNotice: "Sandbox preview：不会真实扣款，也不会保存卡号或银行信息。",
+    sandboxNotice: "当前先接入信用卡路径。iDEAL/Wero 可以在 Stripe 稳定后继续加入。",
     loginTitle: "登录后继续订阅",
     loginSubtitle: "输入邮箱获取验证码。登录成功后会继续打开你刚选择的支付选项。",
     emailLabel: "邮箱",
@@ -192,7 +191,7 @@ const SUBSCRIPTION_COPY: Record<Lang, SubscriptionCopy> = {
     choose: "Kies plan",
     currentPlan: "Huidig plan",
     checkoutTitle: "Bevestig abonnement",
-    checkoutBody: "Kies je betaalmethode. Dit is nu een betaalpreview zonder afschrijving; later koppelen we echte Checkout.",
+    checkoutBody: "Hierna ga je naar de beveiligde Stripe Checkout om met creditcard te betalen. Kaartgegevens raken onze server niet.",
     paymentMethod: "Betaalmethode",
     card: "Creditcard",
     ideal: "iDEAL",
@@ -200,9 +199,9 @@ const SUBSCRIPTION_COPY: Record<Lang, SubscriptionCopy> = {
     cardExpiry: "Vervaldatum",
     cardCvc: "CVC",
     idealBank: "Kies bank",
-    completePayment: "Testbetaling afronden",
+    completePayment: "Naar veilige Stripe-betaling",
     processing: "Bezig…",
-    sandboxNotice: "Sandbox preview: er wordt niets afgeschreven en we bewaren geen kaart- of bankgegevens.",
+    sandboxNotice: "We koppelen nu eerst creditcardbetalingen. iDEAL/Wero kan daarna worden toegevoegd.",
     loginTitle: "Log in om door te gaan",
     loginSubtitle: "Vul je e-mail in voor een code. Na het inloggen openen we direct de betaalopties voor je gekozen plan.",
     emailLabel: "E-mail",
@@ -269,7 +268,7 @@ const SUBSCRIPTION_COPY: Record<Lang, SubscriptionCopy> = {
     choose: "Choose plan",
     currentPlan: "Current plan",
     checkoutTitle: "Confirm subscription",
-    checkoutBody: "Choose a payment method. This is currently a payment preview and will not charge you; later this becomes real Checkout.",
+    checkoutBody: "Next, you will be redirected to secure Stripe Checkout to pay by card. Card details never touch Airco Tracker servers.",
     paymentMethod: "Payment method",
     card: "Credit card",
     ideal: "iDEAL",
@@ -277,9 +276,9 @@ const SUBSCRIPTION_COPY: Record<Lang, SubscriptionCopy> = {
     cardExpiry: "Expiry",
     cardCvc: "CVC",
     idealBank: "Choose bank",
-    completePayment: "Complete test payment",
+    completePayment: "Continue to secure Stripe payment",
     processing: "Processing…",
-    sandboxNotice: "Sandbox preview: no real charge, and no card or bank details are stored.",
+    sandboxNotice: "We are wiring the card path first. iDEAL/Wero can be added after Stripe is stable.",
     loginTitle: "Log in to continue",
     loginSubtitle: "Enter your email for a code. After login, we will open payment options for the plan you selected.",
     emailLabel: "Email",
@@ -342,9 +341,6 @@ export function SubscriptionPage({ lang, setLang }: SubscriptionPageProps) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("weekly");
   const [selectedPlan, setSelectedPlan] = useState<PaidSubscriptionPlan | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("card");
-  const [cardNumber, setCardNumber] = useState("4242 4242 4242 4242");
-  const [idealBank, setIdealBank] = useState("ING");
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState("");
   const [loginOpen, setLoginOpen] = useState(false);
@@ -487,11 +483,8 @@ export function SubscriptionPage({ lang, setLang }: SubscriptionPageProps) {
     setError("");
     setProcessing(true);
     try {
-      const updated = await completePreviewPayment(selectedPlan, paymentMethod, paymentMethod === "card"
-        ? { paymentBrand: "VISA", paymentLast4: cardLast4(cardNumber) }
-        : { idealBank });
-      setUser(updated);
-      window.location.href = `/ready?lang=${lang}`;
+      const checkout = await createCheckoutSession(selectedPlan, lang);
+      window.location.href = checkout.url;
     } catch {
       setError(copy.error);
     } finally {
@@ -566,31 +559,10 @@ export function SubscriptionPage({ lang, setLang }: SubscriptionPageProps) {
             <span>€{SUBSCRIPTION_PLAN_DETAILS[selectedPlan].priceEur} / {SUBSCRIPTION_PLAN_DETAILS[selectedPlan].billingCycle === "weekly" ? copy.weekly : copy.monthly}</span>
           </div>
           <div className="payment-methods">
-            <button className={paymentMethod === "card" ? "payment-method--active" : ""} type="button" onClick={() => setPaymentMethod("card")}>
+            <button className="payment-method--active" type="button" disabled>
               {copy.card}
             </button>
-            <button className={paymentMethod === "ideal" ? "payment-method--active" : ""} type="button" onClick={() => setPaymentMethod("ideal")}>
-              {copy.ideal}
-            </button>
           </div>
-          {paymentMethod === "card" ? (
-            <div className="payment-fields">
-              <input aria-label={copy.cardNumber} placeholder="4242 4242 4242 4242" value={cardNumber} onChange={(event) => setCardNumber(event.target.value)} />
-              <input aria-label={copy.cardExpiry} placeholder="MM / YY" />
-              <input aria-label={copy.cardCvc} placeholder="CVC" />
-            </div>
-          ) : (
-            <label className="payment-bank">
-              <span>{copy.idealBank}</span>
-              <select value={idealBank} onChange={(event) => setIdealBank(event.target.value)}>
-                <option value="ING">ING</option>
-                <option value="ABN AMRO">ABN AMRO</option>
-                <option value="Rabobank">Rabobank</option>
-                <option value="Bunq">Bunq</option>
-                <option value="Revolut">Revolut</option>
-              </select>
-            </label>
-          )}
           {error && <p className="landing-login-error">{error}</p>}
           <button className="landing-primary-button landing-primary-button--large" type="button" disabled={processing} onClick={completePayment}>
             {processing ? copy.processing : copy.completePayment}
@@ -742,11 +714,6 @@ export function SubscriptionPage({ lang, setLang }: SubscriptionPageProps) {
 function planName(plan: PaidSubscriptionPlan, copy: SubscriptionCopy): string {
   if (!isPaidSubscriptionPlan(plan)) return "";
   return SUBSCRIPTION_PLAN_DETAILS[plan].realtimeStock ? copy.stockName : copy.alertsName;
-}
-
-function cardLast4(value: string): string {
-  const digits = value.replace(/\D/g, "");
-  return digits.length >= 4 ? digits.slice(-4) : "4242";
 }
 
 function authErrorMessage(error: unknown, copy: SubscriptionCopy): string {

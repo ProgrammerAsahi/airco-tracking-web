@@ -14,6 +14,8 @@ Browser
                  ├─ serves the Vite/React build
                  ├─ GET /api/inventory
                  │      └─ Managed Identity → private inventory.json Blob
+                 ├─ POST /api/billing/create-checkout-session
+                 │      └─ Stripe Checkout, card payments only in the first billing pass
                  └─ embeds escaped, inert i18n JSON
                         └─ Managed Identity → Azure Table Storage
 ```
@@ -70,5 +72,36 @@ Every push to `main` then runs tests, compiles TypeScript and Bicep, builds an i
 | `INVENTORY_CACHE_SECONDS` | Blob read cache, defaults to 30 seconds |
 | `INVENTORY_FILE` | Local-only file override |
 | `I18N_FILE` | Local-only translation JSON override |
+| `APP_BASE_URL` | Public origin used for Stripe return URLs, for example `https://airco-tracker.eu` |
+| `STRIPE_SECRET_KEY` | Stripe secret key. Use test mode first (`sk_test_...`) |
+| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret for `/api/billing/webhook` |
+| `STRIPE_PRICE_WEEKLY_BASIC` | Stripe recurring Price ID for `weekly_basic` |
+| `STRIPE_PRICE_WEEKLY_PRIORITY` | Stripe recurring Price ID for `weekly_priority` |
+| `STRIPE_PRICE_MONTHLY_BASIC` | Stripe recurring Price ID for `monthly_basic` |
+| `STRIPE_PRICE_MONTHLY_PRIORITY` | Stripe recurring Price ID for `monthly_priority` |
+
+### Stripe billing setup
+
+The first billing integration uses hosted Stripe Checkout for card payments only. Card data never touches the Airco Tracker server. Create four recurring Prices in Stripe test mode and map them to the variables above:
+
+- `weekly_basic`: €5 / week
+- `weekly_priority`: €15 / week
+- `monthly_basic`: €10 / month
+- `monthly_priority`: €30 / month
+
+Configure a Stripe webhook endpoint at:
+
+```text
+https://airco-tracker.eu/api/billing/webhook
+```
+
+Subscribe at least to:
+
+- `checkout.session.completed`
+- `customer.subscription.created`
+- `customer.subscription.updated`
+- `customer.subscription.deleted`
+
+Use Stripe test cards to verify Checkout before switching the environment variables to live mode.
 
 Do not add Azure keys, long-lived SAS tokens, or secrets to this repository.

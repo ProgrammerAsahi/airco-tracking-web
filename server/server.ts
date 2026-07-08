@@ -12,9 +12,10 @@ import {
 } from "./auth.js";
 import { parseInventory, type InventorySnapshot } from "./inventory.js";
 import { buildI18nDataElement, type TranslationMap } from "../shared/i18n.js";
-import { hasRealtimeStockAccess } from "../shared/auth.js";
+import { hasRealtimeStockAccess, type UserProfile } from "../shared/auth.js";
 import type { Lang } from "../shared/i18n.js";
 import { loadI18n } from "./i18n.js";
+import { stripeBillingFromEnvironment, type StripeBillingService } from "./billing.js";
 
 const currentDirectory = dirname(fileURLToPath(import.meta.url));
 // Compiled server.js lives at <root>/server-dist/server/server.js, so go up
@@ -56,6 +57,7 @@ function getBlobClient(): BlobServiceClient {
 let cachedInventory: { expiresAt: number; snapshot: InventorySnapshot } | undefined;
 let inFlightRead: Promise<InventorySnapshot> | undefined;
 let authService: ReturnType<typeof authServiceFromEnvironment> | undefined;
+let billingService: StripeBillingService | undefined;
 let lastRateLimitCleanup = 0;
 const rateLimitBuckets = new Map<string, { count: number; resetAt: number }>();
 
@@ -127,9 +129,20 @@ function sendJson(response: ServerResponse, status: number, value: unknown): voi
   response.end(body);
 }
 
+function publicUser(user: UserProfile | null): UserProfile | null {
+  if (!user) return null;
+  const { stripeCustomerId: _stripeCustomerId, stripeSubscriptionId: _stripeSubscriptionId, ...safeUser } = user;
+  return safeUser;
+}
+
 function getAuthService(): ReturnType<typeof authServiceFromEnvironment> {
   if (!authService) authService = authServiceFromEnvironment();
   return authService;
+}
+
+function getBillingService(): StripeBillingService {
+  if (!billingService) billingService = stripeBillingFromEnvironment(getAuthService());
+  return billingService;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -179,6 +192,72 @@ function sendAuthError(response: ServerResponse, error: unknown): void {
   sendJson(response, 500, { error: "auth_unavailable" });
 }
 
+function sendApiError(response: ServerResponse, error: unknown, fallbackCode: string): void {
+  response.setHeader("Cache-Control", "no-store");
+  if (error instanceof AuthHttpError) {
+    if (error.retryAfterSeconds) response.setHeader("Retry-After", String(error.retryAfterSeconds));
+    sendJson(response, error.status, {
+      error: error.code,
+      retry_after_seconds: error.retryAfterSeconds,
+    });
+    return;
+  }
+  console.error("API error", error);
+  sendJson(response, 500, { error: fallbackCode });
+}
+
+async function handleBillingRequest(request: IncomingMessage, response: ServerResponse, url: URL): Promise<void> {
+  response.setHeader("Cache-Control", "no-store");
+  const method = request.method ?? "GET";
+
+  try {
+    if (url.pathname === "/api/billing/webhook") {
+      if (method !== "POST") {
+        rejectMethod(response, ["POST"]);
+        return;
+      }
+      const result = await getBillingService().handleWebhook(request);
+      sendJson(response, 200, result);
+      return;
+    }
+
+    const rateLimit = checkRateLimit(request);
+    if (!rateLimit.allowed) {
+      response.setHeader("Retry-After", String(rateLimit.retryAfterSeconds));
+      sendJson(response, 429, { error: "too_many_requests", retry_after_seconds: rateLimit.retryAfterSeconds });
+      return;
+    }
+
+    if (url.pathname === "/api/billing/create-checkout-session") {
+      if (method !== "POST") {
+        rejectMethod(response, ["POST"]);
+        return;
+      }
+      const body = await readJsonBody(request);
+      const result = await getBillingService().createCheckoutSession(request, {
+        plan: body.plan,
+        lang: parseLang(body.lang),
+      });
+      sendJson(response, 200, result);
+      return;
+    }
+
+    if (url.pathname === "/api/billing/cancel-subscription") {
+      if (method !== "POST") {
+        rejectMethod(response, ["POST"]);
+        return;
+      }
+      const user = await getBillingService().cancelSubscription(request);
+      sendJson(response, 200, { user: publicUser(user), needsOnboarding: !user.nickname });
+      return;
+    }
+
+    sendJson(response, 404, { error: "Unknown billing endpoint" });
+  } catch (error) {
+    sendApiError(response, error, "billing_unavailable");
+  }
+}
+
 async function handleAuthRequest(request: IncomingMessage, response: ServerResponse, url: URL): Promise<void> {
   response.setHeader("Cache-Control", "no-store");
   const method = request.method ?? "GET";
@@ -197,7 +276,7 @@ async function handleAuthRequest(request: IncomingMessage, response: ServerRespo
         return;
       }
       const user = await auth.currentUser(request);
-      sendJson(response, 200, { user, needsOnboarding: Boolean(user && !user.nickname) });
+      sendJson(response, 200, { user: publicUser(user), needsOnboarding: Boolean(user && !user.nickname) });
       return;
     }
 
@@ -221,7 +300,7 @@ async function handleAuthRequest(request: IncomingMessage, response: ServerRespo
       const result = await auth.verifyCode(body.email, body.code, parseLang(body.lang));
       setSessionCookie(response, request, result.sessionToken, result.sessionTtlSeconds, auth.cookieName);
       sendJson(response, 200, {
-        user: result.user,
+        user: publicUser(result.user),
         isNewUser: result.isNewUser,
         needsOnboarding: !result.user.nickname,
       });
@@ -235,7 +314,7 @@ async function handleAuthRequest(request: IncomingMessage, response: ServerRespo
       }
       const body = await readJsonBody(request);
       const user = await auth.updateNickname(request, body.nickname);
-      sendJson(response, 200, { user, needsOnboarding: !user.nickname });
+      sendJson(response, 200, { user: publicUser(user), needsOnboarding: !user.nickname });
       return;
     }
 
@@ -260,7 +339,7 @@ async function handleAuthRequest(request: IncomingMessage, response: ServerRespo
         email: body.email,
         code: body.code,
       });
-      sendJson(response, 200, { user, needsOnboarding: !user.nickname });
+      sendJson(response, 200, { user: publicUser(user), needsOnboarding: !user.nickname });
       return;
     }
 
@@ -274,7 +353,7 @@ async function handleAuthRequest(request: IncomingMessage, response: ServerRespo
         languagePreference: body.languagePreference,
         deliveryCountry: body.deliveryCountry,
       });
-      sendJson(response, 200, { user, needsOnboarding: !user.nickname });
+      sendJson(response, 200, { user: publicUser(user), needsOnboarding: !user.nickname });
       return;
     }
 
@@ -291,7 +370,7 @@ async function handleAuthRequest(request: IncomingMessage, response: ServerRespo
         paymentLast4: body.paymentLast4,
         idealBank: body.idealBank,
       });
-      sendJson(response, 200, { user, needsOnboarding: !user.nickname });
+      sendJson(response, 200, { user: publicUser(user), needsOnboarding: !user.nickname });
       return;
     }
 
@@ -301,7 +380,7 @@ async function handleAuthRequest(request: IncomingMessage, response: ServerRespo
         return;
       }
       const user = await auth.cancelSubscription(request);
-      sendJson(response, 200, { user, needsOnboarding: !user.nickname });
+      sendJson(response, 200, { user: publicUser(user), needsOnboarding: !user.nickname });
       return;
     }
 
@@ -426,6 +505,11 @@ const server = createServer(async (request, response) => {
 
   if (url.pathname.startsWith("/api/auth/")) {
     await handleAuthRequest(request, response, url);
+    return;
+  }
+
+  if (url.pathname.startsWith("/api/billing/")) {
+    await handleBillingRequest(request, response, url);
     return;
   }
 

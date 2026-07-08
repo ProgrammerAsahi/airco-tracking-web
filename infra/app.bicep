@@ -13,6 +13,16 @@ param authUsersTableName string = 'users'
 param authCodesTableName string = 'authcodes'
 param authSessionsTableName string = 'authsessions'
 
+param appBaseUrl string = 'https://airco-tracker.eu'
+@secure()
+param stripeSecretKey string = ''
+@secure()
+param stripeWebhookSecret string = ''
+param stripePriceWeeklyBasic string = ''
+param stripePriceWeeklyPriority string = ''
+param stripePriceMonthlyBasic string = ''
+param stripePriceMonthlyPriority string = ''
+
 param apexHostname string = 'airco-tracker.eu'
 param wwwHostname string = 'www.airco-tracker.eu'
 param apexCertificateName string = 'mc-aircontrack-en-airco-tracker-eu-0707'
@@ -64,6 +74,60 @@ resource wwwCertificate 'Microsoft.App/managedEnvironments/managedCertificates@2
   name: wwwCertificateName
 }
 
+var stripeSecrets = concat(
+  !empty(stripeSecretKey) ? [
+    {
+      name: 'stripe-secret-key'
+      value: stripeSecretKey
+    }
+  ] : [],
+  !empty(stripeWebhookSecret) ? [
+    {
+      name: 'stripe-webhook-secret'
+      value: stripeWebhookSecret
+    }
+  ] : []
+)
+
+var baseEnv = [
+  { name: 'PORT', value: '3000' }
+  { name: 'AZURE_STORAGE_ACCOUNT_URL', value: 'https://${storageAccountName}.blob.${environment().suffixes.storage}' }
+  { name: 'AZURE_STORAGE_CONTAINER', value: 'airco-tracker' }
+  { name: 'AZURE_INVENTORY_BLOB', value: 'inventory.json' }
+  { name: 'AZURE_CLIENT_ID', value: identity.properties.clientId }
+  { name: 'INVENTORY_CACHE_SECONDS', value: '30' }
+  { name: 'AUTH_USERS_TABLE', value: authUsersTableName }
+  { name: 'AUTH_CODES_TABLE', value: authCodesTableName }
+  { name: 'AUTH_SESSIONS_TABLE', value: authSessionsTableName }
+  { name: 'AUTH_EMAIL_ENDPOINT', value: empty(communicationServiceName) ? '' : 'https://${communicationServiceName}.communication.azure.com' }
+  { name: 'AUTH_EMAIL_FROM', value: authEmailFrom }
+  { name: 'AUTH_COOKIE_SECURE', value: 'true' }
+  { name: 'AUTH_CODE_TTL_SECONDS', value: '600' }
+  { name: 'AUTH_CODE_RESEND_SECONDS', value: '60' }
+  { name: 'AUTH_CODE_MAX_ATTEMPTS', value: '5' }
+  { name: 'AUTH_SESSION_TTL_SECONDS', value: '2592000' }
+  { name: 'APP_BASE_URL', value: appBaseUrl }
+  { name: 'STRIPE_PRICE_WEEKLY_BASIC', value: stripePriceWeeklyBasic }
+  { name: 'STRIPE_PRICE_WEEKLY_PRIORITY', value: stripePriceWeeklyPriority }
+  { name: 'STRIPE_PRICE_MONTHLY_BASIC', value: stripePriceMonthlyBasic }
+  { name: 'STRIPE_PRICE_MONTHLY_PRIORITY', value: stripePriceMonthlyPriority }
+]
+
+var stripeEnv = concat(
+  !empty(stripeSecretKey) ? [
+    {
+      name: 'STRIPE_SECRET_KEY'
+      secretRef: 'stripe-secret-key'
+    }
+  ] : [],
+  !empty(stripeWebhookSecret) ? [
+    {
+      name: 'STRIPE_WEBHOOK_SECRET'
+      secretRef: 'stripe-webhook-secret'
+    }
+  ] : []
+)
+
 resource app 'Microsoft.App/containerApps@2025-01-01' = {
   name: appName
   location: resourceGroup().location
@@ -82,6 +146,7 @@ resource app 'Microsoft.App/containerApps@2025-01-01' = {
     environmentId: containerEnvironment.id
     configuration: {
       activeRevisionsMode: 'Single'
+      secrets: stripeSecrets
       ingress: {
         external: true
         allowInsecure: false
@@ -112,24 +177,7 @@ resource app 'Microsoft.App/containerApps@2025-01-01' = {
         {
           name: 'web'
           image: containerImage
-          env: [
-            { name: 'PORT', value: '3000' }
-            { name: 'AZURE_STORAGE_ACCOUNT_URL', value: 'https://${storageAccountName}.blob.${environment().suffixes.storage}' }
-            { name: 'AZURE_STORAGE_CONTAINER', value: 'airco-tracker' }
-            { name: 'AZURE_INVENTORY_BLOB', value: 'inventory.json' }
-            { name: 'AZURE_CLIENT_ID', value: identity.properties.clientId }
-            { name: 'INVENTORY_CACHE_SECONDS', value: '30' }
-            { name: 'AUTH_USERS_TABLE', value: authUsersTableName }
-            { name: 'AUTH_CODES_TABLE', value: authCodesTableName }
-            { name: 'AUTH_SESSIONS_TABLE', value: authSessionsTableName }
-            { name: 'AUTH_EMAIL_ENDPOINT', value: empty(communicationServiceName) ? '' : 'https://${communicationServiceName}.communication.azure.com' }
-            { name: 'AUTH_EMAIL_FROM', value: authEmailFrom }
-            { name: 'AUTH_COOKIE_SECURE', value: 'true' }
-            { name: 'AUTH_CODE_TTL_SECONDS', value: '600' }
-            { name: 'AUTH_CODE_RESEND_SECONDS', value: '60' }
-            { name: 'AUTH_CODE_MAX_ATTEMPTS', value: '5' }
-            { name: 'AUTH_SESSION_TTL_SECONDS', value: '2592000' }
-          ]
+          env: concat(baseEnv, stripeEnv)
           probes: [
             {
               type: 'Liveness'

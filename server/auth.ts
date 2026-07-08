@@ -45,6 +45,7 @@ type SessionRecord = {
 
 type AuthStore = {
   getUser(email: string): Promise<UserProfile | null>;
+  getUserByStripeCustomerId(stripeCustomerId: string): Promise<UserProfile | null>;
   upsertUser(user: UserProfile): Promise<void>;
   deleteUser(email: string): Promise<void>;
   getCode(email: string): Promise<AuthCodeRecord | null>;
@@ -101,6 +102,17 @@ export type RequestCodeResult = {
 };
 
 type PreviewPaymentDetails = {
+  paymentBrand: string | null;
+  paymentLast4: string | null;
+};
+
+export type StripeSubscriptionSnapshot = {
+  stripeCustomerId: string;
+  stripeSubscriptionId: string | null;
+  plan: PaidSubscriptionPlan | null;
+  status: SubscriptionStatus;
+  currentPeriodEnd: string | null;
+  cancelAtPeriodEnd: boolean;
   paymentBrand: string | null;
   paymentLast4: string | null;
 };
@@ -268,6 +280,18 @@ class TableAuthStore implements AuthStore {
     }
   }
 
+  async getUserByStripeCustomerId(stripeCustomerId: string): Promise<UserProfile | null> {
+    await this.ensureTables();
+    const safeCustomerId = stripeCustomerId.replaceAll("'", "''");
+    const entities = this.users.listEntities<UserEntity>({
+      queryOptions: { filter: `PartitionKey eq '${USER_PARTITION}' and stripeCustomerId eq '${safeCustomerId}'` },
+    });
+    for await (const entity of entities) {
+      return userFromEntity(entity);
+    }
+    return null;
+  }
+
   async upsertUser(user: UserProfile): Promise<void> {
     await this.ensureTables();
     await this.users.upsertEntity(userToEntity(user), "Replace");
@@ -374,6 +398,13 @@ class MemoryAuthStore implements AuthStore {
     return user ? { ...user } : null;
   }
 
+  async getUserByStripeCustomerId(stripeCustomerId: string): Promise<UserProfile | null> {
+    for (const user of this.users.values()) {
+      if (user.stripeCustomerId === stripeCustomerId) return { ...user };
+    }
+    return null;
+  }
+
   async upsertUser(user: UserProfile): Promise<void> {
     this.users.set(user.email, { ...user });
   }
@@ -438,6 +469,8 @@ type UserEntity = {
   paymentMethod?: string;
   paymentBrand?: string;
   paymentLast4?: string;
+  stripeCustomerId?: string;
+  stripeSubscriptionId?: string;
   languagePreference?: string;
   deliveryCountry?: string;
   createdAt: string;
@@ -462,6 +495,8 @@ function userToEntity(user: UserProfile): UserEntity & { partitionKey: string; r
     paymentMethod: user.paymentMethod ?? "",
     paymentBrand: user.paymentBrand ?? "",
     paymentLast4: user.paymentLast4 ?? "",
+    stripeCustomerId: user.stripeCustomerId ?? "",
+    stripeSubscriptionId: user.stripeSubscriptionId ?? "",
     languagePreference: user.languagePreference,
     deliveryCountry: user.deliveryCountry,
     createdAt: user.createdAt,
@@ -492,6 +527,8 @@ function userFromEntity(entity: TableEntityResult<UserEntity>): UserProfile {
     paymentMethod,
     paymentBrand: typeof entity.paymentBrand === "string" && entity.paymentBrand.trim() ? entity.paymentBrand.trim() : null,
     paymentLast4: typeof entity.paymentLast4 === "string" && /^\d{4}$/.test(entity.paymentLast4) ? entity.paymentLast4 : null,
+    stripeCustomerId: typeof entity.stripeCustomerId === "string" && entity.stripeCustomerId.trim() ? entity.stripeCustomerId.trim() : null,
+    stripeSubscriptionId: typeof entity.stripeSubscriptionId === "string" && entity.stripeSubscriptionId.trim() ? entity.stripeSubscriptionId.trim() : null,
     languagePreference,
     deliveryCountry,
     createdAt: String(entity.createdAt),
@@ -674,6 +711,8 @@ export class AuthService {
       paymentMethod: null,
       paymentBrand: null,
       paymentLast4: null,
+      stripeCustomerId: null,
+      stripeSubscriptionId: null,
       languagePreference: isLanguagePreference(lang) ? lang : AUTH_LANGUAGE_DEFAULT,
       deliveryCountry: AUTH_DELIVERY_COUNTRY_DEFAULT,
       createdAt: timestamp,
@@ -774,6 +813,72 @@ export class AuthService {
     await this.store.upsertUser(updated);
     await this.store.updateSessionsEmail(user.email, email);
     await this.store.deleteUser(user.email);
+    return updated;
+  }
+
+  async attachStripeCustomer(request: IncomingMessage, stripeCustomerId: string): Promise<UserProfile> {
+    const user = await this.requireUser(request);
+    const normalizedCustomerId = sanitizeStripeId(stripeCustomerId);
+    if (!normalizedCustomerId) throw new AuthHttpError(400, "invalid_stripe_customer");
+    const updated: UserProfile = {
+      ...user,
+      stripeCustomerId: normalizedCustomerId,
+      updatedAt: nowIso(),
+    };
+    await this.store.upsertUser(updated);
+    return updated;
+  }
+
+  async findUserByStripeCustomerId(stripeCustomerId: string): Promise<UserProfile | null> {
+    const normalizedCustomerId = sanitizeStripeId(stripeCustomerId);
+    if (!normalizedCustomerId) return null;
+    return this.store.getUserByStripeCustomerId(normalizedCustomerId);
+  }
+
+  async applyStripeSubscriptionSnapshot(snapshot: StripeSubscriptionSnapshot): Promise<UserProfile | null> {
+    const user = await this.findUserByStripeCustomerId(snapshot.stripeCustomerId);
+    if (!user) return null;
+
+    const timestamp = nowIso();
+    const stripeCustomerId = sanitizeStripeId(snapshot.stripeCustomerId);
+    const stripeSubscriptionId = snapshot.stripeSubscriptionId ? sanitizeStripeId(snapshot.stripeSubscriptionId) : null;
+    const hasActiveEntitlement = Boolean(
+      snapshot.plan
+      && (snapshot.status === "active" || snapshot.status === "canceled")
+      && snapshot.currentPeriodEnd
+      && Date.parse(snapshot.currentPeriodEnd) > Date.now(),
+    );
+
+    const updated: UserProfile = hasActiveEntitlement && snapshot.plan
+      ? {
+          ...user,
+          subscriptionPlan: snapshot.plan,
+          subscriptionStatus: snapshot.cancelAtPeriodEnd ? "canceled" : "active",
+          subscriptionCurrentPeriodEnd: snapshot.currentPeriodEnd,
+          subscriptionCancelAtPeriodEnd: snapshot.cancelAtPeriodEnd,
+          pendingSubscriptionPlan: null,
+          pendingSubscriptionEffectiveAt: null,
+          paymentMethod: "card",
+          paymentBrand: snapshot.paymentBrand,
+          paymentLast4: snapshot.paymentLast4,
+          stripeCustomerId,
+          stripeSubscriptionId,
+          updatedAt: timestamp,
+        }
+      : {
+          ...user,
+          subscriptionPlan: "none",
+          subscriptionStatus: "none",
+          subscriptionCurrentPeriodEnd: null,
+          subscriptionCancelAtPeriodEnd: false,
+          pendingSubscriptionPlan: null,
+          pendingSubscriptionEffectiveAt: null,
+          stripeCustomerId,
+          stripeSubscriptionId,
+          updatedAt: timestamp,
+        };
+
+    await this.store.upsertUser(updated);
     return updated;
   }
 
@@ -940,6 +1045,10 @@ function sanitizePaymentDetails(method: PaymentMethod, values: { paymentBrand?: 
     ? values.paymentLast4
     : "4242";
   return { paymentBrand: brand, paymentLast4: last4 };
+}
+
+function sanitizeStripeId(value: unknown): string {
+  return typeof value === "string" && /^[A-Za-z0-9_]+$/.test(value.trim()) ? value.trim() : "";
 }
 
 function normalizeAndValidateEmail(value: unknown): string {

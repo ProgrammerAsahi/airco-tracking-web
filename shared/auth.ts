@@ -67,6 +67,8 @@ export type UserProfile = {
   paymentMethod: PaymentMethod | null;
   paymentBrand: string | null;
   paymentLast4: string | null;
+  stripeCustomerId?: string | null;
+  stripeSubscriptionId?: string | null;
   languagePreference: Lang;
   deliveryCountry: DeliveryCountry;
   createdAt: string;

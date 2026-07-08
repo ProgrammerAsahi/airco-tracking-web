@@ -19,7 +19,8 @@
     "@azure/identity": "4.13.1",
     "@azure/storage-blob": "12.33.0",
     "react": "19.2.7",
-    "react-dom": "19.2.7"
+    "react-dom": "19.2.7",
+    "stripe": "^22.3.0"
   },
   "devDependencies": {
     "@types/node": "24.10.13",
