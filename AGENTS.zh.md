@@ -3,7 +3,6 @@
 <p align="center">
   <a href="./AGENTS.zh.md"><img alt="简体中文" src="https://img.shields.io/badge/AGENTS-简体中文-d73a49"></a>
   <a href="./AGENTS.md"><img alt="English" src="https://img.shields.io/badge/AGENTS-English-0969da"></a>
-  <a href="./AGENTS.nl.md"><img alt="Nederlands" src="https://img.shields.io/badge/AGENTS-Nederlands-f58220"></a>
 </p>
 
 ## 使命
@@ -20,7 +19,7 @@
    - 自动化：`.github/workflows/`
 3. 如果涉及数据 shape，以 `~/airco-tracking/airco_tracker/inventory.py` 的后端 producer 作为事实来源。
 4. 使用 `README.md` 获取面向用户的 setup 和架构信息。行为变化时保持 README 同步。
-5. 所有 Markdown 文档都必须维护中文、英语和荷兰语版本。修改任意文档时，在同一变更中更新所有语言版本。
+5. 所有 Markdown 文档都必须维护中文和英语版本。修改任意文档时，在同一变更中更新两个语言版本。
 
 ## 不可协商的安全规则
 
@@ -141,8 +140,8 @@ node scripts/verify-deployment.mjs http://127.0.0.1:4174
 3. 做最小连贯变更，并为 server 或 contract 逻辑添加聚焦测试。
 4. 运行标准验证命令。
 5. UI 变更做浏览器视觉 QA；server 变更做生产模式 API QA。
-6. setup、架构、运行时变量或部署行为变化时更新三语 `README`。
-7. 当前状态、下一步、生产证据或 blocker 变化时更新三语 `HANDOFF`。
+6. setup、架构、运行时变量或部署行为变化时更新中英双语 `README`。
+7. 当前状态、下一步、生产证据或 blocker 变化时更新中英双语 `HANDOFF`。
 8. 使用仓库本地 GitHub noreply author commit。只有在授权时才 push/deploy。
 
 ## 交接质量

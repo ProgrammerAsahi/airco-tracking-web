@@ -3,7 +3,6 @@
 <p align="center">
   <a href="./AGENTS.zh.md"><img alt="简体中文" src="https://img.shields.io/badge/AGENTS-简体中文-d73a49"></a>
   <a href="./AGENTS.md"><img alt="English" src="https://img.shields.io/badge/AGENTS-English-0969da"></a>
-  <a href="./AGENTS.nl.md"><img alt="Nederlands" src="https://img.shields.io/badge/AGENTS-Nederlands-f58220"></a>
 </p>
 
 ## Mission
@@ -20,7 +19,7 @@ Maintain a fast, low-cost, public inventory dashboard for portable air condition
    - Automation: `.github/workflows/`
 3. If the data shape is involved, inspect the backend producer in `~/airco-tracking/airco_tracker/inventory.py` as the source of truth.
 4. Use `README.md` for user-facing setup and architecture. Keep it synchronized with behavior changes.
-5. All Markdown documentation must be maintained in Chinese, English, and Dutch. When changing any doc, update every language variant in the same change.
+5. All Markdown documentation must be maintained in Chinese and English. When changing any doc, update both language variants in the same change.
 
 ## Non-negotiable security rules
 

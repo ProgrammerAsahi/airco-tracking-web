@@ -3,18 +3,16 @@
 <p align="center">
   <a href="./SUBSCRIPTION_BILLING_TEST_PLAN.md"><img alt="简体中文" src="https://img.shields.io/badge/docs-简体中文-d73a49"></a>
   <a href="./SUBSCRIPTION_BILLING_TEST_PLAN.en.md"><img alt="English" src="https://img.shields.io/badge/docs-English-0969da"></a>
-  <a href="./SUBSCRIPTION_BILLING_TEST_PLAN.nl.md"><img alt="Nederlands" src="https://img.shields.io/badge/docs-Nederlands-f58220"></a>
 </p>
 
 最后更新：2026-07-08
 
 ## 维护规则
 
-本文档用于追踪门户、登录、订阅、Stripe 支付和库存访问权限的端到端测试。以后每次新增测试场景、更新状态或记录结果时，都必须同时更新中、英、荷三个版本：
+本文档用于追踪门户、登录、订阅、Stripe 支付和库存访问权限的端到端测试。以后每次新增测试场景、更新状态或记录结果时，都必须同时更新中文和英语两个版本：
 
 - `docs/SUBSCRIPTION_BILLING_TEST_PLAN.md`
 - `docs/SUBSCRIPTION_BILLING_TEST_PLAN.en.md`
-- `docs/SUBSCRIPTION_BILLING_TEST_PLAN.nl.md`
 
 状态标记：
 

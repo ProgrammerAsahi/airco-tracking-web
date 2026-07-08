@@ -3,18 +3,16 @@
 <p align="center">
   <a href="./SUBSCRIPTION_BILLING_TEST_PLAN.md"><img alt="简体中文" src="https://img.shields.io/badge/docs-简体中文-d73a49"></a>
   <a href="./SUBSCRIPTION_BILLING_TEST_PLAN.en.md"><img alt="English" src="https://img.shields.io/badge/docs-English-0969da"></a>
-  <a href="./SUBSCRIPTION_BILLING_TEST_PLAN.nl.md"><img alt="Nederlands" src="https://img.shields.io/badge/docs-Nederlands-f58220"></a>
 </p>
 
 Last updated: 2026-07-08
 
 ## Maintenance rule
 
-This document tracks end-to-end tests for the portal, login, subscriptions, Stripe payments, and inventory access controls. Whenever a scenario, status, or test note is added or changed, update all three language versions together:
+This document tracks end-to-end tests for the portal, login, subscriptions, Stripe payments, and inventory access controls. Whenever a scenario, status, or test note is added or changed, update both language versions together:
 
 - `docs/SUBSCRIPTION_BILLING_TEST_PLAN.md`
 - `docs/SUBSCRIPTION_BILLING_TEST_PLAN.en.md`
-- `docs/SUBSCRIPTION_BILLING_TEST_PLAN.nl.md`
 
 Status markers:
 

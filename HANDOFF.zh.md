@@ -3,18 +3,17 @@
 <p align="center">
   <a href="./HANDOFF.zh.md"><img alt="简体中文" src="https://img.shields.io/badge/HANDOFF-简体中文-d73a49"></a>
   <a href="./HANDOFF.md"><img alt="English" src="https://img.shields.io/badge/HANDOFF-English-0969da"></a>
-  <a href="./HANDOFF.nl.md"><img alt="Nederlands" src="https://img.shields.io/badge/HANDOFF-Nederlands-f58220"></a>
 </p>
 
 最后更新：2026-07-08（Europe/Amsterdam）
 
-文档规则：当前状态、验证证据、blocker 或下一步变化时，必须同时更新中文、英语和荷兰语 handoff。
+文档规则：当前状态、验证证据、blocker 或下一步变化时，必须同时更新中文和英语 handoff。
 
 ## 当前目标
 
 提供一个公开、低成本的 Airco Tracker 门户和只读库存 dashboard。生产 dashboard 通过同源 API 和 Managed Identity 读取私有 `inventory.json`，展示可配送到用户目标国家的现货和预售库存。公开首页 (`/`) 是热浪主题门户；库存页在 `/deliver-to/<country>`；语言和配送国家相互独立。
 
-当前产品方向已经扩展到登录、用户资料、订阅和 Stripe Checkout。信用卡订阅路径已在 Stripe sandbox 中跑通，`monthly_priority` 测试购买成功，回跳/刷新后订阅权益能显示。订阅和支付测试矩阵记录在 `docs/SUBSCRIPTION_BILLING_TEST_PLAN.md` 及其英语/荷兰语版本。
+当前产品方向已经扩展到登录、用户资料、订阅和 Stripe Checkout。信用卡订阅路径已在 Stripe sandbox 中跑通，`monthly_priority` 测试购买成功，回跳/刷新后订阅权益能显示。订阅和支付测试矩阵记录在 `docs/SUBSCRIPTION_BILLING_TEST_PLAN.md` 及其英语版本。
 
 ## 仓库和生产
 
@@ -85,7 +84,7 @@
 1. 按 `docs/SUBSCRIPTION_BILLING_TEST_PLAN.md` 继续测试取消订阅、不同方案权益、支付失败、Test Clock 到期和方案变更。
 2. 实现或确认更改订阅方案：basic → priority 应立即生效；priority → basic 应在当前周期结束后生效。
 3. 为 iDEAL、PayPal 或其它支付方式扩展 Stripe Checkout。
-4. 继续修复 `/deliver-to/*` 语言切换和 profile/ready 相关细节时，保持三语 UI 和三语文档同步。
+4. 继续修复 `/deliver-to/*` 语言切换和 profile/ready 相关细节时，保持三语 UI 和中英双语文档同步。
 
 ## 标准本地验证
 
@@ -126,6 +125,6 @@ pnpm build
 3. UI work 需要浏览器验证 1440×900 和一个窄屏断点。
 4. Server work 需要生产模式 API QA。
 5. Schema work 必须和后端仓库协调。
-6. 有意义的工作、部署或 blocker 变化后，同步更新三语 handoff。
+6. 有意义的工作、部署或 blocker 变化后，同步更新中英双语 handoff。
 
 不要在本文件记录个人数据、secret 值、token、本机身份或不必要的 Azure 标识符。

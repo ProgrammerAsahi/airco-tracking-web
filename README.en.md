@@ -3,7 +3,6 @@
 <p align="center">
   <a href="./README.md"><img alt="简体中文" src="https://img.shields.io/badge/README-简体中文-d73a49"></a>
   <a href="./README.en.md"><img alt="English" src="https://img.shields.io/badge/README-English-0969da"></a>
-  <a href="./README.nl.md"><img alt="Nederlands" src="https://img.shields.io/badge/README-Nederlands-f58220"></a>
 </p>
 
 Ice-blue TypeScript/React dashboard for the [Airco Tracker](https://github.com/ProgrammerAsahi/airco-tracking) live inventory snapshot.
@@ -112,6 +111,6 @@ Use Stripe test cards to verify Checkout before switching the environment variab
 
 ## Documentation language maintenance
 
-All Markdown documentation should have Chinese, English, and Dutch versions with language-switch badges at the top. Whenever any document changes, update all three language versions together.
+All Markdown documentation should have Chinese and English versions with language-switch badges at the top. Whenever any document changes, update both language versions together.
 
 Do not add Azure keys, long-lived SAS tokens, or secrets to this repository.
