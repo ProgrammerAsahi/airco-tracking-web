@@ -40,30 +40,6 @@ resource identity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' 
   name: identityName
 }
 
-resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' existing = {
-  name: storageAccountName
-}
-
-resource tableService 'Microsoft.Storage/storageAccounts/tableServices@2023-05-01' existing = {
-  parent: storageAccount
-  name: 'default'
-}
-
-resource usersTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-05-01' = {
-  parent: tableService
-  name: authUsersTableName
-}
-
-resource codesTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-05-01' = {
-  parent: tableService
-  name: authCodesTableName
-}
-
-resource sessionsTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-05-01' = {
-  parent: tableService
-  name: authSessionsTableName
-}
-
 resource apexCertificate 'Microsoft.App/managedEnvironments/managedCertificates@2024-03-01' existing = {
   parent: containerEnvironment
   name: apexCertificateName
@@ -131,11 +107,6 @@ var stripeEnv = concat(
 resource app 'Microsoft.App/containerApps@2025-01-01' = {
   name: appName
   location: resourceGroup().location
-  dependsOn: [
-    usersTable
-    codesTable
-    sessionsTable
-  ]
   identity: {
     type: 'UserAssigned'
     userAssignedIdentities: {
