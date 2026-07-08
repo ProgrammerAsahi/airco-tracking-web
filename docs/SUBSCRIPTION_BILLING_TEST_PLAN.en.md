@@ -54,8 +54,8 @@ Status markers:
 | Status | Scenario | Expected result | Notes |
 | --- | --- | --- | --- |
 | ✅ | User cancels the current subscription | Stripe is set to cancel at period end; entitlement remains active until the end of the current period | Verified in production on 2026-07-08: user table shows `subscriptionCancelAtPeriodEnd=true`, with `monthly_priority` valid until 2026-08-08T13:31:16Z |
-| ⬜ | Open Profile after cancellation | Profile shows cancellation state and entitlement end date; payment summary remains visible | Not tested yet |
-| ⬜ | Access entitled pages after cancellation | The purchased entitlement remains usable before the period ends | Not tested yet; can use Stripe Test Clock |
+| ✅ | Open Profile after cancellation | Profile shows cancellation state and entitlement end date; payment summary remains visible | Verified in production on 2026-07-08: Profile blocks account deletion during the valid period; user table keeps VISA ending 4242 and the period end |
+| ✅ | Access entitled pages after cancellation | The purchased entitlement remains usable before the period ends | Verified in production on 2026-07-08: Ready page still shows the inventory entry point and `/deliver-to/fr` realtime inventory remains accessible |
 | ⬜ | Access entitled pages after the period ends | Subscription expires; realtime inventory entry is closed; user can subscribe again | Not tested yet; can use Stripe Test Clock |
 | 🚧 | Upgrade from Inventory Alerts to Realtime Radar | Upgrade should take effect immediately | Stripe subscription update flow needs confirmation/implementation |
 | 🚧 | Downgrade from Realtime Radar to Inventory Alerts | Downgrade should apply at period end while the current entitlement remains active | Stripe subscription schedule or pending update flow needs confirmation/implementation |
