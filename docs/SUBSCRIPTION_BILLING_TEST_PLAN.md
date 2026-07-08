@@ -57,7 +57,7 @@
 | ✅ | 取消后查看 Profile | Profile 显示取消状态和权益有效期；支付方式仍可见 | 2026-07-08 生产验证：Profile 阻止有效期内注销；用户表保留 VISA 尾号 4242 和周期结束时间 |
 | ✅ | 取消后继续访问权益页 | 周期结束前仍可使用已购买权益 | 2026-07-08 生产验证：Ready 页仍显示库存入口，`/deliver-to/fr` 实时库存页可访问 |
 | ⬜ | 周期结束后访问权益页 | 订阅失效；实时库存入口被关闭；用户可重新订阅 | 待测，可配合 Stripe Test Clock |
-| 🚧 | 从库存提醒升级到实时雷达 | 升级后应立刻生效 | 需要确认/实现 Stripe subscription update 流程 |
+| ✅ | 从库存提醒升级到实时雷达 | 升级后应立刻生效 | 2026-07-08 生产验证：`weekly_basic` → `monthly_priority` 更新现有 Stripe subscription，用户表同步为 `monthly_priority active`，未创建重复订阅 |
 | 🚧 | 从实时雷达降级到库存提醒 | 当前周期结束后再降级，当前权益保留到期 | 需要确认/实现 Stripe subscription schedule 或 pending update 流程 |
 | 🚧 | 周付与月付之间切换 | 按产品规则处理立即生效或周期末变更，且不生成重复订阅 | 需要先明确产品策略 |
 
