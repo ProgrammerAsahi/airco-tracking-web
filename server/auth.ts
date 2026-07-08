@@ -848,6 +848,14 @@ export class AuthService {
       && snapshot.currentPeriodEnd
       && Date.parse(snapshot.currentPeriodEnd) > Date.now(),
     );
+    const preservePendingSubscription = Boolean(
+      hasActiveEntitlement
+      && user.pendingSubscriptionPlan
+      && user.pendingSubscriptionEffectiveAt
+      && snapshot.plan === user.subscriptionPlan
+      && snapshot.currentPeriodEnd
+      && Date.parse(user.pendingSubscriptionEffectiveAt) === Date.parse(snapshot.currentPeriodEnd),
+    );
 
     const updated: UserProfile = hasActiveEntitlement && snapshot.plan
       ? {
@@ -856,8 +864,8 @@ export class AuthService {
           subscriptionStatus: snapshot.cancelAtPeriodEnd ? "canceled" : "active",
           subscriptionCurrentPeriodEnd: snapshot.currentPeriodEnd,
           subscriptionCancelAtPeriodEnd: snapshot.cancelAtPeriodEnd,
-          pendingSubscriptionPlan: null,
-          pendingSubscriptionEffectiveAt: null,
+          pendingSubscriptionPlan: preservePendingSubscription ? user.pendingSubscriptionPlan : null,
+          pendingSubscriptionEffectiveAt: preservePendingSubscription ? user.pendingSubscriptionEffectiveAt : null,
           paymentMethod: "card",
           paymentBrand: snapshot.paymentBrand,
           paymentLast4: snapshot.paymentLast4,
@@ -878,6 +886,21 @@ export class AuthService {
           updatedAt: timestamp,
         };
 
+    await this.store.upsertUser(updated);
+    return updated;
+  }
+
+  async schedulePendingSubscriptionChange(request: IncomingMessage, plan: PaidSubscriptionPlan, effectiveAt: string): Promise<UserProfile> {
+    const user = await this.requireUser(request);
+    if (!subscriptionIsActive(user)) throw new AuthHttpError(400, "no_active_subscription");
+    const timestamp = nowIso();
+    const updated: UserProfile = {
+      ...user,
+      pendingSubscriptionPlan: plan,
+      pendingSubscriptionEffectiveAt: effectiveAt,
+      subscriptionCancelAtPeriodEnd: false,
+      updatedAt: timestamp,
+    };
     await this.store.upsertUser(updated);
     return updated;
   }

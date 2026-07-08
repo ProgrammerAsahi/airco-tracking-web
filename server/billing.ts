@@ -98,14 +98,16 @@ export class StripeBillingService {
     }
     if (!user.stripeSubscriptionId) throw new AuthHttpError(409, "active_subscription_without_stripe_id");
 
-    const direction = subscriptionChangeDirection(user.subscriptionPlan, plan);
-    if (direction === "downgrade") {
-      throw new AuthHttpError(409, "subscription_downgrade_requires_schedule");
-    }
-
     const stripe = this.requireStripe();
     const subscription = await this.retrieveSubscription(user.stripeSubscriptionId);
     this.assertSubscriptionBelongsToUser(subscription, user);
+    const direction = subscriptionChangeDirection(user.subscriptionPlan, plan);
+    if (direction === "downgrade") {
+      return this.scheduleSubscriptionDowngrade(request, user, subscription, plan, price, lang);
+    }
+
+    const scheduleId = subscriptionScheduleId(subscription.schedule);
+    if (scheduleId) await stripe.subscriptionSchedules.release(scheduleId);
 
     const item = subscription.items.data[0];
     if (!item?.id) throw new AuthHttpError(502, "stripe_subscription_item_missing");
@@ -131,6 +133,61 @@ export class StripeBillingService {
     const synced = await this.syncSubscription(updated, plan);
     if (!synced) throw new AuthHttpError(502, "stripe_subscription_sync_failed");
     return { url: `${baseUrl}/ready?lang=${lang}&subscription=updated` };
+  }
+
+  private async scheduleSubscriptionDowngrade(
+    request: IncomingMessage,
+    user: UserProfile,
+    subscription: Stripe.Subscription,
+    plan: PaidSubscriptionPlan,
+    price: string,
+    lang: Lang,
+  ): Promise<CheckoutSessionResult> {
+    const stripe = this.requireStripe();
+    const baseUrl = this.publicBaseUrl(request);
+    const item = subscription.items.data[0];
+    const currentPrice = item?.price?.id;
+    const currentPeriodEnd = subscriptionCurrentPeriodEnd(subscription);
+    const currentPeriodStart = subscriptionCurrentPeriodStart(subscription);
+    if (!item?.id || !currentPrice || !currentPeriodEnd || !currentPeriodStart) {
+      throw new AuthHttpError(502, "stripe_subscription_schedule_unavailable");
+    }
+
+    const scheduleId = subscriptionScheduleId(subscription.schedule)
+      || (await stripe.subscriptionSchedules.create({ from_subscription: subscription.id })).id;
+
+    const currentPhase = {
+      items: [{ price: currentPrice, quantity: item.quantity || 1 }],
+      metadata: {
+        ...subscription.metadata,
+        airco_user_email: user.email,
+        airco_plan: user.subscriptionPlan,
+      },
+      start_date: currentPeriodStart,
+      end_date: currentPeriodEnd,
+      proration_behavior: "none",
+    };
+    const nextPhase = {
+      items: [{ price, quantity: item.quantity || 1 }],
+      metadata: {
+        ...subscription.metadata,
+        airco_user_email: user.email,
+        airco_plan: plan,
+      },
+      start_date: currentPeriodEnd,
+      proration_behavior: "none",
+    };
+
+    await stripe.subscriptionSchedules.update(scheduleId, {
+      end_behavior: "release",
+      phases: [currentPhase, nextPhase],
+      proration_behavior: "none",
+    } as Stripe.SubscriptionScheduleUpdateParams);
+
+    const effectiveAt = stripeTimestampToIso(currentPeriodEnd);
+    if (!effectiveAt) throw new AuthHttpError(502, "stripe_subscription_schedule_unavailable");
+    await this.auth.schedulePendingSubscriptionChange(request, plan, effectiveAt);
+    return { url: `${baseUrl}/ready?lang=${lang}&subscription=scheduled` };
   }
 
   async syncCheckoutStatus(request: IncomingMessage, values: { sessionId?: unknown }): Promise<UserProfile> {
@@ -365,10 +422,22 @@ function stripeObjectId(value: string | { id?: string } | null | undefined): str
   return typeof value?.id === "string" ? value.id : "";
 }
 
+function subscriptionScheduleId(value: string | { id?: string } | null | undefined): string {
+  if (typeof value === "string") return value;
+  return typeof value?.id === "string" ? value.id : "";
+}
+
 function stripeTimestampToIso(value: number | null): string | null {
   return typeof value === "number" && Number.isFinite(value) && value > 0
     ? new Date(value * 1000).toISOString()
     : null;
+}
+
+function subscriptionCurrentPeriodStart(subscription: Stripe.Subscription): number | null {
+  const value = (subscription as Stripe.Subscription & { current_period_start?: unknown }).current_period_start;
+  if (typeof value === "number") return value;
+  const itemValue = (subscription.items?.data?.[0] as { current_period_start?: unknown } | undefined)?.current_period_start;
+  return typeof itemValue === "number" ? itemValue : null;
 }
 
 function subscriptionCurrentPeriodEnd(subscription: Stripe.Subscription): number | null {

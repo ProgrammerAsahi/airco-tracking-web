@@ -58,7 +58,7 @@ Status markers:
 | ✅ | Access entitled pages after cancellation | The purchased entitlement remains usable before the period ends | Verified in production on 2026-07-08: Ready page still shows the inventory entry point and `/deliver-to/fr` realtime inventory remains accessible |
 | ⬜ | Access entitled pages after the period ends | Subscription expires; realtime inventory entry is closed; user can subscribe again | Not tested yet; can use Stripe Test Clock |
 | ✅ | Upgrade from Inventory Alerts to Realtime Radar | Upgrade should take effect immediately | Verified in production on 2026-07-08: `weekly_basic` → `monthly_priority` updated the existing Stripe subscription, and the user table synced to `monthly_priority active` without creating a duplicate subscription |
-| 🚧 | Downgrade from Realtime Radar to Inventory Alerts | Downgrade should apply at period end while the current entitlement remains active | Stripe subscription schedule or pending update flow needs confirmation/implementation |
+| ⬜ | Downgrade from Realtime Radar to Inventory Alerts | Downgrade should apply at period end while the current entitlement remains active | Stripe subscription schedule flow implemented on 2026-07-08; needs production retest |
 | 🚧 | Switch between weekly and monthly billing | Apply the chosen product policy without creating duplicate subscriptions | Product policy must be finalized first |
 
 ## P0: Inventory access, country, and language
@@ -68,7 +68,7 @@ Status markers:
 | ✅ | Anonymous user opens `/deliver-to/nl` or `/deliver-to/fr` | Inventory data is hidden; user is guided to log in or subscribe | Verified in production on 2026-07-08: after logout, direct inventory-page access redirects to the subscription page |
 | ✅ | User without a subscription opens `/deliver-to/nl` or `/deliver-to/fr` | Inventory data is hidden; user is guided to subscribe | Verified in production on 2026-07-08: after re-registering without a subscription, direct inventory-page access redirects to the subscription page |
 | ✅ | `basic` user opens a realtime inventory page | Inventory data is hidden; page explains the plan only includes email alerts | Verified in production on 2026-07-08: after subscribing to a basic plan, direct inventory-page access is blocked and realtime inventory remains hidden |
-| ⬜ | `priority` user opens a realtime inventory page | User lands on `/deliver-to/nl` or `/deliver-to/fr` based on the saved country and sees deliverable retailers | Not tested yet |
+| ✅ | `priority` user opens a realtime inventory page | User lands on `/deliver-to/nl` or `/deliver-to/fr` based on the saved country and sees deliverable retailers | Verified in production on 2026-07-08: after switching to priority, realtime inventory is accessible and deliverable retailers are visible |
 | ⬜ | Switch language on the Ready page | Chinese, English, and Dutch switch immediately without changing delivery country | Not tested yet |
 | ⬜ | Switch language on `/deliver-to/*` | Chinese, English, and Dutch switch immediately without changing delivery country | User previously found an issue; needs regression after the fix |
 | ⬜ | Change country in Profile | After confirmation, saved country changes and future inventory entry points use that country | Not tested yet |

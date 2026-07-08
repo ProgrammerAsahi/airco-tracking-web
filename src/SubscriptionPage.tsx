@@ -3,6 +3,7 @@ import {
   PAID_SUBSCRIPTION_PLANS,
   SUBSCRIPTION_PLAN_DETAILS,
   isPaidSubscriptionPlan,
+  subscriptionChangeDirection,
   subscriptionIsActive,
   type BillingCycle,
   type PaidSubscriptionPlan,
@@ -38,6 +39,8 @@ type SubscriptionCopy = {
   checkoutBody: string;
   changeCheckoutTitle: string;
   changeCheckoutBody: string;
+  downgradeCheckoutTitle: string;
+  downgradeCheckoutBody: string;
   paymentMethod: string;
   card: string;
   ideal: string;
@@ -47,6 +50,7 @@ type SubscriptionCopy = {
   idealBank: string;
   completePayment: string;
   completeChange: string;
+  completeDowngrade: string;
   processing: string;
   sandboxNotice: string;
   loginTitle: string;
@@ -120,6 +124,8 @@ const SUBSCRIPTION_COPY: Record<Lang, SubscriptionCopy> = {
     checkoutBody: "下一步会跳转到 Stripe 安全结账页完成信用卡付款。卡号不会经过 Airco Tracker 服务器。",
     changeCheckoutTitle: "确认更改订阅",
     changeCheckoutBody: "我们会通过 Stripe 更新你当前的订阅，并使用已有付款方式处理差额。卡号不会经过 Airco Tracker 服务器。",
+    downgradeCheckoutTitle: "确认周期末降级",
+    downgradeCheckoutBody: "你当前的实时库存权益会保留到 {date}。到期后，Stripe 会自动切换到所选库存提醒方案。",
     paymentMethod: "支付方式",
     card: "信用卡",
     ideal: "iDEAL",
@@ -129,6 +135,7 @@ const SUBSCRIPTION_COPY: Record<Lang, SubscriptionCopy> = {
     idealBank: "选择银行",
     completePayment: "前往 Stripe 安全支付",
     completeChange: "确认更改订阅",
+    completeDowngrade: "确认周期末降级",
     processing: "处理中…",
     sandboxNotice: "当前先接入信用卡路径。iDEAL/Wero 可以在 Stripe 稳定后继续加入。",
     loginTitle: "登录后继续订阅",
@@ -200,6 +207,8 @@ const SUBSCRIPTION_COPY: Record<Lang, SubscriptionCopy> = {
     checkoutBody: "Hierna ga je naar de beveiligde Stripe Checkout om met creditcard te betalen. Kaartgegevens raken onze server niet.",
     changeCheckoutTitle: "Bevestig abonnementswijziging",
     changeCheckoutBody: "We werken je bestaande abonnement bij via Stripe en gebruiken je opgeslagen betaalmethode voor het verschil. Kaartgegevens raken onze server niet.",
+    downgradeCheckoutTitle: "Downgrade aan periode-einde bevestigen",
+    downgradeCheckoutBody: "Je huidige realtime voorraadtoegang blijft actief tot {date}. Daarna schakelt Stripe automatisch over naar het gekozen voorraadmeldingen-plan.",
     paymentMethod: "Betaalmethode",
     card: "Creditcard",
     ideal: "iDEAL",
@@ -209,6 +218,7 @@ const SUBSCRIPTION_COPY: Record<Lang, SubscriptionCopy> = {
     idealBank: "Kies bank",
     completePayment: "Naar veilige Stripe-betaling",
     completeChange: "Wijzig abonnement",
+    completeDowngrade: "Downgrade bevestigen",
     processing: "Bezig…",
     sandboxNotice: "We koppelen nu eerst creditcardbetalingen. iDEAL/Wero kan daarna worden toegevoegd.",
     loginTitle: "Log in om door te gaan",
@@ -280,6 +290,8 @@ const SUBSCRIPTION_COPY: Record<Lang, SubscriptionCopy> = {
     checkoutBody: "Next, you will be redirected to secure Stripe Checkout to pay by card. Card details never touch Airco Tracker servers.",
     changeCheckoutTitle: "Confirm subscription change",
     changeCheckoutBody: "We will update your existing subscription through Stripe and use your saved payment method for any difference. Card details never touch Airco Tracker servers.",
+    downgradeCheckoutTitle: "Confirm downgrade at period end",
+    downgradeCheckoutBody: "Your current realtime stock access stays active until {date}. Stripe will then switch you to the selected stock-alert plan.",
     paymentMethod: "Payment method",
     card: "Credit card",
     ideal: "iDEAL",
@@ -289,6 +301,7 @@ const SUBSCRIPTION_COPY: Record<Lang, SubscriptionCopy> = {
     idealBank: "Choose bank",
     completePayment: "Continue to secure Stripe payment",
     completeChange: "Confirm subscription change",
+    completeDowngrade: "Confirm downgrade",
     processing: "Processing…",
     sandboxNotice: "We are wiring the card path first. iDEAL/Wero can be added after Stripe is stable.",
     loginTitle: "Log in to continue",
@@ -412,6 +425,22 @@ export function SubscriptionPage({ lang, setLang }: SubscriptionPageProps) {
     [billingCycle],
   );
   const isChangingSubscription = Boolean(user && subscriptionIsActive(user));
+  const selectedChangeDirection = user && selectedPlan && subscriptionIsActive(user)
+    ? subscriptionChangeDirection(user.subscriptionPlan, selectedPlan)
+    : null;
+  const selectedIsDowngrade = selectedChangeDirection === "downgrade";
+  const selectedPeriodEnd = user?.subscriptionCurrentPeriodEnd
+    ? formatSubscriptionDate(user.subscriptionCurrentPeriodEnd, lang)
+    : "";
+  const checkoutTitle = selectedIsDowngrade
+    ? copy.downgradeCheckoutTitle
+    : isChangingSubscription ? copy.changeCheckoutTitle : copy.checkoutTitle;
+  const checkoutBody = selectedIsDowngrade && selectedPeriodEnd
+    ? copy.downgradeCheckoutBody.replace("{date}", selectedPeriodEnd)
+    : isChangingSubscription ? copy.changeCheckoutBody : copy.checkoutBody;
+  const checkoutActionLabel = selectedIsDowngrade
+    ? copy.completeDowngrade
+    : isChangingSubscription ? copy.completeChange : copy.completePayment;
 
   const scrollToCheckout = () => {
     window.setTimeout(() => document.getElementById("checkout")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
@@ -563,9 +592,9 @@ export function SubscriptionPage({ lang, setLang }: SubscriptionPageProps) {
         <section id="checkout" className="checkout-card">
           <div>
             <p className="landing-kicker">{copy.paymentMethod}</p>
-            <h2>{isChangingSubscription ? copy.changeCheckoutTitle : copy.checkoutTitle}</h2>
-            <p>{isChangingSubscription ? copy.changeCheckoutBody : copy.checkoutBody}</p>
-            <p className="checkout-sandbox">{copy.sandboxNotice}</p>
+            <h2>{checkoutTitle}</h2>
+            <p>{checkoutBody}</p>
+            {!selectedIsDowngrade && <p className="checkout-sandbox">{copy.sandboxNotice}</p>}
           </div>
           <div className="checkout-summary">
             <strong>{planName(selectedPlan, copy)}</strong>
@@ -578,7 +607,7 @@ export function SubscriptionPage({ lang, setLang }: SubscriptionPageProps) {
           </div>
           {error && <p className="landing-login-error">{error}</p>}
           <button className="landing-primary-button landing-primary-button--large" type="button" disabled={processing} onClick={completePayment}>
-            {processing ? copy.processing : isChangingSubscription ? copy.completeChange : copy.completePayment}
+            {processing ? copy.processing : checkoutActionLabel}
           </button>
         </section>
       )}
@@ -727,6 +756,18 @@ export function SubscriptionPage({ lang, setLang }: SubscriptionPageProps) {
 function planName(plan: PaidSubscriptionPlan, copy: SubscriptionCopy): string {
   if (!isPaidSubscriptionPlan(plan)) return "";
   return SUBSCRIPTION_PLAN_DETAILS[plan].realtimeStock ? copy.stockName : copy.alertsName;
+}
+
+function formatSubscriptionDate(value: string, lang: Lang): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat(lang === "zh" ? "zh-CN" : lang === "nl" ? "nl-NL" : "en-GB", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
 }
 
 function authErrorMessage(error: unknown, copy: SubscriptionCopy): string {
