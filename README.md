@@ -84,9 +84,9 @@ Every push to `main` then runs tests, compiles TypeScript and Bicep, builds an i
 
 The first billing integration uses hosted Stripe Checkout for card payments only. Card data never touches the Airco Tracker server. Create four recurring Prices in Stripe test mode and map them to the variables above:
 
-- `weekly_basic`: €5 / week
-- `weekly_priority`: €15 / week
-- `monthly_basic`: €10 / month
+- `weekly_basic`: €10 / week
+- `weekly_priority`: €20 / week
+- `monthly_basic`: €15 / month
 - `monthly_priority`: €30 / month
 
 Configure a Stripe webhook endpoint at:

@@ -11,7 +11,7 @@ export const SUBSCRIPTION_PLAN_DETAILS = {
   weekly_basic: {
     billingCycle: "weekly",
     tier: "alerts",
-    priceEur: 5,
+    priceEur: 10,
     intervalDays: 7,
     realtimeStock: false,
     emailAlerts: true,
@@ -19,7 +19,7 @@ export const SUBSCRIPTION_PLAN_DETAILS = {
   weekly_priority: {
     billingCycle: "weekly",
     tier: "stock",
-    priceEur: 15,
+    priceEur: 20,
     intervalDays: 7,
     realtimeStock: true,
     emailAlerts: true,
@@ -27,7 +27,7 @@ export const SUBSCRIPTION_PLAN_DETAILS = {
   monthly_basic: {
     billingCycle: "monthly",
     tier: "alerts",
-    priceEur: 10,
+    priceEur: 15,
     intervalDays: 30,
     realtimeStock: false,
     emailAlerts: true,
