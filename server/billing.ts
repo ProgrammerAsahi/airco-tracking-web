@@ -81,6 +81,30 @@ export class StripeBillingService {
     return { url: session.url };
   }
 
+  async syncCheckoutStatus(request: IncomingMessage, values: { sessionId?: unknown }): Promise<UserProfile> {
+    const user = await this.auth.requireUser(request);
+    const stripe = this.requireStripe();
+    const sessionId = typeof values.sessionId === "string" ? values.sessionId.trim() : "";
+
+    if (sessionId) {
+      if (!/^cs_(test|live)_/.test(sessionId)) throw new AuthHttpError(400, "invalid_checkout_session");
+      const session = await stripe.checkout.sessions.retrieve(sessionId);
+      this.assertCheckoutSessionBelongsToUser(session, user);
+      const updated = await this.syncCheckoutSession(session);
+      if (updated) return updated;
+    }
+
+    const freshUser = await this.auth.currentUser(request) ?? user;
+    if (freshUser.stripeSubscriptionId) {
+      const subscription = await this.retrieveSubscription(freshUser.stripeSubscriptionId);
+      this.assertSubscriptionBelongsToUser(subscription, freshUser);
+      const updated = await this.syncSubscription(subscription);
+      if (updated) return updated;
+    }
+
+    throw new AuthHttpError(400, "stripe_subscription_not_found");
+  }
+
   async cancelSubscription(request: IncomingMessage): Promise<UserProfile> {
     const stripe = this.stripe;
     const user = await this.auth.requireUser(request);
@@ -157,18 +181,22 @@ export class StripeBillingService {
     return customer.id;
   }
 
-  private async syncCheckoutSession(session: Stripe.Checkout.Session): Promise<void> {
+  private async syncCheckoutSession(session: Stripe.Checkout.Session): Promise<UserProfile | null> {
     const subscriptionId = stripeObjectId(session.subscription);
-    if (!subscriptionId) return;
-    const subscription = await this.requireStripe().subscriptions.retrieve(subscriptionId, {
-      expand: ["default_payment_method"],
-    });
-    await this.syncSubscription(subscription, session.metadata?.airco_plan);
+    if (!subscriptionId) return null;
+    const subscription = await this.retrieveSubscription(subscriptionId);
+    return this.syncSubscription(subscription, session.metadata?.airco_plan);
   }
 
-  private async syncSubscription(subscription: Stripe.Subscription, fallbackPlan?: unknown): Promise<void> {
+  private async syncSubscription(subscription: Stripe.Subscription, fallbackPlan?: unknown): Promise<UserProfile | null> {
     const snapshot = await this.snapshotFromSubscription(subscription, fallbackPlan);
-    await this.auth.applyStripeSubscriptionSnapshot(snapshot);
+    return this.auth.applyStripeSubscriptionSnapshot(snapshot);
+  }
+
+  private async retrieveSubscription(subscriptionId: string): Promise<Stripe.Subscription> {
+    return this.requireStripe().subscriptions.retrieve(subscriptionId, {
+      expand: ["default_payment_method"],
+    });
   }
 
   private async snapshotFromSubscription(subscription: Stripe.Subscription, fallbackPlan?: unknown): Promise<StripeSubscriptionSnapshot> {
@@ -232,6 +260,26 @@ export class StripeBillingService {
     const hostname = Array.isArray(host) ? host[0] : host;
     return `${proto}://${hostname}`;
   }
+
+  private assertCheckoutSessionBelongsToUser(session: Stripe.Checkout.Session, user: UserProfile): void {
+    const customerId = stripeObjectId(session.customer);
+    if (user.stripeCustomerId && customerId && user.stripeCustomerId !== customerId) {
+      throw new AuthHttpError(403, "checkout_session_mismatch");
+    }
+    const metadataEmail = typeof session.metadata?.airco_user_email === "string"
+      ? session.metadata.airco_user_email.trim().toLowerCase()
+      : "";
+    if (metadataEmail && metadataEmail !== user.email) {
+      throw new AuthHttpError(403, "checkout_session_mismatch");
+    }
+  }
+
+  private assertSubscriptionBelongsToUser(subscription: Stripe.Subscription, user: UserProfile): void {
+    const customerId = stripeObjectId(subscription.customer);
+    if (user.stripeCustomerId && customerId && user.stripeCustomerId !== customerId) {
+      throw new AuthHttpError(403, "stripe_subscription_mismatch");
+    }
+  }
 }
 
 export function stripeBillingFromEnvironment(auth: AuthService): StripeBillingService {
@@ -260,7 +308,7 @@ export async function readRawBody(request: IncomingMessage, maxBytes = 1024 * 10
   return Buffer.concat(chunks);
 }
 
-function stripeObjectId(value: string | { id?: string } | null): string {
+function stripeObjectId(value: string | { id?: string } | null | undefined): string {
   if (typeof value === "string") return value;
   return typeof value?.id === "string" ? value.id : "";
 }
@@ -273,5 +321,7 @@ function stripeTimestampToIso(value: number | null): string | null {
 
 function subscriptionCurrentPeriodEnd(subscription: Stripe.Subscription): number | null {
   const value = (subscription as Stripe.Subscription & { current_period_end?: unknown }).current_period_end;
-  return typeof value === "number" ? value : null;
+  if (typeof value === "number") return value;
+  const itemValue = (subscription.items?.data?.[0] as { current_period_end?: unknown } | undefined)?.current_period_end;
+  return typeof itemValue === "number" ? itemValue : null;
 }

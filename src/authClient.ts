@@ -116,6 +116,11 @@ export async function createCheckoutSession(plan: PaidSubscriptionPlan, lang: La
   return postJson<CheckoutSessionResponse>("/api/billing/create-checkout-session", { plan, lang });
 }
 
+export async function syncCheckoutStatus(sessionId?: string | null): Promise<UserProfile> {
+  const response = await postJson<AuthSessionResponse>("/api/billing/sync-checkout-status", { sessionId: sessionId || "" });
+  return response.user;
+}
+
 export async function cancelSubscription(): Promise<UserProfile> {
   const response = await postJson<AuthSessionResponse>("/api/billing/cancel-subscription", {});
   return response.user;

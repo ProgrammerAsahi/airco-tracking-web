@@ -242,6 +242,19 @@ async function handleBillingRequest(request: IncomingMessage, response: ServerRe
       return;
     }
 
+    if (url.pathname === "/api/billing/sync-checkout-status") {
+      if (method !== "POST") {
+        rejectMethod(response, ["POST"]);
+        return;
+      }
+      const body = await readJsonBody(request);
+      const user = await getBillingService().syncCheckoutStatus(request, {
+        sessionId: body.sessionId,
+      });
+      sendJson(response, 200, { user: publicUser(user), needsOnboarding: !user.nickname });
+      return;
+    }
+
     if (url.pathname === "/api/billing/cancel-subscription") {
       if (method !== "POST") {
         rejectMethod(response, ["POST"]);

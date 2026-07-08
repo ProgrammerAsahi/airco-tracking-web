@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { hasRealtimeStockAccess, subscriptionIsActive } from "../shared/auth";
 import { AccountMenu } from "./AccountMenu";
-import { getCurrentUser, type UserProfile } from "./authClient";
+import { getCurrentUser, syncCheckoutStatus, type UserProfile } from "./authClient";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import type { Lang } from "./i18n";
 
@@ -54,7 +54,38 @@ export function ReadyPage({ lang, setLang }: ReadyPageProps) {
   useEffect(() => {
     document.title = "Ready · Airco Tracker";
     let ignore = false;
-    getCurrentUser()
+
+    async function loadUser() {
+      const params = new URLSearchParams(window.location.search);
+      const checkoutSucceeded = params.get("checkout") === "success";
+      const sessionId = params.get("session_id");
+
+      if (checkoutSucceeded || sessionId) {
+        try {
+          const syncedUser = await syncCheckoutStatus(sessionId);
+          if (!ignore) {
+            const cleanUrl = `/ready?lang=${syncedUser.languagePreference}`;
+            window.history.replaceState(window.history.state, "", cleanUrl);
+          }
+          return syncedUser;
+        } catch {
+          // Fall back to the locally stored profile below. Stripe can deliver
+          // webhooks slightly later than the Checkout redirect.
+        }
+      }
+
+      const currentUser = await getCurrentUser();
+      if (currentUser && !subscriptionIsActive(currentUser)) {
+        try {
+          return await syncCheckoutStatus();
+        } catch {
+          // No stored Stripe subscription yet, or Stripe still has not finalized it.
+        }
+      }
+      return currentUser;
+    }
+
+    loadUser()
       .then((nextUser) => {
         if (ignore) return;
         if (!nextUser) {
