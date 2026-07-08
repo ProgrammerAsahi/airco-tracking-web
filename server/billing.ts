@@ -2,6 +2,7 @@ import type { IncomingMessage } from "node:http";
 import Stripe from "stripe";
 import {
   isPaidSubscriptionPlan,
+  subscriptionChangeDirection,
   subscriptionIsActive,
   type PaidSubscriptionPlan,
   type SubscriptionStatus,
@@ -49,11 +50,14 @@ export class StripeBillingService {
   async createCheckoutSession(request: IncomingMessage, values: { plan?: unknown; lang: Lang }): Promise<CheckoutSessionResult> {
     const user = await this.auth.requireUser(request);
     if (!isPaidSubscriptionPlan(values.plan)) throw new AuthHttpError(400, "invalid_subscription_plan");
-    if (subscriptionIsActive(user)) throw new AuthHttpError(409, "active_subscription");
     const stripe = this.requireStripe();
 
     const price = this.priceIds[values.plan];
     if (!price) throw new AuthHttpError(503, "stripe_price_not_configured");
+
+    if (subscriptionIsActive(user)) {
+      return this.changeActiveSubscription(request, user, values.plan, price, values.lang);
+    }
 
     const customerId = await this.ensureStripeCustomer(request, user);
     const baseUrl = this.publicBaseUrl(request);
@@ -79,6 +83,54 @@ export class StripeBillingService {
 
     if (!session.url) throw new AuthHttpError(502, "stripe_checkout_unavailable");
     return { url: session.url };
+  }
+
+  private async changeActiveSubscription(
+    request: IncomingMessage,
+    user: UserProfile,
+    plan: PaidSubscriptionPlan,
+    price: string,
+    lang: Lang,
+  ): Promise<CheckoutSessionResult> {
+    const baseUrl = this.publicBaseUrl(request);
+    if (user.subscriptionPlan === plan) {
+      return { url: `${baseUrl}/ready?lang=${lang}` };
+    }
+    if (!user.stripeSubscriptionId) throw new AuthHttpError(409, "active_subscription_without_stripe_id");
+
+    const direction = subscriptionChangeDirection(user.subscriptionPlan, plan);
+    if (direction === "downgrade") {
+      throw new AuthHttpError(409, "subscription_downgrade_requires_schedule");
+    }
+
+    const stripe = this.requireStripe();
+    const subscription = await this.retrieveSubscription(user.stripeSubscriptionId);
+    this.assertSubscriptionBelongsToUser(subscription, user);
+
+    const item = subscription.items.data[0];
+    if (!item?.id) throw new AuthHttpError(502, "stripe_subscription_item_missing");
+
+    const updated = await stripe.subscriptions.update(subscription.id, {
+      billing_cycle_anchor: "now",
+      cancel_at_period_end: false,
+      expand: ["default_payment_method"],
+      items: [{
+        id: item.id,
+        price,
+        quantity: item.quantity || 1,
+      }],
+      metadata: {
+        ...subscription.metadata,
+        airco_user_email: user.email,
+        airco_plan: plan,
+      },
+      payment_behavior: "error_if_incomplete",
+      proration_behavior: "always_invoice",
+    });
+
+    const synced = await this.syncSubscription(updated, plan);
+    if (!synced) throw new AuthHttpError(502, "stripe_subscription_sync_failed");
+    return { url: `${baseUrl}/ready?lang=${lang}&subscription=updated` };
   }
 
   async syncCheckoutStatus(request: IncomingMessage, values: { sessionId?: unknown }): Promise<UserProfile> {
