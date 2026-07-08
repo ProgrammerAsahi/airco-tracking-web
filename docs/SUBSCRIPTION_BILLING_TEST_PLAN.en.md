@@ -67,7 +67,7 @@ Status markers:
 | --- | --- | --- | --- |
 | ✅ | Anonymous user opens `/deliver-to/nl` or `/deliver-to/fr` | Inventory data is hidden; user is guided to log in or subscribe | Verified in production on 2026-07-08: after logout, direct inventory-page access redirects to the subscription page |
 | ✅ | User without a subscription opens `/deliver-to/nl` or `/deliver-to/fr` | Inventory data is hidden; user is guided to subscribe | Verified in production on 2026-07-08: after re-registering without a subscription, direct inventory-page access redirects to the subscription page |
-| ⬜ | `basic` user opens a realtime inventory page | Inventory data is hidden; page explains the plan only includes email alerts | Not tested yet |
+| ✅ | `basic` user opens a realtime inventory page | Inventory data is hidden; page explains the plan only includes email alerts | Verified in production on 2026-07-08: after subscribing to a basic plan, direct inventory-page access is blocked and realtime inventory remains hidden |
 | ⬜ | `priority` user opens a realtime inventory page | User lands on `/deliver-to/nl` or `/deliver-to/fr` based on the saved country and sees deliverable retailers | Not tested yet |
 | ⬜ | Switch language on the Ready page | Chinese, English, and Dutch switch immediately without changing delivery country | Not tested yet |
 | ⬜ | Switch language on `/deliver-to/*` | Chinese, English, and Dutch switch immediately without changing delivery country | User previously found an issue; needs regression after the fix |

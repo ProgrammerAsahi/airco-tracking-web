@@ -57,6 +57,7 @@ type ProfileCopy = {
   cancelingSubscription: string;
   subscriptionCancelError: string;
   changeSubscription: string;
+  subscribeNow: string;
   pendingSubscription: string;
   currentSubscription: string;
   paymentMethod: string;
@@ -131,6 +132,7 @@ const PROFILE_COPY: Record<Lang, ProfileCopy> = {
     cancelingSubscription: "取消中…",
     subscriptionCancelError: "订阅暂时无法取消，请稍后再试。",
     changeSubscription: "更改订阅方案",
+    subscribeNow: "即刻订阅",
     pendingSubscription: "将在 {date} 切换为 {plan}",
     currentSubscription: "当前订阅",
     paymentMethod: "支付方式",
@@ -203,6 +205,7 @@ const PROFILE_COPY: Record<Lang, ProfileCopy> = {
     cancelingSubscription: "Opzeggen…",
     subscriptionCancelError: "We konden je abonnement niet opzeggen. Probeer het later opnieuw.",
     changeSubscription: "Abonnement wijzigen",
+    subscribeNow: "Nu abonneren",
     pendingSubscription: "Wordt op {date} gewijzigd naar {plan}",
     currentSubscription: "Huidig abonnement",
     paymentMethod: "Betaalmethode",
@@ -275,6 +278,7 @@ const PROFILE_COPY: Record<Lang, ProfileCopy> = {
     cancelingSubscription: "Canceling…",
     subscriptionCancelError: "We could not cancel your subscription. Please try again later.",
     changeSubscription: "Change subscription",
+    subscribeNow: "Subscribe now",
     pendingSubscription: "Will switch to {plan} on {date}",
     currentSubscription: "Current subscription",
     paymentMethod: "Payment method",
@@ -652,7 +656,7 @@ export function ProfilePage({ lang, setLang }: ProfilePageProps) {
           {user && (
             <div className="profile-subscription-actions">
               <a className="profile-change-subscription-link" href={`/subscribe?lang=${lang}`}>
-                {copy.changeSubscription}
+                {subscriptionIsActive(user) ? copy.changeSubscription : copy.subscribeNow}
               </a>
               {user.subscriptionCancelAtPeriodEnd ? (
                 <p>{copy.subscriptionCancelScheduled}</p>
