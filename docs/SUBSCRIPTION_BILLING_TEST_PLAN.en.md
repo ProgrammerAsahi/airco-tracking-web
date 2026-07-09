@@ -45,9 +45,9 @@ Status markers:
 | ⬜ | Buy `weekly_basic` with a test card | The user receives inventory alert emails only and cannot access realtime inventory pages | Not tested yet |
 | ⬜ | Buy `monthly_basic` with a test card | The user receives inventory alert emails only and cannot access realtime inventory pages | Not tested yet |
 | ✅ | Cancel or go back during Checkout | The user returns to the subscription page; the database still shows no active subscription; no entitlement is granted accidentally | Verified in production on 2026-07-09: returning from Checkout lands on the subscription page; Profile shows no subscription and no entitlement is granted |
-| ⬜ | After successful payment, wait for the return sync without refreshing | The page automatically syncs the Stripe checkout session and shows the correct entitlement | Fix is deployed; needs a new payment to verify |
+| ✅ | After successful payment, wait for the return sync without refreshing | The page automatically syncs the Stripe checkout session and shows the correct entitlement | Verified in production on 2026-07-09: after successful payment, Stripe returns to the site automatically and entitlement is granted correctly |
 | ✅ | Refresh after successful payment | Subscription status still appears correctly | Verified in production on 2026-07-08 |
-| ⬜ | Existing active subscriber selects an equivalent plan again | The system should not create duplicate active subscriptions; it should show the existing subscription or enter a change-plan flow | Not tested yet |
+| ✅ | Existing active subscriber selects an equivalent plan again | The system should not create duplicate active subscriptions; it should show the existing subscription or enter a change-plan flow | Verified in production on 2026-07-09: the current-plan button is disabled and no duplicate subscription can be created |
 
 ## P0: Cancellation, renewal, and plan changes
 
@@ -94,9 +94,9 @@ Status markers:
 | ⬜ | New user registers with email code | User is created/logged in only with a valid code; first login opens the nickname card | Not tested yet |
 | ✅ | Send-code button countdown | After clicking, the button is disabled for 60 seconds; it can be used again after the countdown | Verified in production on 2026-07-09: countdown behavior works |
 | ✅ | Change nickname | The “What should we call you?” card opens; after saving, avatar initials update | Verified in production on 2026-07-09: avatar initials update after nickname changes |
-| ⬜ | Change email | After verifying the new email code, stable user ID remains unchanged and email field updates | Not tested yet |
+| ✅ | Change email | After verifying the new email code, stable user ID remains unchanged and email field updates | Verified in production on 2026-07-09: after changing email and logging back in, subscription, country, and language are preserved |
 | ⬜ | Delete account with an active subscription | Backend rejects deletion and explains cancellation plus expiry is required first | Not tested yet |
-| ⬜ | Delete account with no subscription or after expiry | User profile and sessions are cleared; paid entitlements are no longer accessible | Not tested yet |
+| ✅ | Delete account with no subscription or after expiry | User profile and sessions are cleared; paid entitlements are no longer accessible | Verified in production on 2026-07-09: account deletion succeeds when there is no active subscription |
 | ✅ | Log out and log back in | Subscription, country, language, nickname, and payment summary remain correct | Verified in production on 2026-07-09: profile and subscription data persist after logout/login |
 
 ## P1: Payment failures and edge cases
@@ -123,8 +123,7 @@ Status markers:
 
 ## Recommended test order
 
-1. Test cancellation for the current `monthly_priority` subscription first.
-2. Run one fresh end-to-end purchase with a new user to verify automatic sync without refresh.
-3. Purchase `weekly_basic`, `monthly_basic`, and `weekly_priority` separately to confirm entitlement differences.
-4. Use Stripe Test Clock to verify period end, cancellation-after-period, and renewal.
-5. After the plan-change flow is implemented/confirmed, test upgrades, downgrades, and weekly/monthly switches.
+1. Use a Stripe test card that requires 3D Secure to verify both successful and failed authentication paths.
+2. Use Stripe Test Clock to verify period end, cancellation-after-period, and renewal.
+3. Verify Stripe webhook and return-sync boundaries: normal events, delayed events, and duplicate events.
+4. Test Checkout session expiry, temporary Stripe API failures, and multiple simultaneous Checkout tabs.
