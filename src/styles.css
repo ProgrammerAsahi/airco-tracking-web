@@ -1514,6 +1514,8 @@ body.landing-dialog-open {
 }
 
 .profile-nav {
+  position: relative;
+  z-index: 120;
   display: flex;
   width: min(100%, 1120px);
   align-items: center;
@@ -2707,7 +2709,7 @@ body.landing-dialog-open {
   background: rgba(255, 255, 255, 0.97);
   backdrop-filter: blur(10px);
   box-shadow: 0 8px 24px rgba(22, 96, 135, 0.12);
-  z-index: 50;
+  z-index: 160;
 }
 
 .lang-option {

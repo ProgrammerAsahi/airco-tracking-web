@@ -387,7 +387,7 @@ export function ProfilePage({ lang, setLang }: ProfilePageProps) {
     return () => {
       ignore = true;
     };
-  }, [lang, setLang]);
+  }, []);
 
   useEffect(() => {
     document.body.classList.toggle(

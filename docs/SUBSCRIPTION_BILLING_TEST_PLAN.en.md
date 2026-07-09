@@ -69,8 +69,9 @@ Status markers:
 | ✅ | User without a subscription opens `/deliver-to/nl` or `/deliver-to/fr` | Inventory data is hidden; user is guided to subscribe | Verified in production on 2026-07-08: after re-registering without a subscription, direct inventory-page access redirects to the subscription page |
 | ✅ | `basic` user opens a realtime inventory page | Inventory data is hidden; page explains the plan only includes email alerts | Verified in production on 2026-07-08: after subscribing to a basic plan, direct inventory-page access is blocked and realtime inventory remains hidden |
 | ✅ | `priority` user opens a realtime inventory page | User lands on `/deliver-to/nl` or `/deliver-to/fr` based on the saved country and sees deliverable retailers | Verified in production on 2026-07-08: after switching to priority, realtime inventory is accessible and deliverable retailers are visible |
-| ⬜ | Switch language on the Ready page | Chinese, English, and Dutch switch immediately without changing delivery country | Not tested yet |
-| ⬜ | Switch language on `/deliver-to/*` | Chinese, English, and Dutch switch immediately without changing delivery country | User previously found an issue; needs regression after the fix |
+| ✅ | Switch language on the Ready page | Chinese, English, and Dutch switch immediately without changing delivery country | Verified in production on 2026-07-09: the Ready page language switcher works |
+| ✅ | Switch language on `/deliver-to/*` | Chinese, English, and Dutch switch immediately without changing delivery country | Verified in production on 2026-07-09: the inventory page language switcher works |
+| ⬜ | Switch language from the Profile page header | Only the current Profile page display language changes; the account default language preference is not overwritten automatically; the dropdown is not hidden behind the card | Fixed on 2026-07-09; needs production retest |
 | ⬜ | Change country in Profile | After confirmation, saved country changes and future inventory entry points use that country | Not tested yet |
 
 ## P0: Stripe webhook and sync safety
