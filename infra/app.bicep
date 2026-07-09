@@ -18,6 +18,7 @@ param appBaseUrl string = 'https://airco-tracker.eu'
 param stripeSecretKey string = ''
 @secure()
 param stripeWebhookSecret string = ''
+param stripeBillingPortalConfigurationId string = ''
 param stripePriceWeeklyBasic string = ''
 param stripePriceWeeklyPriority string = ''
 param stripePriceMonthlyBasic string = ''
@@ -83,6 +84,7 @@ var baseEnv = [
   { name: 'AUTH_CODE_MAX_ATTEMPTS', value: '5' }
   { name: 'AUTH_SESSION_TTL_SECONDS', value: '2592000' }
   { name: 'APP_BASE_URL', value: appBaseUrl }
+  { name: 'STRIPE_BILLING_PORTAL_CONFIGURATION_ID', value: stripeBillingPortalConfigurationId }
   { name: 'STRIPE_PRICE_WEEKLY_BASIC', value: stripePriceWeeklyBasic }
   { name: 'STRIPE_PRICE_WEEKLY_PRIORITY', value: stripePriceWeeklyPriority }
   { name: 'STRIPE_PRICE_MONTHLY_BASIC', value: stripePriceMonthlyBasic }

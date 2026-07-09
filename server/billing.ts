@@ -13,6 +13,7 @@ import { AuthHttpError, type AuthService, type StripeSubscriptionSnapshot } from
 
 type StripeBillingOptions = {
   appBaseUrl?: string;
+  billingPortalConfigurationId?: string;
   secretKey?: string;
   webhookSecret?: string;
   priceIds: Partial<Record<PaidSubscriptionPlan, string>>;
@@ -41,6 +42,7 @@ export class StripeBillingService {
   private readonly stripe: Stripe | null;
   private readonly webhookSecret: string | undefined;
   private readonly appBaseUrl: string | undefined;
+  private readonly billingPortalConfigurationId: string | undefined;
   private readonly priceIds: Partial<Record<PaidSubscriptionPlan, string>>;
 
   constructor(
@@ -50,6 +52,7 @@ export class StripeBillingService {
     this.stripe = options.secretKey ? new Stripe(options.secretKey) : null;
     this.webhookSecret = options.webhookSecret;
     this.appBaseUrl = options.appBaseUrl;
+    this.billingPortalConfigurationId = options.billingPortalConfigurationId;
     this.priceIds = options.priceIds;
   }
 
@@ -169,27 +172,29 @@ export class StripeBillingService {
     if (!item.id) throw new AuthHttpError(502, "stripe_subscription_item_missing");
 
     const returnUrl = `${baseUrl}/ready?lang=${lang}&subscription=updated`;
-    const session = await stripe.billingPortal.sessions.create({
+    const configurationId = this.billingPortalConfigurationId;
+    if (!configurationId) {
+      throw new AuthHttpError(503, "stripe_portal_configuration_not_configured");
+    }
+
+    const configuration = await stripe.billingPortal.configurations.retrieve(configurationId);
+    if (!portalConfigurationSupportsSubscriptionUpdates(configuration)) {
+      console.error("Stripe Billing Portal configuration does not support immediate subscription price updates", {
+        configuration: configurationId,
+        price,
+      });
+      throw new AuthHttpError(503, "stripe_portal_configuration_invalid");
+    }
+
+    const session = await stripe.billingPortal.sessions.create(buildSubscriptionUpdatePortalSessionParams({
+      configurationId,
       customer: customerId,
-      return_url: returnUrl,
-      flow_data: {
-        type: "subscription_update_confirm",
-        subscription_update_confirm: {
-          subscription: subscription.id,
-          items: [{
-            id: item.id,
-            price,
-            quantity: item.quantity || 1,
-          }],
-        },
-        after_completion: {
-          type: "redirect",
-          redirect: {
-            return_url: returnUrl,
-          },
-        },
-      },
-    });
+      itemId: item.id,
+      price,
+      quantity: item.quantity || 1,
+      returnUrl,
+      subscriptionId: subscription.id,
+    }));
     if (!session.url) throw new AuthHttpError(502, "stripe_portal_unavailable");
     return { url: session.url };
   }
@@ -389,16 +394,12 @@ export class StripeBillingService {
   }
 
   private planFromSubscription(subscription: Stripe.Subscription, fallbackPlan?: unknown): PaidSubscriptionPlan | null {
-    const metadataPlan = subscription.metadata?.airco_plan;
-    if (isPaidSubscriptionPlan(metadataPlan)) return metadataPlan;
-    if (isPaidSubscriptionPlan(fallbackPlan)) return fallbackPlan;
-
-    const priceId = subscription.items.data[0]?.price?.id;
-    if (!priceId) return null;
-    for (const [plan, configuredPriceId] of Object.entries(this.priceIds) as Array<[PaidSubscriptionPlan, string | undefined]>) {
-      if (configuredPriceId === priceId) return plan;
-    }
-    return null;
+    return resolveSubscriptionPlan({
+      fallbackPlan,
+      metadataPlan: subscription.metadata?.airco_plan,
+      priceId: subscription.items.data[0]?.price?.id,
+      priceIds: this.priceIds,
+    });
   }
 
   private async cardDetailsFromSubscription(subscription: Stripe.Subscription): Promise<{ paymentBrand: string | null; paymentLast4: string | null }> {
@@ -453,6 +454,7 @@ export class StripeBillingService {
 export function stripeBillingFromEnvironment(auth: AuthService): StripeBillingService {
   return new StripeBillingService(auth, {
     appBaseUrl: process.env.APP_BASE_URL?.trim() || process.env.PUBLIC_APP_URL?.trim() || undefined,
+    billingPortalConfigurationId: process.env.STRIPE_BILLING_PORTAL_CONFIGURATION_ID?.trim() || undefined,
     secretKey: process.env.STRIPE_SECRET_KEY?.trim() || undefined,
     webhookSecret: process.env.STRIPE_WEBHOOK_SECRET?.trim() || undefined,
     priceIds: {
@@ -510,6 +512,7 @@ export function isSubscriptionPaymentActionRequired(error: unknown): boolean {
   if (typeof error !== "object" || error === null) return false;
   const code = stripeErrorCode(error);
   if (STRIPE_ACTION_REQUIRED_CODES.has(code)) return true;
+  if (stripeDeclineCode(error) === "authentication_required") return true;
 
   const candidate = error as {
     statusCode?: unknown;
@@ -523,6 +526,82 @@ export function isSubscriptionPaymentActionRequired(error: unknown): boolean {
   return candidate.statusCode === 402 && paymentIntent?.status === "requires_action";
 }
 
+type SubscriptionUpdatePortalSessionInput = {
+  configurationId: string;
+  customer: string;
+  itemId: string;
+  price: string;
+  quantity: number;
+  returnUrl: string;
+  subscriptionId: string;
+};
+
+export function buildSubscriptionUpdatePortalSessionParams(
+  input: SubscriptionUpdatePortalSessionInput,
+): Stripe.BillingPortal.SessionCreateParams {
+  return {
+    configuration: input.configurationId,
+    customer: input.customer,
+    return_url: input.returnUrl,
+    flow_data: {
+      type: "subscription_update_confirm",
+      subscription_update_confirm: {
+        subscription: input.subscriptionId,
+        items: [{
+          id: input.itemId,
+          price: input.price,
+          quantity: input.quantity,
+        }],
+      },
+      after_completion: {
+        type: "redirect",
+        redirect: {
+          return_url: input.returnUrl,
+        },
+      },
+    },
+  };
+}
+
+type PortalConfigurationLike = {
+  active?: boolean;
+  features?: {
+    subscription_update?: {
+      default_allowed_updates?: string[] | null;
+      enabled?: boolean;
+      proration_behavior?: string | null;
+    } | null;
+  } | null;
+};
+
+export function portalConfigurationSupportsSubscriptionUpdates(
+  configuration: PortalConfigurationLike,
+): boolean {
+  const subscriptionUpdate = configuration.features?.subscription_update;
+  return configuration.active === true
+    && subscriptionUpdate?.enabled === true
+    && subscriptionUpdate.default_allowed_updates?.includes("price") === true
+    && subscriptionUpdate.proration_behavior === "always_invoice";
+}
+
+type ResolveSubscriptionPlanInput = {
+  fallbackPlan?: unknown;
+  metadataPlan?: unknown;
+  priceId?: string;
+  priceIds: Partial<Record<PaidSubscriptionPlan, string>>;
+};
+
+export function resolveSubscriptionPlan(input: ResolveSubscriptionPlanInput): PaidSubscriptionPlan | null {
+  if (input.priceId) {
+    for (const [plan, configuredPriceId] of Object.entries(input.priceIds) as Array<[PaidSubscriptionPlan, string | undefined]>) {
+      if (configuredPriceId === input.priceId) return plan;
+    }
+  }
+  if (isPaidSubscriptionPlan(input.metadataPlan)) return input.metadataPlan;
+  if (isPaidSubscriptionPlan(input.fallbackPlan)) return input.fallbackPlan;
+  return null;
+}
+
 function stripeErrorCode(error: unknown): string {
   if (typeof error !== "object" || error === null) return "";
   const candidate = error as {
@@ -533,6 +612,19 @@ function stripeErrorCode(error: unknown): string {
   };
   if (typeof candidate.code === "string") return candidate.code;
   if (typeof candidate.raw?.code === "string") return candidate.raw.code;
+  return "";
+}
+
+function stripeDeclineCode(error: unknown): string {
+  if (typeof error !== "object" || error === null) return "";
+  const candidate = error as {
+    decline_code?: unknown;
+    raw?: {
+      decline_code?: unknown;
+    };
+  };
+  if (typeof candidate.decline_code === "string") return candidate.decline_code;
+  if (typeof candidate.raw?.decline_code === "string") return candidate.raw.decline_code;
   return "";
 }
 

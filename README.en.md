@@ -80,6 +80,7 @@ Every push to `main` runs tests, compiles TypeScript and Bicep, builds an immuta
 | `APP_BASE_URL` | Public origin used for Stripe return URLs, for example `https://airco-tracker.eu` |
 | `STRIPE_SECRET_KEY` | Stripe secret key. Use test mode first (`sk_test_...`) |
 | `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret for `/api/billing/webhook` |
+| `STRIPE_BILLING_PORTAL_CONFIGURATION_ID` | Stripe Customer Portal configuration ID with subscription switching enabled and all four Prices allowed |
 | `STRIPE_PRICE_WEEKLY_BASIC` | Stripe recurring Price ID for `weekly_basic` |
 | `STRIPE_PRICE_WEEKLY_PRIORITY` | Stripe recurring Price ID for `weekly_priority` |
 | `STRIPE_PRICE_MONTHLY_BASIC` | Stripe recurring Price ID for `monthly_basic` |
@@ -108,6 +109,8 @@ Subscribe at least to:
 - `customer.subscription.deleted`
 
 Use Stripe test cards to verify Checkout before switching the environment variables to live mode.
+
+The Customer Portal configuration must enable subscription plan switching and allow all four Prices under the two products. Upgrades should invoice the price difference immediately; downgrades and switches to a shorter interval should take effect at the end of the current billing period. Store its `bpc_...` ID in `STRIPE_BILLING_PORTAL_CONFIGURATION_ID`; the backend explicitly uses and validates this configuration when 3D Secure is required.
 
 ## Documentation language maintenance
 

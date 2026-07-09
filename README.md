@@ -80,6 +80,7 @@ node scripts/verify-deployment.mjs http://127.0.0.1:4174
 | `APP_BASE_URL` | Stripe 返回 URL 使用的公开 origin，例如 `https://airco-tracker.eu` |
 | `STRIPE_SECRET_KEY` | Stripe secret key。先使用 test mode (`sk_test_...`) |
 | `STRIPE_WEBHOOK_SECRET` | `/api/billing/webhook` 的 Stripe webhook signing secret |
+| `STRIPE_BILLING_PORTAL_CONFIGURATION_ID` | 已启用订阅切换、并允许四个 Price 的 Stripe Customer Portal configuration ID |
 | `STRIPE_PRICE_WEEKLY_BASIC` | `weekly_basic` 的 Stripe recurring Price ID |
 | `STRIPE_PRICE_WEEKLY_PRIORITY` | `weekly_priority` 的 Stripe recurring Price ID |
 | `STRIPE_PRICE_MONTHLY_BASIC` | `monthly_basic` 的 Stripe recurring Price ID |
@@ -108,6 +109,8 @@ https://airco-tracker.eu/api/billing/webhook
 - `customer.subscription.deleted`
 
 切换到 live mode 之前，先使用 Stripe test cards 验证 Checkout。
+
+Customer Portal 配置必须启用订阅方案切换，并把两个产品下的四个 Price 全部加入允许列表。升级应立即结算差额；降级和切换到更短周期应在当前账期结束后生效。把该配置的 `bpc_...` ID 写入 `STRIPE_BILLING_PORTAL_CONFIGURATION_ID`，后端会在需要 3D Secure 时显式使用并校验这份配置。
 
 ## 文档语言维护
 
