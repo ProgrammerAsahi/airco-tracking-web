@@ -71,7 +71,7 @@ Status markers:
 | ✅ | `priority` user opens a realtime inventory page | User lands on `/deliver-to/nl` or `/deliver-to/fr` based on the saved country and sees deliverable retailers | Verified in production on 2026-07-08: after switching to priority, realtime inventory is accessible and deliverable retailers are visible |
 | ✅ | Switch language on the Ready page | Chinese, English, and Dutch switch immediately without changing delivery country | Verified in production on 2026-07-09: the Ready page language switcher works |
 | ✅ | Switch language on `/deliver-to/*` | Chinese, English, and Dutch switch immediately without changing delivery country | Verified in production on 2026-07-09: the inventory page language switcher works |
-| ⬜ | Switch language from the Profile page header | Only the current Profile page display language changes; the account default language preference is not overwritten automatically; the dropdown is not hidden behind the card | Fixed on 2026-07-09; needs production retest |
+| ✅ | Switch language from the Profile page header | Only the current Profile page display language changes; the account default language preference is not overwritten automatically; the dropdown is not hidden behind the card | Verified in production on 2026-07-09: the Profile header language switcher works and the dropdown is no longer hidden behind the card |
 | ⬜ | Change country in Profile | After confirmation, saved country changes and future inventory entry points use that country | Not tested yet |
 
 ## P0: Stripe webhook and sync safety
