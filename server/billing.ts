@@ -30,6 +30,12 @@ const PRICE_ENV_BY_PLAN: Record<PaidSubscriptionPlan, string> = {
 };
 
 const ACTIVE_STRIPE_STATUSES = new Set(["active", "trialing"]);
+const STRIPE_ACTION_REQUIRED_CODES = new Set([
+  "subscription_payment_intent_requires_action",
+  "invoice_payment_intent_requires_action",
+  "payment_intent_action_required",
+  "authentication_required",
+]);
 
 export class StripeBillingService {
   private readonly stripe: Stripe | null;
@@ -130,6 +136,10 @@ export class StripeBillingService {
       proration_behavior: "always_invoice",
     }).catch((error: unknown) => {
       if (isSubscriptionPaymentActionRequired(error)) {
+        console.warn("Stripe subscription update requires customer action; redirecting to Billing Portal", {
+          code: stripeErrorCode(error),
+          subscription: subscription.id,
+        });
         return null;
       }
       throw error;
@@ -496,9 +506,38 @@ function subscriptionCurrentPeriodEnd(subscription: Stripe.Subscription): number
   return typeof itemValue === "number" ? itemValue : null;
 }
 
-function isSubscriptionPaymentActionRequired(error: unknown): boolean {
-  return typeof error === "object"
-    && error !== null
-    && "code" in error
-    && (error as { code?: unknown }).code === "subscription_payment_intent_requires_action";
+export function isSubscriptionPaymentActionRequired(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) return false;
+  const code = stripeErrorCode(error);
+  if (STRIPE_ACTION_REQUIRED_CODES.has(code)) return true;
+
+  const candidate = error as {
+    statusCode?: unknown;
+    payment_intent?: unknown;
+    raw?: {
+      payment_intent?: unknown;
+    };
+  };
+  const paymentIntent = paymentIntentRecord(candidate.payment_intent)
+    ?? paymentIntentRecord(candidate.raw?.payment_intent);
+  return candidate.statusCode === 402 && paymentIntent?.status === "requires_action";
+}
+
+function stripeErrorCode(error: unknown): string {
+  if (typeof error !== "object" || error === null) return "";
+  const candidate = error as {
+    code?: unknown;
+    raw?: {
+      code?: unknown;
+    };
+  };
+  if (typeof candidate.code === "string") return candidate.code;
+  if (typeof candidate.raw?.code === "string") return candidate.raw.code;
+  return "";
+}
+
+function paymentIntentRecord(value: unknown): { status?: unknown } | null {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? value as { status?: unknown }
+    : null;
 }
