@@ -57,7 +57,7 @@ Status markers:
 | ✅ | Open Profile after cancellation | Profile shows cancellation state and entitlement end date; payment summary remains visible | Verified in production on 2026-07-08: Profile blocks account deletion during the valid period; user table keeps VISA ending 4242 and the period end |
 | ✅ | Access entitled pages after cancellation | The purchased entitlement remains usable before the period ends | Verified in production on 2026-07-08: Ready page still shows the inventory entry point and `/deliver-to/fr` realtime inventory remains accessible |
 | ⬜ | Access entitled pages after the period ends | Subscription expires; realtime inventory entry is closed; user can subscribe again | Not tested yet; can use Stripe Test Clock |
-| ✅ | Upgrade from Inventory Alerts to Realtime Radar | Upgrade should take effect immediately | Verified in production on 2026-07-08: `weekly_basic` → `monthly_priority` updated the existing Stripe subscription, and the user table synced to `monthly_priority active` without creating a duplicate subscription |
+| ✅ | Upgrade from Inventory Alerts to Realtime Radar | Upgrade should take effect immediately | Re-verified in production on 2026-07-09: `weekly_basic` → `monthly_priority` opened Stripe Portal, completed 3D Secure, and paid the €20 test difference; Profile and France inventory access updated immediately without creating a duplicate subscription |
 | ✅ | Downgrade from Realtime Radar to Inventory Alerts | Downgrade should apply at period end while the current entitlement remains active | Verified in production on 2026-07-09: downgrading from `monthly_priority` to a basic plan completes in one click; Ready still allows inventory access; the subscription card shows the switch to basic scheduled for the current period end |
 | ✅ | Switch between weekly and monthly billing | Apply the chosen product policy without creating duplicate subscriptions | Verified in production on 2026-07-09: switching to `weekly_priority` while a pending downgrade exists takes effect immediately and Profile no longer shows the future downgrade note |
 
@@ -80,7 +80,7 @@ Status markers:
 | --- | --- | --- | --- |
 | ✅ | Call webhook without a Stripe signature | Returns 400 and does not process any state change | Verified in production on 2026-07-08 |
 | ⬜ | `checkout.session.completed` webhook | Correctly links the current user, Stripe customer, and subscription | Needs a new checkout to verify |
-| ⬜ | `customer.subscription.updated` webhook | Correctly updates plan, status, cancel flag, period end, and payment method summary | Not tested yet |
+| ✅ | `customer.subscription.updated` webhook | Correctly updates plan, status, cancel flag, period end, and payment method summary | Verified in production on 2026-07-09: after the Portal switch, Stripe metadata still named the old plan, but the backend resolved `monthly_priority` from the actual Price and synced the period and VISA 3155 summary correctly |
 | ⬜ | `customer.subscription.deleted` webhook | Correctly removes entitlement while preserving necessary historical data | Not tested yet |
 | ⬜ | Webhook is delayed or missed and the user returns from Checkout | `/api/billing/sync-checkout-status` pulls the state from Stripe and repairs the database | Fix is deployed; needs a new checkout to verify |
 | 🚧 | Duplicate webhook events | Duplicate events should not cause dangerous repeated writes or duplicate subscriptions | Need to confirm whether an event de-duplication table is required |
@@ -104,7 +104,7 @@ Status markers:
 | Status | Scenario | Expected result | Notes |
 | --- | --- | --- | --- |
 | ✅ | Stripe test card payment fails | User still has no subscription; page shows an understandable failure/retry state | Verified in production on 2026-07-09: both `4000 0000 0000 0341` and `4000 0000 0000 0002` are declined by Stripe; after returning to the site, the user has no entitlement and no inventory access |
-| ✅ | Test card requires 3D Secure | Successful authentication grants entitlement; failed authentication does not | Verified in production on 2026-07-09: with `4000 0025 0000 3155`, failed authentication returns to Profile with no subscription or entitlement; successful authentication returns to Ready and Profile shows the subscribed plan plus entitlement |
+| ✅ | Test card requires 3D Secure | Successful authentication grants entitlement; failed authentication does not | Verified in production on 2026-07-09 for both initial checkout and an existing-subscription upgrade with `4000 0025 0000 3155`: failure grants no entitlement; success returns to Ready with the correct plan and inventory access |
 | ⏸️ | Checkout session expires | Returning user sees a state that allows choosing a plan again | Deferred for later testing |
 | ⏸️ | Temporary Stripe API failure | Frontend shows retry/error state; database does not write a partially active subscription | Deferred for later testing |
 | ⏸️ | User starts payments in multiple tabs | Final state keeps only one valid subscription and does not overwrite data incorrectly | Deferred for later testing |

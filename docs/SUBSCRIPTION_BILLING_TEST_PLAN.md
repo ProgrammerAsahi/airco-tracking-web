@@ -57,7 +57,7 @@
 | ✅ | 取消后查看 Profile | Profile 显示取消状态和权益有效期；支付方式仍可见 | 2026-07-08 生产验证：Profile 阻止有效期内注销；用户表保留 VISA 尾号 4242 和周期结束时间 |
 | ✅ | 取消后继续访问权益页 | 周期结束前仍可使用已购买权益 | 2026-07-08 生产验证：Ready 页仍显示库存入口，`/deliver-to/fr` 实时库存页可访问 |
 | ⬜ | 周期结束后访问权益页 | 订阅失效；实时库存入口被关闭；用户可重新订阅 | 待测，可配合 Stripe Test Clock |
-| ✅ | 从库存提醒升级到实时雷达 | 升级后应立刻生效 | 2026-07-08 生产验证：`weekly_basic` → `monthly_priority` 更新现有 Stripe subscription，用户表同步为 `monthly_priority active`，未创建重复订阅 |
+| ✅ | 从库存提醒升级到实时雷达 | 升级后应立刻生效 | 2026-07-09 生产复测：`weekly_basic` → `monthly_priority` 进入 Stripe Portal，完成 3D Secure 并支付 €20 测试差额；Profile 与法国库存权限立即更新，未创建重复订阅 |
 | ✅ | 从实时雷达降级到库存提醒 | 当前周期结束后再降级，当前权益保留到期 | 2026-07-09 生产验证：`monthly_priority` 降级到 basic 后一键完成；Ready 页仍可进入库存；订阅卡片显示将在当前周期结束后切换到 basic |
 | ✅ | 周付与月付之间切换 | 按产品规则处理立即生效或周期末变更，且不生成重复订阅 | 2026-07-09 生产验证：存在 pending downgrade 时切到 `weekly_priority` 可立即生效，且 Profile 不再显示未来降级提示 |
 
@@ -80,7 +80,7 @@
 | --- | --- | --- | --- |
 | ✅ | 无 Stripe 签名调用 webhook | 返回 400，不处理任何状态变更 | 2026-07-08 生产已验证 |
 | ⬜ | `checkout.session.completed` webhook | 正确绑定当前用户、Stripe customer 和 subscription | 需要新 checkout 再验证 |
-| ⬜ | `customer.subscription.updated` webhook | 正确更新方案、状态、取消标记、有效期和支付方式摘要 | 待测 |
+| ✅ | `customer.subscription.updated` webhook | 正确更新方案、状态、取消标记、有效期和支付方式摘要 | 2026-07-09 生产验证：Portal 切换后 Stripe metadata 仍为旧方案，但后端按实际 Price 同步为 `monthly_priority`，有效期和 VISA 3155 摘要正确 |
 | ⬜ | `customer.subscription.deleted` webhook | 正确关闭权益并保留必要的历史信息 | 待测 |
 | ⬜ | webhook 延迟或丢失时用户回跳同步 | `/api/billing/sync-checkout-status` 能从 Stripe 拉取状态并补齐数据库 | 修复已部署，需要新 checkout 再验证 |
 | 🚧 | 重复 webhook 事件 | 重复事件不会重复写入危险状态或创建重复订阅 | 需要确认是否需要事件去重表 |
@@ -104,7 +104,7 @@
 | 状态 | 场景 | 预期结果 | 备注 |
 | --- | --- | --- | --- |
 | ✅ | Stripe 测试卡支付失败 | 用户仍无订阅；页面显示可理解的失败/重试状态 | 2026-07-09 生产验证：`4000 0000 0000 0341` 和 `4000 0000 0000 0002` 均被 Stripe decline；返回站内后无权益、无库存访问权限 |
-| ✅ | 需要 3D Secure 的测试卡 | 认证成功后开通；认证失败后不开通 | 2026-07-09 生产验证：`4000 0025 0000 3155` 认证失败后返回 Profile，无订阅也无权益；认证成功后自动返回 Ready 页，Profile 显示订阅方案和权益 |
+| ✅ | 需要 3D Secure 的测试卡 | 认证成功后开通；认证失败后不开通 | 2026-07-09 生产验证：`4000 0025 0000 3155` 首次订阅及已有订阅升级均完成测试；失败不授予权益，成功自动返回 Ready，方案与库存权限正确 |
 | ⏸️ | Checkout 会话过期 | 用户返回后看到可重新选择方案的状态 | 暂缓测试，回头再测 |
 | ⏸️ | Stripe API 临时失败 | 前端显示重试或错误提示；数据库不写入半开通状态 | 暂缓测试，回头再测 |
 | ⏸️ | 用户在多个标签页同时发起支付 | 最终只保留一个有效订阅状态，不互相覆盖 | 暂缓测试，回头再测 |
