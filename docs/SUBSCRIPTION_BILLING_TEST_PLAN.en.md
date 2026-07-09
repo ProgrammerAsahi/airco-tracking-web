@@ -95,7 +95,7 @@ Status markers:
 | ✅ | Send-code button countdown | After clicking, the button is disabled for 60 seconds; it can be used again after the countdown | Verified in production on 2026-07-09: countdown behavior works |
 | ✅ | Change nickname | The “What should we call you?” card opens; after saving, avatar initials update | Verified in production on 2026-07-09: avatar initials update after nickname changes |
 | ✅ | Change email | After verifying the new email code, stable user ID remains unchanged and email field updates | Verified in production on 2026-07-09: after changing email and logging back in, subscription, country, and language are preserved |
-| ⬜ | Delete account with an active subscription | Backend rejects deletion and explains cancellation plus expiry is required first | Not tested yet |
+| ✅ | Delete account with an active subscription | Backend rejects deletion and explains cancellation plus expiry is required first | Verified in production on 2026-07-09: account deletion is blocked while an active subscription exists |
 | ✅ | Delete account with no subscription or after expiry | User profile and sessions are cleared; paid entitlements are no longer accessible | Verified in production on 2026-07-09: account deletion succeeds when there is no active subscription |
 | ✅ | Log out and log back in | Subscription, country, language, nickname, and payment summary remain correct | Verified in production on 2026-07-09: profile and subscription data persist after logout/login |
 
@@ -104,7 +104,7 @@ Status markers:
 | Status | Scenario | Expected result | Notes |
 | --- | --- | --- | --- |
 | ✅ | Stripe test card payment fails | User still has no subscription; page shows an understandable failure/retry state | Verified in production on 2026-07-09: both `4000 0000 0000 0341` and `4000 0000 0000 0002` are declined by Stripe; after returning to the site, the user has no entitlement and no inventory access |
-| ⬜ | Test card requires 3D Secure | Successful authentication grants entitlement; failed authentication does not | Not tested yet |
+| ✅ | Test card requires 3D Secure | Successful authentication grants entitlement; failed authentication does not | Verified in production on 2026-07-09: with `4000 0025 0000 3155`, failed authentication returns to Profile with no subscription or entitlement; successful authentication returns to Ready and Profile shows the subscribed plan plus entitlement |
 | ⬜ | Checkout session expires | Returning user sees a state that allows choosing a plan again | Not tested yet |
 | ⬜ | Temporary Stripe API failure | Frontend shows retry/error state; database does not write a partially active subscription | Not tested yet |
 | ⬜ | User starts payments in multiple tabs | Final state keeps only one valid subscription and does not overwrite data incorrectly | Not tested yet |
@@ -123,7 +123,6 @@ Status markers:
 
 ## Recommended test order
 
-1. Use a Stripe test card that requires 3D Secure to verify both successful and failed authentication paths.
-2. Use Stripe Test Clock to verify period end, cancellation-after-period, and renewal.
-3. Verify Stripe webhook and return-sync boundaries: normal events, delayed events, and duplicate events.
-4. Test Checkout session expiry, temporary Stripe API failures, and multiple simultaneous Checkout tabs.
+1. Use Stripe Test Clock to verify period end, cancellation-after-period, and renewal.
+2. Verify Stripe webhook and return-sync boundaries: normal events, delayed events, and duplicate events.
+3. Test Checkout session expiry, temporary Stripe API failures, and multiple simultaneous Checkout tabs.
