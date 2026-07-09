@@ -44,7 +44,7 @@ Status markers:
 | ⬜ | Buy `weekly_priority` with a test card | The user receives realtime inventory access for one week | Not tested yet |
 | ⬜ | Buy `weekly_basic` with a test card | The user receives inventory alert emails only and cannot access realtime inventory pages | Not tested yet |
 | ⬜ | Buy `monthly_basic` with a test card | The user receives inventory alert emails only and cannot access realtime inventory pages | Not tested yet |
-| ⬜ | Cancel or go back during Checkout | The user returns to the subscription page; the database still shows no active subscription; no entitlement is granted accidentally | Not tested yet |
+| ✅ | Cancel or go back during Checkout | The user returns to the subscription page; the database still shows no active subscription; no entitlement is granted accidentally | Verified in production on 2026-07-09: returning from Checkout lands on the subscription page; Profile shows no subscription and no entitlement is granted |
 | ⬜ | After successful payment, wait for the return sync without refreshing | The page automatically syncs the Stripe checkout session and shows the correct entitlement | Fix is deployed; needs a new payment to verify |
 | ✅ | Refresh after successful payment | Subscription status still appears correctly | Verified in production on 2026-07-08 |
 | ⬜ | Existing active subscriber selects an equivalent plan again | The system should not create duplicate active subscriptions; it should show the existing subscription or enter a change-plan flow | Not tested yet |
@@ -103,7 +103,7 @@ Status markers:
 
 | Status | Scenario | Expected result | Notes |
 | --- | --- | --- | --- |
-| ⬜ | Stripe test card payment fails | User still has no subscription; page shows an understandable failure/retry state | Not tested yet |
+| ✅ | Stripe test card payment fails | User still has no subscription; page shows an understandable failure/retry state | Verified in production on 2026-07-09: both `4000 0000 0000 0341` and `4000 0000 0000 0002` are declined by Stripe; after returning to the site, the user has no entitlement and no inventory access |
 | ⬜ | Test card requires 3D Secure | Successful authentication grants entitlement; failed authentication does not | Not tested yet |
 | ⬜ | Checkout session expires | Returning user sees a state that allows choosing a plan again | Not tested yet |
 | ⬜ | Temporary Stripe API failure | Frontend shows retry/error state; database does not write a partially active subscription | Not tested yet |
