@@ -59,8 +59,9 @@ export function ReadyPage({ lang, setLang }: ReadyPageProps) {
       const params = new URLSearchParams(window.location.search);
       const checkoutSucceeded = params.get("checkout") === "success";
       const sessionId = params.get("session_id");
+      const subscriptionReturned = params.get("subscription") === "updated" || params.get("subscription") === "scheduled";
 
-      if (checkoutSucceeded || sessionId) {
+      if (checkoutSucceeded || sessionId || subscriptionReturned) {
         try {
           const syncedUser = await syncCheckoutStatus(sessionId);
           if (!ignore) {

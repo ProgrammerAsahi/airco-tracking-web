@@ -128,11 +128,60 @@ export class StripeBillingService {
       },
       payment_behavior: "error_if_incomplete",
       proration_behavior: "always_invoice",
+    }).catch((error: unknown) => {
+      if (isSubscriptionPaymentActionRequired(error)) {
+        return null;
+      }
+      throw error;
     });
+
+    if (!updated) {
+      return this.createSubscriptionUpdatePortalSession(request, user, subscription, item, price, lang);
+    }
 
     const synced = await this.syncSubscription(updated, plan);
     if (!synced) throw new AuthHttpError(502, "stripe_subscription_sync_failed");
     return { url: `${baseUrl}/ready?lang=${lang}&subscription=updated` };
+  }
+
+  private async createSubscriptionUpdatePortalSession(
+    request: IncomingMessage,
+    user: UserProfile,
+    subscription: Stripe.Subscription,
+    item: Stripe.SubscriptionItem,
+    price: string,
+    lang: Lang,
+  ): Promise<CheckoutSessionResult> {
+    const stripe = this.requireStripe();
+    const baseUrl = this.publicBaseUrl(request);
+    const customerId = stripeObjectId(subscription.customer) || user.stripeCustomerId;
+    if (!customerId) throw new AuthHttpError(400, "stripe_subscription_missing_customer");
+    if (!item.id) throw new AuthHttpError(502, "stripe_subscription_item_missing");
+
+    const returnUrl = `${baseUrl}/ready?lang=${lang}&subscription=updated`;
+    const session = await stripe.billingPortal.sessions.create({
+      customer: customerId,
+      return_url: returnUrl,
+      flow_data: {
+        type: "subscription_update_confirm",
+        subscription_update_confirm: {
+          subscription: subscription.id,
+          items: [{
+            id: item.id,
+            price,
+            quantity: item.quantity || 1,
+          }],
+        },
+        after_completion: {
+          type: "redirect",
+          redirect: {
+            return_url: returnUrl,
+          },
+        },
+      },
+    });
+    if (!session.url) throw new AuthHttpError(502, "stripe_portal_unavailable");
+    return { url: session.url };
   }
 
   private async scheduleSubscriptionDowngrade(
@@ -445,4 +494,11 @@ function subscriptionCurrentPeriodEnd(subscription: Stripe.Subscription): number
   if (typeof value === "number") return value;
   const itemValue = (subscription.items?.data?.[0] as { current_period_end?: unknown } | undefined)?.current_period_end;
   return typeof itemValue === "number" ? itemValue : null;
+}
+
+function isSubscriptionPaymentActionRequired(error: unknown): boolean {
+  return typeof error === "object"
+    && error !== null
+    && "code" in error
+    && (error as { code?: unknown }).code === "subscription_payment_intent_requires_action";
 }

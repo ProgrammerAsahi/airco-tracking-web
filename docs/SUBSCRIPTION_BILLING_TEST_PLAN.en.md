@@ -105,9 +105,9 @@ Status markers:
 | --- | --- | --- | --- |
 | ✅ | Stripe test card payment fails | User still has no subscription; page shows an understandable failure/retry state | Verified in production on 2026-07-09: both `4000 0000 0000 0341` and `4000 0000 0000 0002` are declined by Stripe; after returning to the site, the user has no entitlement and no inventory access |
 | ✅ | Test card requires 3D Secure | Successful authentication grants entitlement; failed authentication does not | Verified in production on 2026-07-09: with `4000 0025 0000 3155`, failed authentication returns to Profile with no subscription or entitlement; successful authentication returns to Ready and Profile shows the subscribed plan plus entitlement |
-| ⬜ | Checkout session expires | Returning user sees a state that allows choosing a plan again | Not tested yet |
-| ⬜ | Temporary Stripe API failure | Frontend shows retry/error state; database does not write a partially active subscription | Not tested yet |
-| ⬜ | User starts payments in multiple tabs | Final state keeps only one valid subscription and does not overwrite data incorrectly | Not tested yet |
+| ⏸️ | Checkout session expires | Returning user sees a state that allows choosing a plan again | Deferred for later testing |
+| ⏸️ | Temporary Stripe API failure | Frontend shows retry/error state; database does not write a partially active subscription | Deferred for later testing |
+| ⏸️ | User starts payments in multiple tabs | Final state keeps only one valid subscription and does not overwrite data incorrectly | Deferred for later testing |
 
 ## P2: Production release regression
 
@@ -116,13 +116,13 @@ Status markers:
 | ✅ | `/health` | Returns 200 | Verified in production on 2026-07-08 |
 | ✅ | `/ready?lang=zh` | Returns 200 | Verified in production on 2026-07-08 |
 | ✅ | Latest frontend bundle is loaded by production | Browser loads the new build artifact | New bundle observed on 2026-07-08 |
-| ⬜ | `/subscribe?lang=zh/en/nl` | All three language pages load and plan buttons behave consistently | Not tested yet |
-| ⬜ | `/profile?lang=zh/en/nl` | All three language pages load with consistent profile and subscription cards | Not tested yet |
-| ⬜ | `/deliver-to/nl?lang=zh/en/nl` | All three language inventory pages load and language switching works | Not tested yet |
-| ⬜ | `/deliver-to/fr?lang=zh/en/nl` | All three language inventory pages load and language switching works | Not tested yet |
+| ⬜ | `/subscribe?lang=zh/en` | Both Chinese and English pages load and plan buttons behave consistently | Not tested yet |
+| ⬜ | `/profile?lang=zh/en` | Both Chinese and English pages load with consistent profile and subscription cards | Not tested yet |
+| ⬜ | `/deliver-to/nl?lang=zh/en` | Both Chinese and English inventory pages load and language switching works | Not tested yet |
+| ⬜ | `/deliver-to/fr?lang=zh/en` | Both Chinese and English inventory pages load and language switching works | Not tested yet |
 
 ## Recommended test order
 
 1. Use Stripe Test Clock to verify period end, cancellation-after-period, and renewal.
 2. Verify Stripe webhook and return-sync boundaries: normal events, delayed events, and duplicate events.
-3. Test Checkout session expiry, temporary Stripe API failures, and multiple simultaneous Checkout tabs.
+3. Defer Checkout session expiry, temporary Stripe API failures, and multiple simultaneous Checkout-tab tests for a later round.
