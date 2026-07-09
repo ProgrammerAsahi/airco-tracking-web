@@ -4,6 +4,7 @@ import { AccountMenu } from "./AccountMenu";
 import { getCurrentUser, syncCheckoutStatus, type UserProfile } from "./authClient";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import type { Lang } from "./i18n";
+import { AircoLogoMark } from "./AircoLogoMark";
 
 type ReadyCopy = {
   productName: string;
@@ -116,7 +117,7 @@ export function ReadyPage({ lang, setLang }: ReadyPageProps) {
     <main className="ready-shell">
       <header className="profile-nav ready-nav">
         <a className="landing-logo" href={`/ready?lang=${lang}`} aria-label={copy.productName}>
-          <span className="landing-logo-mark" aria-hidden="true"><i /><i /><i /></span>
+          <AircoLogoMark className="landing-logo-mark" />
           <span>{copy.productName}</span>
         </a>
         <div className="landing-nav-actions">

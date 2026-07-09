@@ -10,6 +10,7 @@ import { ProfilePage } from "./ProfilePage";
 import { ReadyPage } from "./ReadyPage";
 import { SubscriptionPage } from "./SubscriptionPage";
 import { getCurrentUser, type UserProfile } from "./authClient";
+import { AircoLogoMark } from "./AircoLogoMark";
 import { hasRealtimeStockAccess } from "../shared/auth";
 import { canonicalDeliveryPath, destinationCountryFromPath, visibleSiteEntries } from "../shared/delivery";
 import "./styles.css";
@@ -308,7 +309,7 @@ function InventoryApp({ lang, setLang, t }: AppLocaleProps) {
 
   useEffect(() => {
     const siteCount = snapshot ? visibleSiteEntries(snapshot.sites, destinationCountry).length : "…";
-    document.title = `Airco Watch · ${t("section_title")}`;
+    document.title = `Airco Tracker · ${t("section_title")}`;
     document
       .querySelector('meta[name="description"]')
       ?.setAttribute("content", t("hero_description", { site_count: siteCount }).replace(/<br\s*\/?>/gi, " "));
@@ -463,9 +464,9 @@ function InventoryApp({ lang, setLang, t }: AppLocaleProps) {
         {currentUser && <AccountMenu user={currentUser} lang={lang} onLogout={() => { window.location.href = `/?lang=${lang}`; }} />}
       </div>
       <header className="hero">
-        <div className="product-name" aria-label="Airco Watch">
-          <span className="product-symbol" aria-hidden="true"><i /><i /><i /></span>
-          <span>Airco Watch</span>
+        <div className="product-name" aria-label="Airco Tracker">
+          <AircoLogoMark className="product-symbol" />
+          <span>Airco Tracker</span>
         </div>
         <div className="hero-copy">
           <p className="eyebrow">{destinationEyebrow(destinationCountry, lang)}</p>
@@ -533,7 +534,7 @@ function InventoryApp({ lang, setLang, t }: AppLocaleProps) {
 
       <footer className="page-footer">
         <span>{t("page_footer_disclaimer")}</span>
-        <span>Airco Watch · {destinationCountry.toUpperCase()}</span>
+        <span>Airco Tracker · {destinationCountry.toUpperCase()}</span>
       </footer>
 
       {selectedRetailer && selectedEntry && (

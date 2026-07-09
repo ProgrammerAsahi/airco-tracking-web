@@ -19,6 +19,7 @@ import {
 } from "./authClient";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import type { Lang } from "./i18n";
+import { AircoLogoMark } from "./AircoLogoMark";
 
 type SubscriptionCopy = {
   productName: string;
@@ -538,7 +539,7 @@ export function SubscriptionPage({ lang, setLang }: SubscriptionPageProps) {
     <main className="subscription-shell">
       <header className="profile-nav subscription-nav">
         <a className="landing-logo" href={`/?lang=${lang}`} aria-label={copy.productName}>
-          <span className="landing-logo-mark" aria-hidden="true"><i /><i /><i /></span>
+          <AircoLogoMark className="landing-logo-mark" />
           <span>{copy.productName}</span>
         </a>
         <div className="landing-nav-actions">
@@ -651,7 +652,7 @@ export function SubscriptionPage({ lang, setLang }: SubscriptionPageProps) {
               ×
             </button>
             <div className="landing-login-brand" aria-hidden="true">
-              <span className="landing-logo-mark"><i /><i /><i /></span>
+              <AircoLogoMark className="landing-logo-mark" />
               <span>{copy.productName}</span>
             </div>
             <div className="landing-login-copy">
@@ -719,7 +720,7 @@ export function SubscriptionPage({ lang, setLang }: SubscriptionPageProps) {
             aria-labelledby="subscription-nickname-title"
           >
             <div className="landing-login-brand" aria-hidden="true">
-              <span className="landing-logo-mark"><i /><i /><i /></span>
+              <AircoLogoMark className="landing-logo-mark" />
               <span>{copy.productName}</span>
             </div>
             <div className="landing-login-copy">

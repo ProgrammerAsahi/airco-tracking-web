@@ -22,6 +22,7 @@ import {
 } from "./authClient";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import type { Lang } from "./i18n";
+import { AircoLogoMark } from "./AircoLogoMark";
 
 type ProfileCopy = {
   productName: string;
@@ -555,7 +556,7 @@ export function ProfilePage({ lang, setLang }: ProfilePageProps) {
     <main className="profile-shell">
       <header className="profile-nav">
         <a className="landing-logo" href={`/?lang=${lang}`} aria-label={copy.productName}>
-          <span className="landing-logo-mark" aria-hidden="true"><i /><i /><i /></span>
+          <AircoLogoMark className="landing-logo-mark" />
           <span>{copy.productName}</span>
         </a>
         <div className="landing-nav-actions">

@@ -12,6 +12,7 @@ import {
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { subscriptionIsActive } from "../shared/auth";
 import type { Lang } from "./i18n";
+import { AircoLogoMark } from "./AircoLogoMark";
 
 type LandingCopy = {
   productName: string;
@@ -512,7 +513,7 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
     <main className={`landing-shell landing-story--step-${activeStep}${coolingPreview ? " landing-story--cooling" : ""}`}>
       <header className="landing-nav" aria-label="Airco Tracker">
         <a className="landing-logo" href={`/?lang=${lang}`} aria-label={copy.productName}>
-          <span className="landing-logo-mark" aria-hidden="true"><i /><i /><i /></span>
+          <AircoLogoMark className="landing-logo-mark" />
           <span>{copy.productName}</span>
         </a>
         <span className="landing-nav-spacer" aria-hidden="true" />
@@ -667,7 +668,7 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
               ×
             </button>
             <div className="landing-login-brand" aria-hidden="true">
-              <span className="landing-logo-mark"><i /><i /><i /></span>
+              <AircoLogoMark className="landing-logo-mark" />
               <span>{copy.productName}</span>
             </div>
             <div className="landing-login-copy">
@@ -735,7 +736,7 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
             aria-labelledby="landing-nickname-title"
           >
             <div className="landing-login-brand" aria-hidden="true">
-              <span className="landing-logo-mark"><i /><i /><i /></span>
+              <AircoLogoMark className="landing-logo-mark" />
               <span>{copy.productName}</span>
             </div>
             <div className="landing-login-copy">
