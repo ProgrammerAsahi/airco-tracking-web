@@ -59,7 +59,7 @@ Status markers:
 | ⬜ | Access entitled pages after the period ends | Subscription expires; realtime inventory entry is closed; user can subscribe again | Not tested yet; can use Stripe Test Clock |
 | ✅ | Upgrade from Inventory Alerts to Realtime Radar | Upgrade should take effect immediately | Verified in production on 2026-07-08: `weekly_basic` → `monthly_priority` updated the existing Stripe subscription, and the user table synced to `monthly_priority active` without creating a duplicate subscription |
 | ✅ | Downgrade from Realtime Radar to Inventory Alerts | Downgrade should apply at period end while the current entitlement remains active | Verified in production on 2026-07-09: downgrading from `monthly_priority` to a basic plan completes in one click; Ready still allows inventory access; the subscription card shows the switch to basic scheduled for the current period end |
-| 🚧 | Switch between weekly and monthly billing | Apply the chosen product policy without creating duplicate subscriptions | Product policy must be finalized first |
+| ✅ | Switch between weekly and monthly billing | Apply the chosen product policy without creating duplicate subscriptions | Verified in production on 2026-07-09: switching to `weekly_priority` while a pending downgrade exists takes effect immediately and Profile no longer shows the future downgrade note |
 
 ## P0: Inventory access, country, and language
 
@@ -72,7 +72,7 @@ Status markers:
 | ✅ | Switch language on the Ready page | Chinese, English, and Dutch switch immediately without changing delivery country | Verified in production on 2026-07-09: the Ready page language switcher works |
 | ✅ | Switch language on `/deliver-to/*` | Chinese, English, and Dutch switch immediately without changing delivery country | Verified in production on 2026-07-09: the inventory page language switcher works |
 | ✅ | Switch language from the Profile page header | Only the current Profile page display language changes; the account default language preference is not overwritten automatically; the dropdown is not hidden behind the card | Verified in production on 2026-07-09: the Profile header language switcher works and the dropdown is no longer hidden behind the card |
-| ⬜ | Change country in Profile | After confirmation, saved country changes and future inventory entry points use that country | Not tested yet |
+| ✅ | Change country in Profile | After confirmation, saved country changes and future inventory entry points use that country | Verified in production on 2026-07-09: switching between France and the Netherlands works both ways, including confirmation and future entry points |
 
 ## P0: Stripe webhook and sync safety
 
@@ -92,12 +92,12 @@ Status markers:
 | Status | Scenario | Expected result | Notes |
 | --- | --- | --- | --- |
 | ⬜ | New user registers with email code | User is created/logged in only with a valid code; first login opens the nickname card | Not tested yet |
-| ⬜ | Send-code button countdown | After clicking, the button is disabled for 60 seconds; it can be used again after the countdown | Test both registration and email-change flows |
-| ⬜ | Change nickname | The “What should we call you?” card opens; after saving, avatar initials update | Not tested yet |
+| ✅ | Send-code button countdown | After clicking, the button is disabled for 60 seconds; it can be used again after the countdown | Verified in production on 2026-07-09: countdown behavior works |
+| ✅ | Change nickname | The “What should we call you?” card opens; after saving, avatar initials update | Verified in production on 2026-07-09: avatar initials update after nickname changes |
 | ⬜ | Change email | After verifying the new email code, stable user ID remains unchanged and email field updates | Not tested yet |
 | ⬜ | Delete account with an active subscription | Backend rejects deletion and explains cancellation plus expiry is required first | Not tested yet |
 | ⬜ | Delete account with no subscription or after expiry | User profile and sessions are cleared; paid entitlements are no longer accessible | Not tested yet |
-| ⬜ | Log out and log back in | Subscription, country, language, nickname, and payment summary remain correct | Not tested yet |
+| ✅ | Log out and log back in | Subscription, country, language, nickname, and payment summary remain correct | Verified in production on 2026-07-09: profile and subscription data persist after logout/login |
 
 ## P1: Payment failures and edge cases
 
