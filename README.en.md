@@ -34,7 +34,7 @@ Users have a stable UUID `userId`, so changing an email address does not change 
 
 Azure-backed canonical user data uses an `id:<uuid>` profile row and `email:<base64url>` / `stripe:<base64url>` index rows. ETag/CAS plus monotonic revisions prevent duplicate code consumption, concurrent profile overwrites, and stale webhook/projection writes. A verified email change preserves the UUID and transactionally replaces the email index. Public APIs do not expose UUIDs, revisions, or Stripe identifiers.
 
-The production web hostnames `airco-tracker.eu` and `www.airco-tracker.eu` are persisted in `infra/app.bicep`. Login mail uses an explicitly selected ACS Email Domain: `ACS_EMAIL_DOMAIN_NAME` defaults to `AzureManagedDomain`, while a verified customer-managed sender can be selected later without relying on resource enumeration order.
+The production web hostnames `airco-tracker.eu` and `www.airco-tracker.eu` are persisted in `infra/app.bicep`. Login mail uses an explicitly selected ACS Email Domain. Production now selects the verified customer-managed `airco-tracker.eu` sender through `ACS_EMAIL_DOMAIN_NAME`, while `AzureManagedDomain` remains linked as a rollback fallback; deployment never relies on resource enumeration order.
 
 ## Local development
 
@@ -83,7 +83,7 @@ Every eligible code push to `main` runs tests, compiles TypeScript and Bicep, bu
 | `AZURE_STORAGE_CONTAINER` | Defaults to `airco-tracker` |
 | `AZURE_INVENTORY_BLOB` | Defaults to `inventory.json` |
 | `AZURE_CLIENT_ID` | User-assigned runtime identity |
-| `ACS_EMAIL_DOMAIN_NAME` | Deployment-time exact linked ACS Email Domain used for login mail; defaults to `AzureManagedDomain` |
+| `ACS_EMAIL_DOMAIN_NAME` | Deployment-time exact linked ACS Email Domain used for login mail; code defaults to `AzureManagedDomain`, production explicitly selects `airco-tracker.eu` |
 | `AUTH_ALERT_RECIPIENTS_TABLE` | Sharded email-recipient projection table, defaults to `alertrecipients` |
 | `INVENTORY_CACHE_SECONDS` | Blob read cache, defaults to 30 seconds |
 | `INVENTORY_FILE` | Local-only file override |
