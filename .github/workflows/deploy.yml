@@ -68,6 +68,7 @@ jobs:
           AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
           IMAGE_TAG: ${{ github.sha }}
           APP_BASE_URL: ${{ vars.APP_BASE_URL || 'https://airco-tracker.eu' }}
+          ACS_EMAIL_DOMAIN_NAME: ${{ vars.ACS_EMAIL_DOMAIN_NAME || 'AzureManagedDomain' }}
           STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
           STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
           STRIPE_BILLING_PORTAL_CONFIGURATION_ID: ${{ vars.STRIPE_BILLING_PORTAL_CONFIGURATION_ID }}

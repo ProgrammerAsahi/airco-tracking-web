@@ -3,6 +3,8 @@ set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RESOURCE_GROUP="${AZURE_RESOURCE_GROUP:-airco-tracker-rg}"
+PREFIX="${AZURE_PREFIX:-aircontrack}"
+ACS_EMAIL_DOMAIN_NAME="${ACS_EMAIL_DOMAIN_NAME:-AzureManagedDomain}"
 IMAGE_TAG="${IMAGE_TAG:-$(git -C "$PROJECT_DIR" rev-parse --short=12 HEAD 2>/dev/null || date -u +manual-%Y%m%d%H%M%S)}"
 
 command -v az >/dev/null || { echo "Azure CLI (az) is required." >&2; exit 1; }
@@ -33,48 +35,29 @@ single_resource_name() {
   printf '%s\n' "$names" | awk 'NF { print; exit }'
 }
 
-single_resource_id() {
-  local env_var="$1"
-  local resource_type="$2"
-  local configured="${!env_var:-}"
-  if [ -n "$configured" ]; then
-    echo "$configured"
+email_domain_id() {
+  if [ -n "${EMAIL_DOMAIN_ID:-}" ]; then
+    printf '%s\n' "$EMAIL_DOMAIN_ID"
     return
+  fi
+  if [[ ! "$ACS_EMAIL_DOMAIN_NAME" =~ ^[A-Za-z0-9.-]+$ ]]; then
+    echo "ACS_EMAIL_DOMAIN_NAME contains unsupported characters." >&2
+    return 1
   fi
 
   local ids
   ids="$(az resource list \
     --resource-group "$RESOURCE_GROUP" \
-    --resource-type "$resource_type" \
-    --query "[].id" \
+    --resource-type Microsoft.Communication/EmailServices/Domains \
+    --query "[?ends_with(name, '/${ACS_EMAIL_DOMAIN_NAME}')].id" \
     --output tsv)"
   local count
   count="$(printf '%s\n' "$ids" | awk 'NF { count++ } END { print count + 0 }')"
   if [ "$count" != "1" ]; then
-    echo "Expected exactly one $resource_type in $RESOURCE_GROUP; found $count. Set $env_var explicitly." >&2
+    echo "Expected exactly one ACS Email Domain named $ACS_EMAIL_DOMAIN_NAME in $RESOURCE_GROUP; found $count. Set ACS_EMAIL_DOMAIN_NAME or EMAIL_DOMAIN_ID explicitly." >&2
     return 1
   fi
   printf '%s\n' "$ids" | awk 'NF { print; exit }'
-}
-
-runtime_identity_name() {
-  if [ -n "${IDENTITY_NAME:-}" ]; then
-    echo "$IDENTITY_NAME"
-    return
-  fi
-
-  local names
-  names="$(az identity list \
-    --resource-group "$RESOURCE_GROUP" \
-    --query "[?name!='airco-github-deployer'].name" \
-    --output tsv)"
-  local count
-  count="$(printf '%s\n' "$names" | awk 'NF { count++ } END { print count + 0 }')"
-  if [ "$count" != "1" ]; then
-    echo "Expected exactly one runtime managed identity in $RESOURCE_GROUP; found $count. Set IDENTITY_NAME explicitly." >&2
-    return 1
-  fi
-  printf '%s\n' "$names" | awk 'NF { print; exit }'
 }
 
 require_value() {
@@ -90,19 +73,19 @@ ACR_LOGIN_SERVER="${ACR_LOGIN_SERVER:-$(az acr show --name "$ACR_NAME" --resourc
 require_value ACR_LOGIN_SERVER "$ACR_LOGIN_SERVER"
 ENVIRONMENT_NAME="$(single_resource_name CONTAINER_ENVIRONMENT_NAME Microsoft.App/managedEnvironments)"
 require_value CONTAINER_ENVIRONMENT_NAME "$ENVIRONMENT_NAME"
-IDENTITY_NAME="$(runtime_identity_name)"
+IDENTITY_NAME="${IDENTITY_NAME:-${PREFIX}-identity}"
 require_value IDENTITY_NAME "$IDENTITY_NAME"
+az identity show --name "$IDENTITY_NAME" --resource-group "$RESOURCE_GROUP" --output none
 STORAGE_NAME="$(single_resource_name STORAGE_ACCOUNT_NAME Microsoft.Storage/storageAccounts)"
 require_value STORAGE_ACCOUNT_NAME "$STORAGE_NAME"
 COMMUNICATION_SERVICE_NAME="$(single_resource_name COMMUNICATION_SERVICE_NAME Microsoft.Communication/CommunicationServices)"
 require_value COMMUNICATION_SERVICE_NAME "$COMMUNICATION_SERVICE_NAME"
-EMAIL_DOMAIN_ID="$(single_resource_id EMAIL_DOMAIN_ID Microsoft.Communication/EmailServices/Domains)"
+EMAIL_DOMAIN_ID="$(email_domain_id)"
 require_value EMAIL_DOMAIN_ID "$EMAIL_DOMAIN_ID"
 MAIL_FROM_DOMAIN="$(
   az resource show \
     --ids "$EMAIL_DOMAIN_ID" \
-    --api-version 2023-04-01-preview \
-    --query properties.mailFromSenderDomain \
+    --query properties.fromSenderDomain \
     --output tsv
 )"
 require_value MAIL_FROM_DOMAIN "$MAIL_FROM_DOMAIN"

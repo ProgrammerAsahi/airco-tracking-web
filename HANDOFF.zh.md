@@ -5,88 +5,76 @@
   <a href="./HANDOFF.md"><img alt="English" src="https://img.shields.io/badge/HANDOFF-English-0969da"></a>
 </p>
 
-最后更新：2026-07-08（Europe/Amsterdam）
+最后更新：2026-07-10（Europe/Amsterdam）
 
-文档规则：当前状态、验证证据、blocker 或下一步变化时，必须同时更新中文和英语 handoff。
+当前状态、验证证据、blocker 或下一步变化时，必须同时更新本文件和 `HANDOFF.md`。不要记录 secrets、邮箱地址、access tokens、支付数据或不必要的个人信息。
 
 ## 当前目标
 
-提供一个公开、低成本的 Airco Tracker 门户和只读库存 dashboard。生产 dashboard 通过同源 API 和 Managed Identity 读取私有 `inventory.json`，展示可配送到用户目标国家的现货和预售库存。公开首页 (`/`) 是热浪主题门户；库存页在 `/deliver-to/<country>`；语言和配送国家相互独立。
+运行位于 `https://airco-tracker.eu/` 的公开 Airco Tracker 门户、登录账户体验、Stripe 订阅流程和按国家筛选的库存 dashboard。匿名用户可以查看门户和订阅价格；`/deliver-to/<country>` 下的实时库存只对仍有 Realtime Radar（`priority`）权益的用户开放。
 
-当前产品方向已经扩展到登录、用户资料、订阅和 Stripe Checkout。信用卡订阅路径已在 Stripe sandbox 中跑通，`monthly_priority` 测试购买成功，回跳/刷新后订阅权益能显示。订阅和支付测试矩阵记录在 `docs/SUBSCRIPTION_BILLING_TEST_PLAN.md` 及其英语版本。
+当前前后端协调改动为每个用户增加稳定 UUID，并维护一个最小化、32 分片的 `alertrecipients` 投影，供后端 Azure Service Bus 提醒流水线使用。Subscriber 增长后，库存 scanner 也不能为了每条库存事件扫描 canonical `users` Table。
 
 ## 仓库和生产
 
 - Repository：`https://github.com/ProgrammerAsahi/airco-tracking-web`
-- Branch：`main`
-- Local path：`~/airco-tracking-web`
-- Live URL：`https://airco-tracker.eu/`
+- Branch/local path：`main`、`~/airco-tracking-web`
+- Live URLs：`https://airco-tracker.eu/` 和 `https://www.airco-tracker.eu/`
 - Container App：`airco-tracking-web`
 - Azure resource group：`airco-tracker-rg`
 - Backend repository：`https://github.com/ProgrammerAsahi/airco-tracking`
-- Runtime image registry：复用后端 ACR，image name `airco-tracking-web:<full-git-sha>`
-- Custom domain：`airco-tracker.eu` 和 `www.airco-tracker.eu` 已写入 `infra/app.bicep`。不要移除 `customDomains`，否则未来 Bicep 部署可能清空手动 hostname binding。
-- Deployment workflow：`.github/workflows/deploy.yml`。纯 Markdown/docs 改动已被 `paths-ignore` 忽略，不会触发生产部署。
+- Runtime image：共享私有 ACR 中的 `airco-tracking-web:<full-git-sha>`
+- Deployment workflow：`.github/workflows/deploy.yml`；纯 Markdown/docs push 不部署
 
-## 已实现内容
+两个自定义 Web hostname 和现有 managed-certificate 名称都已写入 `infra/app.bicep`。不要删除这些 `customDomains`；否则 application Bicep 部署会清空绑定。
 
-### Browser UI
+## 已实现的产品体验
 
-- React 19 + TypeScript + Vite。
-- 公开门户 `/`：热浪叙事、冰川蓝/玻璃拟态视觉、订阅 CTA。
-- 登录体验：邮箱验证码 UI、第三方登录 placeholder、昵称卡片、avatar dropdown、profile 页面。
-- 用户偏好：昵称、语言、国家字段；国家决定库存入口 `/deliver-to/nl` 或 `/deliver-to/fr`，语言独立切换。
-- Ready 页面：付费/订阅后展示“一切已就绪”状态；priority 用户可跳转库存页。
-- 订阅页面：weekly/monthly × basic/priority 四种方案；basic 仅邮件提醒，priority 包含实时库存页访问。
-- 库存页：`/deliver-to/<country>` 根据后端 `delivery_coverage` 过滤可配送站点；支持现货/预售拆分和 retailer detail overlay。
-- 多语言：中文、荷兰语、英语无需刷新切换；日期、数字、metadata、错误和无障碍标签随语言同步。
+### Browser UI 和 routing
 
-### Same-origin API
+- `/` 是公开热浪主题门户。已经登录并订阅的用户会进入凉爽的 Ready 体验，不会再次看到拉新门户。
+- 邮箱验证码登录已经实现。首次注册用户需要设置昵称；Google、Apple、Microsoft 按钮仍是明确的 placeholder，不会启动 OAuth。
+- `/profile` 支持修改昵称和已验证邮箱、语言偏好、配送国家、登出、管理订阅，以及在没有有效权益时注销账户。
+- `/subscribe` 提供四种 Stripe test-mode 方案：周/月 × Inventory Alerts（`basic`）或 Realtime Radar（`priority`）。当前方案按钮不可点击；升级立即生效，符合条件的降级在当前账期结束时执行。
+- `/ready` 会确认提醒已经启用；priority 用户还会看到前往库存页面的按钮。
+- `/deliver-to/nl` 和 `/deliver-to/fr` 按配送范围筛选零售商。匿名、未订阅和只有 basic 权益的用户都不能读取实时库存。
+- 界面语言（`zh`、`nl`、`en`）和配送国家相互独立，可从 header 切换；Profile 中的偏好是账户持久化默认语言。
 
-- `server/server.ts` 同时提供静态 Vite build 和 API。
-- `/api/inventory` 通过 Managed Identity 读取私有 Blob，并做 schema validation、缓存和 rate limit。
-- Auth/session/user 信息使用 Azure Table Storage；尽量少存储个人信息。
-- Stripe integration 使用 hosted Checkout；卡号不会接触 Airco Tracker server。
-- `/api/billing/webhook` 校验 Stripe signature；无签名请求返回 400。
-- `/api/billing/sync-checkout-status` 可在 webhook 延迟时从 Stripe 拉取 checkout/subscription 状态并同步用户权益。
+### 同源 API、auth 和 billing
 
-### Azure 和 CI/CD
+- `server/server.ts` 同时提供 Vite build 和同源 API。`/api/inventory` 通过 Managed Identity 读取私有 Blob，验证 schema version `1`，缓存读取，并对低成本滥用做 rate limit。
+- Auth codes、sessions 和 canonical user profiles 存在 Azure Table Storage。验证码会 hash、过期，并受重发冷却和尝试次数限制，再通过 Azure Communication Services Email 投递。
+- Stripe 使用托管 Checkout 和 Customer Portal；卡号永远不会接触 Airco Tracker server。只有通过 signature 校验的 webhook 才能写订阅状态。
+- 登录用户从 Checkout 返回时，`/api/billing/sync-checkout-status` 可以修复延迟 webhook。方案变更根据真实 Stripe Price 解析，不信任过期 metadata。
+- 取消订阅后，权益保留到已付款周期结束；仍有有效订阅权益时不能注销账户。
 
-- 使用 Azure Container Apps Consumption，scale 0–2。
-- 复用后端项目的 Container Apps Environment、ACR、Storage Account、resource group 和 runtime UAMI。
-- GitHub Actions 使用 OIDC；没有 `AZURE_CREDENTIALS` secret 或 client secret。
-- Push 到 `main` 部署生产；docs-only push 不部署。
+## 邮件订阅者投影契约
 
-## 当前已知状态
+每个 Azure-backed 用户都有稳定 UUID `userId`。新用户使用随机 UUID；旧 rows 通过 optimistic concurrency 确定性回填。修改邮箱不会改变 `userId`，因此订阅和偏好仍属于同一账户。
 
-- Stripe test mode 已配置四个 Price ID：
-  - `weekly_basic`: €10/week
-  - `weekly_priority`: €20/week
-  - `monthly_basic`: €15/month
-  - `monthly_priority`: €30/month
-- Stripe webhook endpoint：`https://airco-tracker.eu/api/billing/webhook`
-- 需要订阅事件：
-  - `checkout.session.completed`
-  - `customer.subscription.created`
-  - `customer.subscription.updated`
-  - `customer.subscription.deleted`
-- 最近确认：
-  - `/health` 生产返回 200。
-  - `/ready?lang=zh` 生产返回 200。
-  - 无签名 webhook 生产返回 400。
-  - 未登录 checkout sync API 生产返回 401。
-  - 用户用测试卡购买 `monthly_priority` 后刷新可看到订阅权益。
+注册、已验证邮箱/语言/国家变更、Stripe 订阅事件、取消订阅和账号删除都会同步 `alertrecipients` Table。该投影：
 
-## 候选下一步
+- 固定使用 32 个 partitions：`r-00`…`r-1f`；
+- 使用 `userId` 的 SHA-256 最后一个 byte 对 32 取模计算 shard；
+- 只保存当前邮件投递字段、语言、配送国家、权益状态和同步 metadata；
+- 不保存昵称、Stripe customer/subscription ID、支付方式或卡信息；
+- 随账户注销一并删除。
 
-这些是候选项，不代表自动授权：
+后端每日 reconciler 会从 canonical `users` 修复跨表部分失败和旧数据；它不位于每条事件的 hot path。修改 shard 数量或 projection schema 必须在两个仓库中做协调、有版本的迁移。
 
-1. 按 `docs/SUBSCRIPTION_BILLING_TEST_PLAN.md` 继续测试取消订阅、不同方案权益、支付失败、Test Clock 到期和方案变更。
-2. 实现或确认更改订阅方案：basic → priority 应立即生效；priority → basic 应在当前周期结束后生效。
-3. 为 iDEAL、PayPal 或其它支付方式扩展 Stripe Checkout。
-4. 继续修复 `/deliver-to/*` 语言切换和 profile/ready 相关细节时，保持三语 UI 和中英双语文档同步。
+## Azure 部署和 sender domain 选择
 
-## 标准本地验证
+- 本应用复用后端的 Container Apps Environment、ACR、Storage Account、共享 runtime identity 和 ACS resources。
+- GitHub Actions 使用限制到分支的 OIDC 和不可变 commit-SHA images；没有 Azure client secret 或 `AZURE_CREDENTIALS` secret。
+- `scripts/deploy.sh` 通过准确的 `ACS_EMAIL_DOMAIN_NAME` 选择 ACS Email Domain，默认使用 `AzureManagedDomain`；`EMAIL_DOMAIN_ID` 仍可作为明确的应急/管理覆盖。
+- 以后验证 customer-managed ACS sender 后，先在后端 foundation 中连接它，再在两个仓库设置相同的 `ACS_EMAIL_DOMAIN_NAME` GitHub variable，然后部署。在此之前，Azure-managed domain 始终是安全 fallback。
+- Stripe secrets 只能由 GitHub Actions 或明确配置的本地环境提供。缺少 Stripe 配置时，不要手工部署生产。
+
+## 当前验证状态
+
+详细的订阅/支付矩阵维护在 `docs/SUBSCRIPTION_BILLING_TEST_PLAN.md` 和 `.en.md`。生产已经测试：首次 Checkout、成功/失败测试卡、3D Secure 成功/失败、到期取消、升级、预约降级、切换扣费周期、库存权益 gating、Profile 修改、语言/国家切换、邮箱修改、登出后重新登录，以及账户注销规则。
+
+本次 Service Bus 协调发布在标记完成前必须运行：
 
 ```bash
 cd ~/airco-tracking-web
@@ -95,15 +83,19 @@ pnpm test
 pnpm typecheck
 pnpm build
 bash -n scripts/*.sh
+az bicep build --file infra/app.bicep --stdout >/dev/null
 git diff --check
 ```
 
-生产模式检查：
+随后部署不可变 frontend SHA，对生产运行 `scripts/verify-deployment.mjs`，并确认注册、Profile 和订阅写入会用同一个稳定 user UUID 同步 `alertrecipients`。Rollout 后在这里记录最终 frontend SHA 和 GitHub run。
 
-```bash
-PORT=4174 INVENTORY_FILE=test-fixtures/inventory.sample.json I18N_FILE=test-fixtures/i18n.local.json pnpm start
-node scripts/verify-deployment.mjs http://127.0.0.1:4174
-```
+## 已知限制和下一步
+
+1. Google、Apple、Microsoft 登录按钮只是 UI placeholder；当前只有邮箱验证码登录可用。
+2. Billing 仍处于 Stripe test mode，且先支持信用卡。iDEAL/Wero 或其它支付方式需要单独的产品和合规评估。
+3. Billing 测试文档中仍有部分延迟/重复 webhook 和订阅到期边界场景尚未执行。
+4. 当前 Azure-managed ACS sender quota 只适合低流量测试。广泛开放注册前必须验证 customer-managed sender 并提高 quota。
+5. 目前没有 committed Playwright 视觉/无障碍回归套件，也没有针对连续 frontend/API 故障的独立生产告警。
 
 ## 恢复 checklist
 
@@ -118,13 +110,4 @@ pnpm typecheck
 pnpm build
 ```
 
-然后：
-
-1. 阅读 `CLAUDE.md`、`AGENTS.md` 和本 handoff。
-2. 处理时效性信息前，重新验证 GitHub Actions variables、Azure 状态和生产响应。
-3. UI work 需要浏览器验证 1440×900 和一个窄屏断点。
-4. Server work 需要生产模式 API QA。
-5. Schema work 必须和后端仓库协调。
-6. 有意义的工作、部署或 blocker 变化后，同步更新中英双语 handoff。
-
-不要在本文件记录个人数据、secret 值、token、本机身份或不必要的 Azure 标识符。
+之后先验证当前 GitHub Actions variables、Azure resource names、Stripe test-mode 配置、生产响应和后端 projection contract。UI work 需要检查 1440×900 和一个窄屏断点；server/schema work 必须和 `~/airco-tracking` 协调。

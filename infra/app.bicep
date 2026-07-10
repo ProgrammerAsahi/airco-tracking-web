@@ -12,6 +12,7 @@ param authEmailFrom string = ''
 param authUsersTableName string = 'users'
 param authCodesTableName string = 'authcodes'
 param authSessionsTableName string = 'authsessions'
+param authAlertRecipientsTableName string = 'alertrecipients'
 
 param appBaseUrl string = 'https://airco-tracker.eu'
 @secure()
@@ -76,6 +77,7 @@ var baseEnv = [
   { name: 'AUTH_USERS_TABLE', value: authUsersTableName }
   { name: 'AUTH_CODES_TABLE', value: authCodesTableName }
   { name: 'AUTH_SESSIONS_TABLE', value: authSessionsTableName }
+  { name: 'AUTH_ALERT_RECIPIENTS_TABLE', value: authAlertRecipientsTableName }
   { name: 'AUTH_EMAIL_ENDPOINT', value: empty(communicationServiceName) ? '' : 'https://${communicationServiceName}.communication.azure.com' }
   { name: 'AUTH_EMAIL_FROM', value: authEmailFrom }
   { name: 'AUTH_COOKIE_SECURE', value: 'true' }

@@ -6,10 +6,14 @@ import {
   subscriptionIsActive,
   type PaidSubscriptionPlan,
   type SubscriptionStatus,
-  type UserProfile,
 } from "../shared/auth.js";
 import type { Lang } from "../shared/i18n.js";
-import { AuthHttpError, type AuthService, type StripeSubscriptionSnapshot } from "./auth.js";
+import {
+  AuthHttpError,
+  type AuthService,
+  type StoredUserProfile,
+  type StripeSubscriptionSnapshot,
+} from "./auth.js";
 
 type StripeBillingOptions = {
   appBaseUrl?: string;
@@ -74,18 +78,18 @@ export class StripeBillingService {
       mode: "subscription",
       payment_method_types: ["card"],
       customer: customerId,
-      client_reference_id: user.email,
+      client_reference_id: user.userId,
       line_items: [{ price, quantity: 1 }],
       success_url: `${baseUrl}/ready?lang=${values.lang}&checkout=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/subscribe?lang=${values.lang}&checkout=cancelled`,
       subscription_data: {
         metadata: {
-          airco_user_email: user.email,
+          airco_user_id: user.userId,
           airco_plan: values.plan,
         },
       },
       metadata: {
-        airco_user_email: user.email,
+        airco_user_id: user.userId,
         airco_plan: values.plan,
       },
     });
@@ -96,7 +100,7 @@ export class StripeBillingService {
 
   private async changeActiveSubscription(
     request: IncomingMessage,
-    user: UserProfile,
+    user: StoredUserProfile,
     plan: PaidSubscriptionPlan,
     price: string,
     lang: Lang,
@@ -132,7 +136,8 @@ export class StripeBillingService {
       }],
       metadata: {
         ...subscription.metadata,
-        airco_user_email: user.email,
+        airco_user_email: "",
+        airco_user_id: user.userId,
         airco_plan: plan,
       },
       payment_behavior: "error_if_incomplete",
@@ -159,7 +164,7 @@ export class StripeBillingService {
 
   private async createSubscriptionUpdatePortalSession(
     request: IncomingMessage,
-    user: UserProfile,
+    user: StoredUserProfile,
     subscription: Stripe.Subscription,
     item: Stripe.SubscriptionItem,
     price: string,
@@ -201,7 +206,7 @@ export class StripeBillingService {
 
   private async scheduleSubscriptionDowngrade(
     request: IncomingMessage,
-    user: UserProfile,
+    user: StoredUserProfile,
     subscription: Stripe.Subscription,
     plan: PaidSubscriptionPlan,
     price: string,
@@ -224,7 +229,8 @@ export class StripeBillingService {
       items: [{ price: currentPrice, quantity: item.quantity || 1 }],
       metadata: {
         ...subscription.metadata,
-        airco_user_email: user.email,
+        airco_user_email: "",
+        airco_user_id: user.userId,
         airco_plan: user.subscriptionPlan,
       },
       start_date: currentPeriodStart,
@@ -235,7 +241,8 @@ export class StripeBillingService {
       items: [{ price, quantity: item.quantity || 1 }],
       metadata: {
         ...subscription.metadata,
-        airco_user_email: user.email,
+        airco_user_email: "",
+        airco_user_id: user.userId,
         airco_plan: plan,
       },
       start_date: currentPeriodEnd,
@@ -254,7 +261,7 @@ export class StripeBillingService {
     return { url: `${baseUrl}/ready?lang=${lang}&subscription=scheduled` };
   }
 
-  async syncCheckoutStatus(request: IncomingMessage, values: { sessionId?: unknown }): Promise<UserProfile> {
+  async syncCheckoutStatus(request: IncomingMessage, values: { sessionId?: unknown }): Promise<StoredUserProfile> {
     const user = await this.auth.requireUser(request);
     const stripe = this.requireStripe();
     const sessionId = typeof values.sessionId === "string" ? values.sessionId.trim() : "";
@@ -278,7 +285,7 @@ export class StripeBillingService {
     throw new AuthHttpError(400, "stripe_subscription_not_found");
   }
 
-  async cancelSubscription(request: IncomingMessage): Promise<UserProfile> {
+  async cancelSubscription(request: IncomingMessage): Promise<StoredUserProfile> {
     const stripe = this.stripe;
     const user = await this.auth.requireUser(request);
     if (!user.stripeSubscriptionId) return this.auth.cancelSubscription(request);
@@ -290,6 +297,14 @@ export class StripeBillingService {
     const snapshot = await this.snapshotFromSubscription(subscription);
     const updated = await this.auth.applyStripeSubscriptionSnapshot(snapshot);
     return updated ?? this.auth.cancelSubscription(request);
+  }
+
+  async syncCustomerProfile(user: StoredUserProfile): Promise<void> {
+    if (!this.stripe || !user.stripeCustomerId) return;
+    await this.stripe.customers.update(user.stripeCustomerId, {
+      email: user.email,
+      metadata: { airco_user_email: "", airco_user_id: user.userId },
+    });
   }
 
   async handleWebhook(request: IncomingMessage): Promise<{ received: true }> {
@@ -320,7 +335,13 @@ export class StripeBillingService {
       || event.type === "customer.subscription.updated"
       || event.type === "customer.subscription.deleted"
     ) {
-      await this.syncSubscription(event.data.object as Stripe.Subscription);
+      const eventSubscription = event.data.object as Stripe.Subscription;
+      // Stripe doesn't guarantee webhook ordering. Re-read non-terminal subscriptions so
+      // an older event can never overwrite the latest plan/payment state.
+      const subscription = event.type === "customer.subscription.deleted"
+        ? eventSubscription
+        : await this.retrieveSubscription(eventSubscription.id);
+      await this.syncSubscription(subscription);
       return { received: true };
     }
 
@@ -332,13 +353,13 @@ export class StripeBillingService {
     return this.stripe;
   }
 
-  private async ensureStripeCustomer(request: IncomingMessage, user: UserProfile): Promise<string> {
+  private async ensureStripeCustomer(request: IncomingMessage, user: StoredUserProfile): Promise<string> {
     const stripe = this.requireStripe();
     if (user.stripeCustomerId) {
       try {
         await stripe.customers.update(user.stripeCustomerId, {
           email: user.email,
-          metadata: { airco_user_email: user.email },
+          metadata: { airco_user_email: "", airco_user_id: user.userId },
         });
         return user.stripeCustomerId;
       } catch (error) {
@@ -348,20 +369,20 @@ export class StripeBillingService {
 
     const customer = await stripe.customers.create({
       email: user.email,
-      metadata: { airco_user_email: user.email },
+      metadata: { airco_user_id: user.userId },
     });
     await this.auth.attachStripeCustomer(request, customer.id);
     return customer.id;
   }
 
-  private async syncCheckoutSession(session: Stripe.Checkout.Session): Promise<UserProfile | null> {
+  private async syncCheckoutSession(session: Stripe.Checkout.Session): Promise<StoredUserProfile | null> {
     const subscriptionId = stripeObjectId(session.subscription);
     if (!subscriptionId) return null;
     const subscription = await this.retrieveSubscription(subscriptionId);
     return this.syncSubscription(subscription, session.metadata?.airco_plan);
   }
 
-  private async syncSubscription(subscription: Stripe.Subscription, fallbackPlan?: unknown): Promise<UserProfile | null> {
+  private async syncSubscription(subscription: Stripe.Subscription, fallbackPlan?: unknown): Promise<StoredUserProfile | null> {
     const snapshot = await this.snapshotFromSubscription(subscription, fallbackPlan);
     return this.auth.applyStripeSubscriptionSnapshot(snapshot);
   }
@@ -430,20 +451,26 @@ export class StripeBillingService {
     return `${proto}://${hostname}`;
   }
 
-  private assertCheckoutSessionBelongsToUser(session: Stripe.Checkout.Session, user: UserProfile): void {
+  private assertCheckoutSessionBelongsToUser(session: Stripe.Checkout.Session, user: StoredUserProfile): void {
     const customerId = stripeObjectId(session.customer);
     if (user.stripeCustomerId && customerId && user.stripeCustomerId !== customerId) {
+      throw new AuthHttpError(403, "checkout_session_mismatch");
+    }
+    const metadataUserId = typeof session.metadata?.airco_user_id === "string"
+      ? session.metadata.airco_user_id.trim().toLowerCase()
+      : "";
+    if (metadataUserId && metadataUserId !== user.userId) {
       throw new AuthHttpError(403, "checkout_session_mismatch");
     }
     const metadataEmail = typeof session.metadata?.airco_user_email === "string"
       ? session.metadata.airco_user_email.trim().toLowerCase()
       : "";
-    if (metadataEmail && metadataEmail !== user.email) {
+    if (!metadataUserId && metadataEmail && metadataEmail !== user.email) {
       throw new AuthHttpError(403, "checkout_session_mismatch");
     }
   }
 
-  private assertSubscriptionBelongsToUser(subscription: Stripe.Subscription, user: UserProfile): void {
+  private assertSubscriptionBelongsToUser(subscription: Stripe.Subscription, user: StoredUserProfile): void {
     const customerId = stripeObjectId(subscription.customer);
     if (user.stripeCustomerId && customerId && user.stripeCustomerId !== customerId) {
       throw new AuthHttpError(403, "stripe_subscription_mismatch");

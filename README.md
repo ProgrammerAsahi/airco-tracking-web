@@ -21,11 +21,18 @@ Browser
                  │      └─ Managed Identity → private inventory.json Blob
                  ├─ POST /api/billing/create-checkout-session
                  │      └─ Stripe Checkout, card payments in the first billing pass
+                 ├─ Auth / profile / Stripe webhook 持久化
+                 │      ├─ users（完整用户资料）
+                 │      └─ alertrecipients（32 分片、最小邮件投影）
                  └─ embeds escaped, inert i18n JSON
                         └─ Managed Identity → Azure Table Storage
 ```
 
 该应用复用 `airco-tracking` 后端项目已有的 Container Apps Environment、ACR、Storage Account 和运行时身份，并只在同一个 resource group 中额外创建一个 `airco-tracking-web` Container App。
+
+用户以稳定 UUID `userId` 标识，因此修改邮箱不会改变账户身份。每次注册、资料/偏好更新、Stripe 订阅 webhook、取消订阅和账号删除都会同步维护 `alertrecipients` Table。该投影按 `sha256(userId) % 32` 分片，只保存邮件投递所需的邮箱、语言、配送国家和订阅状态；不保存昵称、Stripe ID、支付方式或卡信息。未配置 Azure Storage 的本地开发仍使用内存用户存储，不依赖该投影。
+
+生产 Web hostnames `airco-tracker.eu` 和 `www.airco-tracker.eu` 已持久化在 `infra/app.bicep`。登录邮件会选择明确的 ACS Email Domain：`ACS_EMAIL_DOMAIN_NAME` 默认是 `AzureManagedDomain`；以后验证 customer-managed sender 后也能明确切换，不依赖 Azure resources 的枚举顺序。
 
 ## 本地开发
 
@@ -60,13 +67,13 @@ node scripts/verify-deployment.mjs http://127.0.0.1:4174
 ./scripts/bootstrap-github-oidc.sh
 ```
 
-推送到 `main` 会运行测试、编译 TypeScript 和 Bicep、在现有 ACR 中构建不可变镜像、部署 `airco-tracking-web`，并验证 `/health`、严格 CSP 下的 i18n HTML contract 和 `/api/inventory`。纯 Markdown/docs 改动被部署 workflow 忽略，不会触发生产部署。
+符合条件的代码 push 到 `main` 会运行测试、编译 TypeScript 和 Bicep、在现有 ACR 中构建不可变镜像、部署 `airco-tracking-web`，并验证 `/health`、严格 CSP 下的 i18n HTML contract 和 `/api/inventory`。纯 Markdown/docs 改动被部署 workflow 忽略，不会触发生产部署。
 
 - `.github/workflows/ci.yml`：验证 pull request。
 - `.github/workflows/deploy.yml`：部署 `main` 到 Azure。
 - `infra/app.bicep`：Container App，包含外部 HTTPS ingress、scale-to-zero、Managed Identity 和私有 ACR pull。
 
-## 运行时配置
+## 部署和运行时配置
 
 | Variable | Purpose |
 | --- | --- |
@@ -74,6 +81,8 @@ node scripts/verify-deployment.mjs http://127.0.0.1:4174
 | `AZURE_STORAGE_CONTAINER` | 默认 `airco-tracker` |
 | `AZURE_INVENTORY_BLOB` | 默认 `inventory.json` |
 | `AZURE_CLIENT_ID` | 用户分配的运行时 identity |
+| `ACS_EMAIL_DOMAIN_NAME` | 部署时为登录邮件选择的准确 ACS Email Domain，默认 `AzureManagedDomain` |
+| `AUTH_ALERT_RECIPIENTS_TABLE` | 分片邮件订阅者投影表，默认 `alertrecipients` |
 | `INVENTORY_CACHE_SECONDS` | Blob 读取缓存，默认 30 秒 |
 | `INVENTORY_FILE` | 仅本地使用的文件覆盖 |
 | `I18N_FILE` | 仅本地使用的翻译 JSON 覆盖 |

@@ -5,6 +5,7 @@ PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RESOURCE_GROUP="${AZURE_RESOURCE_GROUP:-airco-tracker-rg}"
 GITHUB_REPOSITORY="${GITHUB_REPOSITORY:-ProgrammerAsahi/airco-tracking-web}"
 GITHUB_BRANCH="${GITHUB_BRANCH:-main}"
+ACS_EMAIL_DOMAIN_NAME="${ACS_EMAIL_DOMAIN_NAME:-AzureManagedDomain}"
 
 command -v az >/dev/null || { echo "Azure CLI (az) is required." >&2; exit 1; }
 command -v gh >/dev/null || { echo "GitHub CLI (gh) is required." >&2; exit 1; }
@@ -30,5 +31,6 @@ gh variable set AZURE_CLIENT_ID --repo "$GITHUB_REPOSITORY" --body "$(output cli
 gh variable set AZURE_TENANT_ID --repo "$GITHUB_REPOSITORY" --body "$(output tenantId)"
 gh variable set AZURE_SUBSCRIPTION_ID --repo "$GITHUB_REPOSITORY" --body "$(output subscriptionId)"
 gh variable set AZURE_RESOURCE_GROUP --repo "$GITHUB_REPOSITORY" --body "$RESOURCE_GROUP"
+gh variable set ACS_EMAIL_DOMAIN_NAME --repo "$GITHUB_REPOSITORY" --body "$ACS_EMAIL_DOMAIN_NAME"
 
 echo "GitHub OIDC configured for $GITHUB_REPOSITORY on branch $GITHUB_BRANCH."

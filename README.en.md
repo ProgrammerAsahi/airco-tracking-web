@@ -21,11 +21,18 @@ Browser
                  │      └─ Managed Identity → private inventory.json Blob
                  ├─ POST /api/billing/create-checkout-session
                  │      └─ Stripe Checkout, card payments in the first billing pass
+                 ├─ Auth / profile / Stripe webhook persistence
+                 │      ├─ users (full user profile)
+                 │      └─ alertrecipients (32-shard minimal mail projection)
                  └─ embeds escaped, inert i18n JSON
                         └─ Managed Identity → Azure Table Storage
 ```
 
 The app reuses the existing Container Apps Environment, ACR, Storage Account, and runtime identity from `airco-tracking`. It creates only one additional Container App in the same resource group.
+
+Users have a stable UUID `userId`, so changing an email address does not change account identity. Registration, profile/preference updates, Stripe subscription webhooks, cancellation, and account deletion all synchronize the `alertrecipients` Table. This projection is sharded by `sha256(userId) % 32` and stores only the email, language, delivery country, and subscription state required for mail delivery; it excludes nicknames, Stripe IDs, payment methods, and card data. Local development without Azure Storage continues to use the in-memory user store and does not depend on this projection.
+
+The production web hostnames `airco-tracker.eu` and `www.airco-tracker.eu` are persisted in `infra/app.bicep`. Login mail uses an explicitly selected ACS Email Domain: `ACS_EMAIL_DOMAIN_NAME` defaults to `AzureManagedDomain`, while a verified customer-managed sender can be selected later without relying on resource enumeration order.
 
 ## Local development
 
@@ -60,13 +67,13 @@ The repository uses GitHub OIDC rather than a client secret. The one-time bootst
 ./scripts/bootstrap-github-oidc.sh
 ```
 
-Every push to `main` runs tests, compiles TypeScript and Bicep, builds an immutable image in the existing ACR, deploys `airco-tracking-web`, and verifies `/health`, the strict-CSP i18n HTML contract, and `/api/inventory`. Markdown/docs-only changes are ignored by the deployment workflow and do not trigger a production deployment.
+Every eligible code push to `main` runs tests, compiles TypeScript and Bicep, builds an immutable image in the existing ACR, deploys `airco-tracking-web`, and verifies `/health`, the strict-CSP i18n HTML contract, and `/api/inventory`. Markdown/docs-only changes are ignored by the deployment workflow and do not trigger a production deployment.
 
 - `.github/workflows/ci.yml`: validates pull requests.
 - `.github/workflows/deploy.yml`: deploys `main` to Azure.
 - `infra/app.bicep`: Container App with external HTTPS ingress, scale-to-zero, Managed Identity, and private ACR pull.
 
-## Runtime configuration
+## Deployment and runtime configuration
 
 | Variable | Purpose |
 | --- | --- |
@@ -74,6 +81,8 @@ Every push to `main` runs tests, compiles TypeScript and Bicep, builds an immuta
 | `AZURE_STORAGE_CONTAINER` | Defaults to `airco-tracker` |
 | `AZURE_INVENTORY_BLOB` | Defaults to `inventory.json` |
 | `AZURE_CLIENT_ID` | User-assigned runtime identity |
+| `ACS_EMAIL_DOMAIN_NAME` | Deployment-time exact linked ACS Email Domain used for login mail; defaults to `AzureManagedDomain` |
+| `AUTH_ALERT_RECIPIENTS_TABLE` | Sharded email-recipient projection table, defaults to `alertrecipients` |
 | `INVENTORY_CACHE_SECONDS` | Blob read cache, defaults to 30 seconds |
 | `INVENTORY_FILE` | Local-only file override |
 | `I18N_FILE` | Local-only translation JSON override |

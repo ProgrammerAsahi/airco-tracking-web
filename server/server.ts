@@ -9,6 +9,7 @@ import {
   authServiceFromEnvironment,
   clearSessionCookie,
   setSessionCookie,
+  type StoredUserProfile,
 } from "./auth.js";
 import { parseInventory, type InventorySnapshot } from "./inventory.js";
 import { buildI18nDataElement, type TranslationMap } from "../shared/i18n.js";
@@ -129,9 +130,15 @@ function sendJson(response: ServerResponse, status: number, value: unknown): voi
   response.end(body);
 }
 
-function publicUser(user: UserProfile | null): UserProfile | null {
+function publicUser(user: StoredUserProfile | null): UserProfile | null {
   if (!user) return null;
-  const { stripeCustomerId: _stripeCustomerId, stripeSubscriptionId: _stripeSubscriptionId, ...safeUser } = user;
+  const {
+    userId: _userId,
+    profileRevision: _profileRevision,
+    stripeCustomerId: _stripeCustomerId,
+    stripeSubscriptionId: _stripeSubscriptionId,
+    ...safeUser
+  } = user;
   return safeUser;
 }
 
@@ -352,6 +359,11 @@ async function handleAuthRequest(request: IncomingMessage, response: ServerRespo
         email: body.email,
         code: body.code,
       });
+      try {
+        await getBillingService().syncCustomerProfile(user);
+      } catch {
+        console.error("stripe_customer_profile_sync_deferred");
+      }
       sendJson(response, 200, { user: publicUser(user), needsOnboarding: !user.nickname });
       return;
     }
