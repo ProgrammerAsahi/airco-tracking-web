@@ -32,6 +32,8 @@ Browser
 
 用户以稳定 UUID `userId` 标识，因此修改邮箱不会改变账户身份。每次注册、资料/偏好更新、Stripe 订阅 webhook、取消订阅和账号删除都会同步维护 `alertrecipients` Table。该投影按 `sha256(userId) % 32` 分片，只保存邮件投递所需的邮箱、语言、配送国家和订阅状态；不保存昵称、Stripe ID、支付方式或卡信息。未配置 Azure Storage 的本地开发仍使用内存用户存储，不依赖该投影。
 
+Azure-backed canonical 用户数据使用 `id:<uuid>` profile row，并通过 `email:<base64url>`、`stripe:<base64url>` index rows 定位账户。ETag/CAS 和单调 revision 防止验证码重复消费、并发资料覆盖和旧 webhook/projection 回写；修改已验证邮箱时保留 UUID，并以 transaction 替换邮箱索引。Public API 不返回 UUID、revision 或 Stripe identifiers。
+
 生产 Web hostnames `airco-tracker.eu` 和 `www.airco-tracker.eu` 已持久化在 `infra/app.bicep`。登录邮件会选择明确的 ACS Email Domain：`ACS_EMAIL_DOMAIN_NAME` 默认是 `AzureManagedDomain`；以后验证 customer-managed sender 后也能明确切换，不依赖 Azure resources 的枚举顺序。
 
 ## 本地开发

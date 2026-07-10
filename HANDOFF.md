@@ -13,7 +13,7 @@ Update this English file and `HANDOFF.zh.md` together whenever current status, v
 
 Operate the public Airco Tracker portal, authenticated account experience, Stripe subscription flow, and country-aware inventory dashboard at `https://airco-tracker.eu/`. Anonymous users can view the portal and pricing; inventory under `/deliver-to/<country>` requires an active Realtime Radar (`priority`) entitlement.
 
-The current coordinated frontend/backend change adds a stable user UUID and a minimal, 32-shard `alertrecipients` projection for the backend Azure Service Bus alert pipeline. Subscriber growth must not make the inventory scanner enumerate the canonical `users` table for every stock event.
+The deployed coordinated frontend/backend release adds a stable user UUID and a minimal, 32-shard `alertrecipients` projection for the backend Azure Service Bus alert pipeline. Subscriber growth no longer makes the inventory scanner enumerate the canonical `users` table for every stock event.
 
 ## Repository and production
 
@@ -23,7 +23,9 @@ The current coordinated frontend/backend change adds a stable user UUID and a mi
 - Container App: `airco-tracking-web`
 - Azure resource group: `airco-tracker-rg`
 - Backend repository: `https://github.com/ProgrammerAsahi/airco-tracking`
-- Runtime image: `airco-tracking-web:<full-git-sha>` in the shared private ACR
+- Deployed commit/image: `715acf223377d6b450a2a594e32eee0515a85797` in the shared private ACR
+- Ready revision: `airco-tracking-web--0000041`; provisioning state `Succeeded`
+- Successful deployment workflow run: `29061171454`
 - Deployment workflow: `.github/workflows/deploy.yml`; Markdown/docs-only pushes do not deploy
 
 Both custom web hostnames and their existing managed-certificate names are declared in `infra/app.bicep`. Do not remove those `customDomains` entries: an application Bicep deployment would otherwise clear the bindings.
@@ -44,6 +46,7 @@ Both custom web hostnames and their existing managed-certificate names are decla
 
 - `server/server.ts` serves the Vite build and same-origin APIs. `/api/inventory` reads the private Blob through Managed Identity, validates schema version `1`, caches reads, and rate-limits low-effort abuse.
 - Auth codes, sessions, and canonical user profiles are stored in Azure Table Storage. Codes are hashed, expire, have a resend cooldown and attempt limit, and are delivered through Azure Communication Services Email.
+- The canonical `users` partition uses an `id:<uuid>` profile row plus `email:<base64url>` and `stripe:<base64url>` index rows. ETag/CAS protects codes and profile mutations; monotonic `profileRevision`/`sourceRevision` values reject stale writes. Verified email changes preserve the UUID and transactionally replace the email index.
 - Stripe uses hosted Checkout and Customer Portal; card numbers never touch the Airco Tracker server. Webhooks are signature-verified before subscription state is written.
 - `/api/billing/sync-checkout-status` repairs a delayed Checkout webhook after the authenticated user returns. Plan changes are resolved from the actual Stripe Price rather than stale metadata.
 - Subscription cancellation preserves entitlement through the paid period. Account deletion is rejected while an active subscription still grants benefits.
@@ -51,6 +54,8 @@ Both custom web hostnames and their existing managed-certificate names are decla
 ## Alert-recipient projection contract
 
 Every Azure-backed user has a stable UUID `userId`. New users receive a random UUID; legacy rows deterministically backfill one with optimistic concurrency. Changing email preserves `userId`, so subscription and preference state remain attached to the same account.
+
+Legacy email-key rows migrate to the UUID model deterministically. Public API responses strip the UUID, revision fields, and Stripe identifiers. Production fails closed if ACS is unavailable or canonical identity/entitlement cannot be proven.
 
 Registration, verified-email/language/country changes, Stripe subscription events, cancellation, and account deletion synchronize the `alertrecipients` Table. The projection:
 
@@ -65,6 +70,7 @@ The backend daily reconciler repairs partial cross-table failures and legacy row
 ## Azure deployment and sender-domain selection
 
 - The app reuses the backend Container Apps Environment, ACR, Storage Account, shared runtime identity, and ACS resources.
+- The old storage-account-wide Table contributor assignment has been removed. The shared identity now has only the required per-table roles; real production OTP login, profile/projection writes, logout, retention, and scanner execution passed after narrowing.
 - GitHub Actions uses branch-restricted OIDC and immutable commit-SHA images; no Azure client secret or `AZURE_CREDENTIALS` secret exists.
 - `scripts/deploy.sh` selects an ACS Email Domain by exact `ACS_EMAIL_DOMAIN_NAME`, defaulting to `AzureManagedDomain`. `EMAIL_DOMAIN_ID` remains an explicit emergency/administrative override.
 - If a customer-managed ACS sender is later verified, link it in the backend foundation first, set the same `ACS_EMAIL_DOMAIN_NAME` GitHub variable in both repositories, and deploy. The Azure-managed domain remains the safe fallback until then.
@@ -74,20 +80,13 @@ The backend daily reconciler repairs partial cross-table failures and legacy row
 
 The detailed subscription/payment matrix is maintained in `docs/SUBSCRIPTION_BILLING_TEST_PLAN.md` and `.en.md`. Production testing has covered initial Checkout, successful and failed cards, 3D Secure success/failure, cancellation at period end, upgrade, scheduled downgrade, switching billing interval, inventory entitlement gating, profile changes, language/country changes, email changes, logout/login persistence, and account-deletion rules.
 
-For this coordinated Service Bus release, complete before marking it released:
+The coordinated Service Bus release is deployed and verified:
 
-```bash
-cd ~/airco-tracking-web
-pnpm install --frozen-lockfile
-pnpm test
-pnpm typecheck
-pnpm build
-bash -n scripts/*.sh
-az bicep build --file infra/app.bicep --stdout >/dev/null
-git diff --check
-```
-
-Then deploy the immutable frontend SHA, run `scripts/verify-deployment.mjs` against production, and confirm that registration/profile/subscription writes keep `alertrecipients` synchronized with the same stable user UUID. Record the final frontend SHA and GitHub run here after rollout.
+- CI run `29061171454` passed 59/59 tests, typecheck, production build, shell/Bicep checks, and deployment verification.
+- Production runs immutable image `715acf223377d6b450a2a594e32eee0515a85797` on ready revision `airco-tracking-web--0000041`.
+- `https://airco-tracker.eu/health` and the `www` health endpoint return 200; anonymous `/api/inventory` returns 401.
+- A real production OTP session exercised code creation/consumption, session creation/deletion, canonical user reads, a language write and restore, and `alertrecipients` synchronization after account-wide Table access was removed. All requests returned 200 and the original preference was restored.
+- Backend targeted delivery reached two authorized inboxes, and a later real scanner run completed the restored Service Bus pipeline with zero active/scheduled/dead-letter messages.
 
 ## Known limitations and next work
 

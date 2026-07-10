@@ -32,6 +32,8 @@ The app reuses the existing Container Apps Environment, ACR, Storage Account, an
 
 Users have a stable UUID `userId`, so changing an email address does not change account identity. Registration, profile/preference updates, Stripe subscription webhooks, cancellation, and account deletion all synchronize the `alertrecipients` Table. This projection is sharded by `sha256(userId) % 32` and stores only the email, language, delivery country, and subscription state required for mail delivery; it excludes nicknames, Stripe IDs, payment methods, and card data. Local development without Azure Storage continues to use the in-memory user store and does not depend on this projection.
 
+Azure-backed canonical user data uses an `id:<uuid>` profile row and `email:<base64url>` / `stripe:<base64url>` index rows. ETag/CAS plus monotonic revisions prevent duplicate code consumption, concurrent profile overwrites, and stale webhook/projection writes. A verified email change preserves the UUID and transactionally replaces the email index. Public APIs do not expose UUIDs, revisions, or Stripe identifiers.
+
 The production web hostnames `airco-tracker.eu` and `www.airco-tracker.eu` are persisted in `infra/app.bicep`. Login mail uses an explicitly selected ACS Email Domain: `ACS_EMAIL_DOMAIN_NAME` defaults to `AzureManagedDomain`, while a verified customer-managed sender can be selected later without relying on resource enumeration order.
 
 ## Local development

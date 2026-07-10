@@ -13,7 +13,7 @@
 
 运行位于 `https://airco-tracker.eu/` 的公开 Airco Tracker 门户、登录账户体验、Stripe 订阅流程和按国家筛选的库存 dashboard。匿名用户可以查看门户和订阅价格；`/deliver-to/<country>` 下的实时库存只对仍有 Realtime Radar（`priority`）权益的用户开放。
 
-当前前后端协调改动为每个用户增加稳定 UUID，并维护一个最小化、32 分片的 `alertrecipients` 投影，供后端 Azure Service Bus 提醒流水线使用。Subscriber 增长后，库存 scanner 也不能为了每条库存事件扫描 canonical `users` Table。
+已部署的前后端协调 release 为每个用户增加稳定 UUID，并维护一个最小化、32 分片的 `alertrecipients` 投影，供后端 Azure Service Bus 提醒流水线使用。Subscriber 增长后，库存 scanner 不再为了每条库存事件扫描 canonical `users` Table。
 
 ## 仓库和生产
 
@@ -23,7 +23,9 @@
 - Container App：`airco-tracking-web`
 - Azure resource group：`airco-tracker-rg`
 - Backend repository：`https://github.com/ProgrammerAsahi/airco-tracking`
-- Runtime image：共享私有 ACR 中的 `airco-tracking-web:<full-git-sha>`
+- 已部署 commit/image：共享私有 ACR 中的 `715acf223377d6b450a2a594e32eee0515a85797`
+- Ready revision：`airco-tracking-web--0000041`；provisioning state 为 `Succeeded`
+- 成功的 deployment workflow run：`29061171454`
 - Deployment workflow：`.github/workflows/deploy.yml`；纯 Markdown/docs push 不部署
 
 两个自定义 Web hostname 和现有 managed-certificate 名称都已写入 `infra/app.bicep`。不要删除这些 `customDomains`；否则 application Bicep 部署会清空绑定。
@@ -44,6 +46,7 @@
 
 - `server/server.ts` 同时提供 Vite build 和同源 API。`/api/inventory` 通过 Managed Identity 读取私有 Blob，验证 schema version `1`，缓存读取，并对低成本滥用做 rate limit。
 - Auth codes、sessions 和 canonical user profiles 存在 Azure Table Storage。验证码会 hash、过期，并受重发冷却和尝试次数限制，再通过 Azure Communication Services Email 投递。
+- Canonical `users` partition 使用 `id:<uuid>` profile row，以及 `email:<base64url>`、`stripe:<base64url>` index rows。验证码和 profile mutations 由 ETag/CAS 保护；单调递增的 `profileRevision`/`sourceRevision` 会拒绝旧写入。已验证邮箱变更保留 UUID，并以 transaction 替换邮箱索引。
 - Stripe 使用托管 Checkout 和 Customer Portal；卡号永远不会接触 Airco Tracker server。只有通过 signature 校验的 webhook 才能写订阅状态。
 - 登录用户从 Checkout 返回时，`/api/billing/sync-checkout-status` 可以修复延迟 webhook。方案变更根据真实 Stripe Price 解析，不信任过期 metadata。
 - 取消订阅后，权益保留到已付款周期结束；仍有有效订阅权益时不能注销账户。
@@ -51,6 +54,8 @@
 ## 邮件订阅者投影契约
 
 每个 Azure-backed 用户都有稳定 UUID `userId`。新用户使用随机 UUID；旧 rows 通过 optimistic concurrency 确定性回填。修改邮箱不会改变 `userId`，因此订阅和偏好仍属于同一账户。
+
+旧 email-key rows 会确定性迁移到 UUID 模型。Public API responses 会移除 UUID、revision fields 和 Stripe identifiers。生产环境在 ACS 不可用，或无法证明 canonical identity/entitlement 时会 fail closed。
 
 注册、已验证邮箱/语言/国家变更、Stripe 订阅事件、取消订阅和账号删除都会同步 `alertrecipients` Table。该投影：
 
@@ -65,6 +70,7 @@
 ## Azure 部署和 sender domain 选择
 
 - 本应用复用后端的 Container Apps Environment、ACR、Storage Account、共享 runtime identity 和 ACS resources。
+- 旧的 storage-account 级 Table contributor 已移除。Shared identity 现在只保留所需的逐表权限；缩权后真实生产 OTP 登录、Profile/投影写入、登出、retention 和 scanner execution 全部通过。
 - GitHub Actions 使用限制到分支的 OIDC 和不可变 commit-SHA images；没有 Azure client secret 或 `AZURE_CREDENTIALS` secret。
 - `scripts/deploy.sh` 通过准确的 `ACS_EMAIL_DOMAIN_NAME` 选择 ACS Email Domain，默认使用 `AzureManagedDomain`；`EMAIL_DOMAIN_ID` 仍可作为明确的应急/管理覆盖。
 - 以后验证 customer-managed ACS sender 后，先在后端 foundation 中连接它，再在两个仓库设置相同的 `ACS_EMAIL_DOMAIN_NAME` GitHub variable，然后部署。在此之前，Azure-managed domain 始终是安全 fallback。
@@ -74,20 +80,13 @@
 
 详细的订阅/支付矩阵维护在 `docs/SUBSCRIPTION_BILLING_TEST_PLAN.md` 和 `.en.md`。生产已经测试：首次 Checkout、成功/失败测试卡、3D Secure 成功/失败、到期取消、升级、预约降级、切换扣费周期、库存权益 gating、Profile 修改、语言/国家切换、邮箱修改、登出后重新登录，以及账户注销规则。
 
-本次 Service Bus 协调发布在标记完成前必须运行：
+本次 Service Bus 协调 release 已部署并验证：
 
-```bash
-cd ~/airco-tracking-web
-pnpm install --frozen-lockfile
-pnpm test
-pnpm typecheck
-pnpm build
-bash -n scripts/*.sh
-az bicep build --file infra/app.bicep --stdout >/dev/null
-git diff --check
-```
-
-随后部署不可变 frontend SHA，对生产运行 `scripts/verify-deployment.mjs`，并确认注册、Profile 和订阅写入会用同一个稳定 user UUID 同步 `alertrecipients`。Rollout 后在这里记录最终 frontend SHA 和 GitHub run。
+- CI run `29061171454` 通过 59/59 tests、typecheck、production build、shell/Bicep checks 和 deployment verification。
+- 生产在 ready revision `airco-tracking-web--0000041` 运行 immutable image `715acf223377d6b450a2a594e32eee0515a85797`。
+- `https://airco-tracker.eu/health` 和 `www` health 均返回 200；匿名 `/api/inventory` 返回 401。
+- 移除 account-wide Table 权限后，真实生产 OTP session 覆盖 code 创建/消费、session 创建/删除、canonical user 读取、语言写入并恢复，以及 `alertrecipients` 同步；所有请求返回 200，原偏好已恢复。
+- Backend 定向投递到达两个已授权 inbox；之后真实 scanner run 也完整通过恢复后的 Service Bus 流水线，最终 active/scheduled/dead-letter 全为零。
 
 ## 已知限制和下一步
 
