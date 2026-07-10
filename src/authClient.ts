@@ -107,6 +107,23 @@ export async function updatePreferences(values: { languagePreference?: Lang; del
   return response.user;
 }
 
+export async function updateEmailAlerts(enabled: boolean): Promise<UserProfile> {
+  const response = await postJson<AuthSessionResponse>("/api/auth/email-alerts", { enabled });
+  return response.user;
+}
+
+export async function unsubscribeEmailAlerts(token: string): Promise<void> {
+  const response = await fetch(`/api/alerts/unsubscribe?token=${encodeURIComponent(token)}`, {
+    method: "POST",
+    credentials: "omit",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: "List-Unsubscribe=One-Click",
+  });
+  await parseJsonResponse<{ ok: true }>(response);
+}
+
 export async function completePreviewPayment(plan: PaidSubscriptionPlan, paymentMethod: PaymentMethod, details: PreviewPaymentDetails = {}): Promise<UserProfile> {
   const response = await postJson<AuthSessionResponse>("/api/auth/subscription/preview-payment", { plan, paymentMethod, ...details });
   return response.user;

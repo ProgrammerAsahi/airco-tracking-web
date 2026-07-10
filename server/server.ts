@@ -135,6 +135,7 @@ function publicUser(user: StoredUserProfile | null): UserProfile | null {
   const {
     userId: _userId,
     profileRevision: _profileRevision,
+    emailAlertsTokenVersion: _emailAlertsTokenVersion,
     stripeCustomerId: _stripeCustomerId,
     stripeSubscriptionId: _stripeSubscriptionId,
     ...safeUser
@@ -178,6 +179,18 @@ async function readJsonBody(request: IncomingMessage, maxBytes = 4096): Promise<
   } catch {
     throw new AuthHttpError(400, "invalid_json");
   }
+}
+
+async function readTextBody(request: IncomingMessage, maxBytes = 4096): Promise<string> {
+  const chunks: Buffer[] = [];
+  let total = 0;
+  for await (const chunk of request) {
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    total += buffer.byteLength;
+    if (total > maxBytes) throw new AuthHttpError(413, "request_too_large");
+    chunks.push(buffer);
+  }
+  return Buffer.concat(chunks).toString("utf8");
 }
 
 function rejectMethod(response: ServerResponse, allowed: string[]): void {
@@ -382,6 +395,17 @@ async function handleAuthRequest(request: IncomingMessage, response: ServerRespo
       return;
     }
 
+    if (url.pathname === "/api/auth/email-alerts") {
+      if (method !== "POST") {
+        rejectMethod(response, ["POST"]);
+        return;
+      }
+      const body = await readJsonBody(request);
+      const user = await auth.updateEmailAlerts(request, body.enabled);
+      sendJson(response, 200, { user: publicUser(user), needsOnboarding: !user.nickname });
+      return;
+    }
+
     if (url.pathname === "/api/auth/subscription/preview-payment") {
       if (method !== "POST") {
         rejectMethod(response, ["POST"]);
@@ -432,6 +456,32 @@ async function handleAuthRequest(request: IncomingMessage, response: ServerRespo
     }
 
     sendJson(response, 404, { error: "Unknown auth endpoint" });
+  } catch (error) {
+    sendAuthError(response, error);
+  }
+}
+
+async function handleAlertUnsubscribeRequest(
+  request: IncomingMessage,
+  response: ServerResponse,
+  url: URL,
+): Promise<void> {
+  response.setHeader("Cache-Control", "no-store");
+  if ((request.method ?? "GET") !== "POST") {
+    rejectMethod(response, ["POST"]);
+    return;
+  }
+  try {
+    const contentType = String(request.headers["content-type"] || "").split(";", 1)[0]?.trim().toLowerCase();
+    if (contentType && contentType !== "application/x-www-form-urlencoded") {
+      throw new AuthHttpError(415, "unsupported_media_type");
+    }
+    const form = new URLSearchParams(await readTextBody(request, 1024));
+    if (form.get("List-Unsubscribe") !== "One-Click") {
+      throw new AuthHttpError(400, "invalid_unsubscribe_request");
+    }
+    await getAuthService().unsubscribeEmailAlerts(url.searchParams.get("token"));
+    sendJson(response, 200, { ok: true });
   } catch (error) {
     sendAuthError(response, error);
   }
@@ -535,6 +585,11 @@ const server = createServer(async (request, response) => {
 
   if (url.pathname.startsWith("/api/billing/")) {
     await handleBillingRequest(request, response, url);
+    return;
+  }
+
+  if (url.pathname === "/api/alerts/unsubscribe") {
+    await handleAlertUnsubscribeRequest(request, response, url);
     return;
   }
 

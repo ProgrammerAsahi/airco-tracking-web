@@ -1688,6 +1688,20 @@ body.landing-dialog-open {
   color: #075b8d;
 }
 
+.profile-detail-action:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+.profile-email-alerts-toggle[aria-checked="false"] span:first-child {
+  color: #7b93a2;
+}
+
+.profile-inline-error {
+  margin: 8px 0 0;
+  font-size: 12px;
+}
+
 .profile-subscription-actions {
   display: flex;
   align-items: center;
@@ -1845,6 +1859,38 @@ body.landing-dialog-open {
   justify-content: flex-end;
   gap: 10px;
   margin-top: 22px;
+}
+
+/* --- Email unsubscribe confirmation --- */
+
+.unsubscribe-shell {
+  min-height: 100vh;
+}
+
+.unsubscribe-card {
+  display: grid;
+  width: min(100%, 760px);
+  min-height: 420px;
+  place-content: center;
+  justify-items: start;
+  gap: 18px;
+  margin: 48px auto 0;
+  text-align: left;
+}
+
+.unsubscribe-card h1 {
+  max-width: 680px;
+  margin: 0;
+  font-size: clamp(42px, 7vw, 72px);
+  line-height: 0.98;
+}
+
+.unsubscribe-card > p:not(.landing-kicker) {
+  max-width: 620px;
+  margin: 0 0 8px;
+  color: #607989;
+  font-size: clamp(17px, 2vw, 21px);
+  line-height: 1.62;
 }
 
 /* --- Ready page --- */

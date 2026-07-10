@@ -58,6 +58,7 @@ export type SubscriptionTier = (typeof SUBSCRIPTION_PLAN_DETAILS)[PaidSubscripti
 export type UserProfile = {
   email: string;
   nickname: string | null;
+  emailAlertsEnabled: boolean;
   subscriptionPlan: SubscriptionPlan;
   subscriptionStatus: SubscriptionStatus;
   subscriptionCurrentPeriodEnd: string | null;
@@ -161,8 +162,11 @@ export function hasRealtimeStockAccess(user: Pick<UserProfile, "subscriptionPlan
   return subscriptionIsActive(user, now) && planIncludesRealtimeStock(user.subscriptionPlan);
 }
 
-export function hasEmailAlertAccess(user: Pick<UserProfile, "subscriptionPlan" | "subscriptionStatus" | "subscriptionCurrentPeriodEnd">, now = Date.now()): boolean {
-  return subscriptionIsActive(user, now) && isPaidSubscriptionPlan(user.subscriptionPlan) && SUBSCRIPTION_PLAN_DETAILS[user.subscriptionPlan].emailAlerts;
+export function hasEmailAlertAccess(user: Pick<UserProfile, "subscriptionPlan" | "subscriptionStatus" | "subscriptionCurrentPeriodEnd" | "emailAlertsEnabled">, now = Date.now()): boolean {
+  return user.emailAlertsEnabled
+    && subscriptionIsActive(user, now)
+    && isPaidSubscriptionPlan(user.subscriptionPlan)
+    && SUBSCRIPTION_PLAN_DETAILS[user.subscriptionPlan].emailAlerts;
 }
 
 export function isLanguagePreference(value: unknown): value is Lang {

@@ -12,6 +12,7 @@ import {
   generateVerificationCode,
   legacyUserId,
   verifyVerificationHash,
+  verificationEmailMessage,
   type StoredUserProfile,
 } from "./auth.js";
 import {
@@ -26,6 +27,7 @@ import {
   userInitials,
   validateNickname,
 } from "../shared/auth.js";
+import { createAlertUnsubscribeToken } from "./unsubscribe.js";
 
 function testUser(overrides: Partial<StoredUserProfile> = {}): StoredUserProfile {
   return {
@@ -33,6 +35,8 @@ function testUser(overrides: Partial<StoredUserProfile> = {}): StoredUserProfile
     profileRevision: 1,
     email: "user@example.test",
     nickname: "Test User",
+    emailAlertsEnabled: true,
+    emailAlertsTokenVersion: 1,
     subscriptionPlan: "monthly_priority",
     subscriptionStatus: "active",
     subscriptionCurrentPeriodEnd: "2099-01-01T00:00:00.000Z",
@@ -230,6 +234,19 @@ test("normalizes and validates email identifiers", () => {
   assert.equal(isValidEmail("a@b"), false);
 });
 
+test("adds Reply-To but no unsubscribe headers to verification emails", () => {
+  const message = verificationEmailMessage(
+    "DoNotReply@airco-tracker.eu",
+    "user@example.test",
+    "123456",
+    "en",
+    "support@airco-tracker.eu",
+  );
+  assert.deepEqual(message.replyTo, [{ address: "support@airco-tracker.eu" }]);
+  assert.equal(message.headers, undefined);
+  assert.equal(message.content.plainText?.includes("123456"), true);
+});
+
 test("validates nicknames with minimal stored profile data", () => {
   assert.deepEqual(validateNickname("  Asahi   Lee  "), { ok: true, nickname: "Asahi Lee" });
   assert.deepEqual(validateNickname("李开复"), { ok: true, nickname: "李开复" });
@@ -255,6 +272,7 @@ test("evaluates subscription entitlements through the current period", () => {
     subscriptionPlan: "weekly_basic" as const,
     subscriptionStatus: "active" as const,
     subscriptionCurrentPeriodEnd: future,
+    emailAlertsEnabled: true,
   };
   const stock = {
     subscriptionPlan: "monthly_priority" as const,
@@ -274,6 +292,7 @@ test("evaluates subscription entitlements through the current period", () => {
 
   assert.equal(subscriptionIsActive(emailOnly), true);
   assert.equal(hasEmailAlertAccess(emailOnly), true);
+  assert.equal(hasEmailAlertAccess({ ...emailOnly, emailAlertsEnabled: false }), false);
   assert.equal(hasRealtimeStockAccess(emailOnly), false);
   assert.equal(hasRealtimeStockAccess(stock), true);
   assert.equal(hasRealtimeStockAccess(canceledButValid), true);
@@ -361,11 +380,13 @@ test("projects only the fields needed for alert delivery", () => {
     "status",
     "subscriptionPlan",
     "sourceRevision",
+    "unsubscribeTokenVersion",
     "updatedAt",
   ].sort());
   assert.equal(entity.rowKey, testUser().userId);
   assert.equal(entity.enabled, true);
   assert.equal(entity.sourceRevision, 1);
+  assert.equal(entity.unsubscribeTokenVersion, 1);
   assert.equal("paymentLast4" in entity, false);
   assert.equal("stripeCustomerId" in entity, false);
   assert.equal("nickname" in entity, false);
@@ -374,6 +395,9 @@ test("projects only the fields needed for alert delivery", () => {
     subscriptionCurrentPeriodEnd: "2026-07-08T00:00:00.000Z",
   }), Date.parse("2026-07-09T00:00:00.000Z"));
   assert.equal(expired.enabled, false);
+
+  const optedOut = alertRecipientEntity(testUser({ emailAlertsEnabled: false }));
+  assert.equal(optedOut.enabled, false);
 });
 
 test("upserts and deletes the same sharded alert-recipient row", async () => {
@@ -457,6 +481,26 @@ test("does not let an older profile revision overwrite a newer projection", asyn
   assert.equal(current.sourceRevision, 3);
 });
 
+test("accepts a legacy same-revision projection without a token version", async () => {
+  const desired = alertRecipientEntity(testUser());
+  const legacy = { ...desired, unsubscribeTokenVersion: undefined, etag: "etag-1" };
+  let updates = 0;
+  const store = new AlertRecipientProjectionStore({
+    async createTable() {},
+    async getEntity() {
+      return legacy as unknown as typeof desired & { etag: string };
+    },
+    async createEntity() {},
+    async updateEntity() {
+      updates += 1;
+    },
+    async deleteEntity() {},
+  });
+
+  await store.upsert(testUser());
+  assert.equal(updates, 0);
+});
+
 test("rechecks projection revision after an ETag race", async () => {
   let current = { ...alertRecipientEntity(testUser({ profileRevision: 1 })), etag: "etag-1" };
   let updateAttempts = 0;
@@ -492,6 +536,7 @@ test("changes a table-backed email with one canonical-plus-index transaction", a
   assert.equal(changed.email, "new-address@example.test");
   assert.equal(changed.userId, original.userId);
   assert.equal(changed.profileRevision, 2);
+  assert.equal(changed.emailAlertsTokenVersion, 2);
   assert.equal(users.transactionActions.length, 3);
   const [canonical, createIndex, tombstone] = users.transactionActions as Array<[string, Record<string, unknown>, string?, { etag?: string }?]>;
   assert.equal(canonical[0], "update");
@@ -509,6 +554,7 @@ test("changes a table-backed email with one canonical-plus-index transaction", a
   assert.deepEqual(sessionUpdates, [{ oldEmail: original.email, newEmail: "new-address@example.test" }]);
   assert.equal(projectionUpdates.at(-1)?.email, "new-address@example.test");
   assert.equal(projectionUpdates.at(-1)?.profileRevision, 2);
+  assert.equal(projectionUpdates.at(-1)?.emailAlertsTokenVersion, 2);
 });
 
 test("a failed table email transaction leaves sessions and projection untouched", async () => {
@@ -701,7 +747,83 @@ test("keeps the same userId through an email change in local memory auth", async
   });
 
   assert.equal(changed.userId, verified.user.userId);
+  assert.equal(changed.emailAlertsTokenVersion, verified.user.emailAlertsTokenVersion + 1);
   assert.equal((await auth.currentUser(request))?.email, "second@example.test");
+});
+
+test("toggles stock alert emails without changing subscription access", async () => {
+  const auth = new AuthService({ exposeDevCode: true });
+  const code = await auth.requestCode("alerts@example.test", "en");
+  const verified = await auth.verifyCode("alerts@example.test", code.devCode, "en");
+  const request = {
+    headers: { cookie: `${auth.cookieName}=${verified.sessionToken}` },
+  } as IncomingMessage;
+
+  const disabled = await auth.updateEmailAlerts(request, false);
+  assert.equal(disabled.emailAlertsEnabled, false);
+  assert.equal(disabled.emailAlertsTokenVersion, 2);
+  assert.equal(disabled.subscriptionPlan, "none");
+
+  const enabled = await auth.updateEmailAlerts(request, true);
+  assert.equal(enabled.emailAlertsEnabled, true);
+  assert.equal(enabled.emailAlertsTokenVersion, 3);
+
+  const unchanged = await auth.updateEmailAlerts(request, true);
+  assert.equal(unchanged.profileRevision, enabled.profileRevision);
+  assert.equal(unchanged.emailAlertsTokenVersion, 3);
+});
+
+test("one-click unsubscribe is idempotent and re-enabling invalidates the old link", async () => {
+  const signingKey = "0123456789abcdef0123456789abcdef";
+  const auth = new AuthService({ exposeDevCode: true, unsubscribeSigningKey: signingKey });
+  const code = await auth.requestCode("one-click@example.test", "en");
+  const verified = await auth.verifyCode("one-click@example.test", code.devCode, "en");
+  const request = {
+    headers: { cookie: `${auth.cookieName}=${verified.sessionToken}` },
+  } as IncomingMessage;
+  const token = createAlertUnsubscribeToken(
+    signingKey,
+    verified.user.userId,
+    verified.user.emailAlertsTokenVersion,
+  );
+
+  await auth.unsubscribeEmailAlerts(token);
+  const disabled = await auth.currentUser(request);
+  assert.equal(disabled?.emailAlertsEnabled, false);
+  assert.equal(disabled?.emailAlertsTokenVersion, 2);
+
+  await auth.unsubscribeEmailAlerts(token);
+  const replayed = await auth.currentUser(request);
+  assert.equal(replayed?.profileRevision, disabled?.profileRevision);
+
+  const enabled = await auth.updateEmailAlerts(request, true);
+  assert.equal(enabled.emailAlertsTokenVersion, 3);
+  await auth.unsubscribeEmailAlerts(token);
+  assert.equal((await auth.currentUser(request))?.emailAlertsEnabled, true);
+});
+
+test("changing email invalidates unsubscribe links sent to the previous address", async () => {
+  const signingKey = "0123456789abcdef0123456789abcdef";
+  const auth = new AuthService({ exposeDevCode: true, unsubscribeSigningKey: signingKey });
+  const firstCode = await auth.requestCode("old-link@example.test", "en");
+  const verified = await auth.verifyCode("old-link@example.test", firstCode.devCode, "en");
+  const request = {
+    headers: { cookie: `${auth.cookieName}=${verified.sessionToken}` },
+  } as IncomingMessage;
+  const oldToken = createAlertUnsubscribeToken(
+    signingKey,
+    verified.user.userId,
+    verified.user.emailAlertsTokenVersion,
+  );
+
+  const changeCode = await auth.requestEmailChangeCode(request, "new-link@example.test", "en");
+  await auth.updateEmail(request, { email: "new-link@example.test", code: changeCode.devCode });
+  await auth.unsubscribeEmailAlerts(oldToken);
+
+  const current = await auth.currentUser(request);
+  assert.equal(current?.email, "new-link@example.test");
+  assert.equal(current?.emailAlertsEnabled, true);
+  assert.equal(current?.emailAlertsTokenVersion, 2);
 });
 
 test("serializes concurrent invalid OTP attempts with CAS", async () => {

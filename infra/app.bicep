@@ -6,8 +6,11 @@ param containerEnvironmentName string
 param acrName string
 param identityName string
 param storageAccountName string
+param keyVaultName string
 param communicationServiceName string = ''
 param authEmailFrom string = ''
+param authEmailReplyTo string = ''
+param unsubscribeSigningKeySecretName string = 'unsubscribe-signing-key'
 
 param authUsersTableName string = 'users'
 param authCodesTableName string = 'authcodes'
@@ -42,6 +45,10 @@ resource identity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' 
   name: identityName
 }
 
+resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' existing = {
+  name: keyVaultName
+}
+
 resource apexCertificate 'Microsoft.App/managedEnvironments/managedCertificates@2024-03-01' existing = {
   parent: containerEnvironment
   name: apexCertificateName
@@ -67,6 +74,14 @@ var stripeSecrets = concat(
   ] : []
 )
 
+var appSecrets = concat(stripeSecrets, [
+  {
+    name: 'email-unsubscribe-signing-key'
+    keyVaultUrl: '${keyVault.properties.vaultUri}secrets/${unsubscribeSigningKeySecretName}'
+    identity: identity.id
+  }
+])
+
 var baseEnv = [
   { name: 'PORT', value: '3000' }
   { name: 'AZURE_STORAGE_ACCOUNT_URL', value: 'https://${storageAccountName}.blob.${environment().suffixes.storage}' }
@@ -80,6 +95,8 @@ var baseEnv = [
   { name: 'AUTH_ALERT_RECIPIENTS_TABLE', value: authAlertRecipientsTableName }
   { name: 'AUTH_EMAIL_ENDPOINT', value: empty(communicationServiceName) ? '' : 'https://${communicationServiceName}.communication.azure.com' }
   { name: 'AUTH_EMAIL_FROM', value: authEmailFrom }
+  { name: 'AUTH_EMAIL_REPLY_TO', value: authEmailReplyTo }
+  { name: 'EMAIL_UNSUBSCRIBE_SIGNING_KEY', secretRef: 'email-unsubscribe-signing-key' }
   { name: 'AUTH_COOKIE_SECURE', value: 'true' }
   { name: 'AUTH_CODE_TTL_SECONDS', value: '600' }
   { name: 'AUTH_CODE_RESEND_SECONDS', value: '60' }
@@ -121,7 +138,7 @@ resource app 'Microsoft.App/containerApps@2025-01-01' = {
     environmentId: containerEnvironment.id
     configuration: {
       activeRevisionsMode: 'Single'
-      secrets: stripeSecrets
+      secrets: appSecrets
       ingress: {
         external: true
         allowInsecure: false

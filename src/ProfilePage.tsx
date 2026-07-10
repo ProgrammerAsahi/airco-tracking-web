@@ -15,6 +15,7 @@ import {
   getCurrentUser,
   logout,
   requestEmailChangeCode,
+  updateEmailAlerts,
   updateNickname,
   updatePreferences,
   verifyEmailChange,
@@ -33,6 +34,12 @@ type ProfileCopy = {
   notLoggedIn: string;
   loginFromHome: string;
   email: string;
+  emailAlerts: string;
+  emailAlertsEnabled: string;
+  emailAlertsDisabled: string;
+  emailAlertsEnable: string;
+  emailAlertsDisable: string;
+  emailAlertsError: string;
   nickname: string;
   edit: string;
   nicknameModalTitle: string;
@@ -108,6 +115,12 @@ const PROFILE_COPY: Record<Lang, ProfileCopy> = {
     notLoggedIn: "你还没有登录。",
     loginFromHome: "回到首页登录",
     email: "邮箱",
+    emailAlerts: "库存提醒邮件",
+    emailAlertsEnabled: "已开启",
+    emailAlertsDisabled: "已暂停",
+    emailAlertsEnable: "开启",
+    emailAlertsDisable: "暂停",
+    emailAlertsError: "邮件提醒偏好暂时无法保存，请稍后再试。",
     nickname: "昵称",
     edit: "编辑",
     nicknameModalTitle: "我们该如何称呼您？",
@@ -181,6 +194,12 @@ const PROFILE_COPY: Record<Lang, ProfileCopy> = {
     notLoggedIn: "Je bent nog niet ingelogd.",
     loginFromHome: "Log in vanaf home",
     email: "E-mail",
+    emailAlerts: "Voorraadmeldingen per e-mail",
+    emailAlertsEnabled: "Ingeschakeld",
+    emailAlertsDisabled: "Gepauzeerd",
+    emailAlertsEnable: "Inschakelen",
+    emailAlertsDisable: "Pauzeren",
+    emailAlertsError: "Je e-mailvoorkeur kon niet worden opgeslagen. Probeer het later opnieuw.",
     nickname: "Bijnaam",
     edit: "Wijzigen",
     nicknameModalTitle: "Hoe mogen we u noemen?",
@@ -254,6 +273,12 @@ const PROFILE_COPY: Record<Lang, ProfileCopy> = {
     notLoggedIn: "You are not logged in yet.",
     loginFromHome: "Log in from home",
     email: "Email",
+    emailAlerts: "Stock alert emails",
+    emailAlertsEnabled: "Enabled",
+    emailAlertsDisabled: "Paused",
+    emailAlertsEnable: "Enable",
+    emailAlertsDisable: "Pause",
+    emailAlertsError: "We could not save your email alert preference. Please try again later.",
     nickname: "Nickname",
     edit: "Edit",
     nicknameModalTitle: "What should we call you?",
@@ -354,6 +379,8 @@ export function ProfilePage({ lang, setLang }: ProfilePageProps) {
   const [sendingEmailCode, setSendingEmailCode] = useState(false);
   const [emailCodeCooldownSeconds, setEmailCodeCooldownSeconds] = useState(0);
   const [savingEmail, setSavingEmail] = useState(false);
+  const [savingEmailAlerts, setSavingEmailAlerts] = useState(false);
+  const [emailAlertsError, setEmailAlertsError] = useState("");
   const [languageModalOpen, setLanguageModalOpen] = useState(false);
   const [countryModalOpen, setCountryModalOpen] = useState(false);
   const [countryConfirmOpen, setCountryConfirmOpen] = useState(false);
@@ -492,6 +519,20 @@ export function ProfilePage({ lang, setLang }: ProfilePageProps) {
     }
   };
 
+  const handleEmailAlertsToggle = async () => {
+    if (!user) return;
+    setEmailAlertsError("");
+    setSavingEmailAlerts(true);
+    try {
+      const updated = await updateEmailAlerts(!user.emailAlertsEnabled);
+      setUser(updated);
+    } catch {
+      setEmailAlertsError(copy.emailAlertsError);
+    } finally {
+      setSavingEmailAlerts(false);
+    }
+  };
+
   const openCountryModal = () => {
     if (!user) return;
     setPreferenceError("");
@@ -586,6 +627,23 @@ export function ProfilePage({ lang, setLang }: ProfilePageProps) {
                     <span>{user.email}</span>
                     <span>{copy.edit}</span>
                   </button>
+                </dd>
+              </div>
+              <div>
+                <dt>{copy.emailAlerts}</dt>
+                <dd>
+                  <button
+                    className="profile-detail-action profile-email-alerts-toggle"
+                    type="button"
+                    role="switch"
+                    aria-checked={user.emailAlertsEnabled}
+                    disabled={savingEmailAlerts}
+                    onClick={handleEmailAlertsToggle}
+                  >
+                    <span>{user.emailAlertsEnabled ? copy.emailAlertsEnabled : copy.emailAlertsDisabled}</span>
+                    <span>{user.emailAlertsEnabled ? copy.emailAlertsDisable : copy.emailAlertsEnable}</span>
+                  </button>
+                  {emailAlertsError && <p className="landing-login-error profile-inline-error">{emailAlertsError}</p>}
                 </dd>
               </div>
               <div>

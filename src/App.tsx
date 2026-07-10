@@ -11,6 +11,7 @@ import { ReadyPage } from "./ReadyPage";
 import { SubscriptionPage } from "./SubscriptionPage";
 import { getCurrentUser, type UserProfile } from "./authClient";
 import { AircoLogoMark } from "./AircoLogoMark";
+import { UnsubscribePage } from "./UnsubscribePage";
 import { hasRealtimeStockAccess } from "../shared/auth";
 import { canonicalDeliveryPath, destinationCountryFromPath, visibleSiteEntries } from "../shared/delivery";
 import "./styles.css";
@@ -560,6 +561,10 @@ function isReadyRoute(pathname: string): boolean {
   return pathname === "/ready";
 }
 
+function isUnsubscribeRoute(pathname: string): boolean {
+  return pathname === "/unsubscribe";
+}
+
 export default function App() {
   const { lang, setLang, t } = useTranslation();
   const [pathname, setPathname] = useState(() => window.location.pathname);
@@ -584,6 +589,10 @@ export default function App() {
 
   if (isReadyRoute(pathname)) {
     return <ReadyPage lang={lang} setLang={setLang} />;
+  }
+
+  if (isUnsubscribeRoute(pathname)) {
+    return <UnsubscribePage lang={lang} setLang={setLang} />;
   }
 
   return <LandingPage lang={lang} setLang={setLang} />;

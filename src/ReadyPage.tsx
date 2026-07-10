@@ -11,6 +11,7 @@ type ReadyCopy = {
   loading: string;
   title: string;
   body: string;
+  bodyPaused: string;
   inventoryCta: string;
   profile: string;
 };
@@ -21,6 +22,7 @@ const READY_COPY: Record<Lang, ReadyCopy> = {
     loading: "正在读取订阅状态…",
     title: "一切已就绪",
     body: "一旦出现空调上架，我们会邮件通知您。",
+    bodyPaused: "库存提醒邮件已暂停。你可以随时在账号页面重新开启。",
     inventoryCta: "查看空调库存",
     profile: "管理账号",
   },
@@ -29,6 +31,7 @@ const READY_COPY: Record<Lang, ReadyCopy> = {
     loading: "Abonnement laden…",
     title: "Alles staat klaar",
     body: "Zodra er airco-voorraad verschijnt, sturen we je een e-mail.",
+    bodyPaused: "Voorraadmeldingen per e-mail zijn gepauzeerd. Je kunt ze op elk moment weer inschakelen in je account.",
     inventoryCta: "Bekijk airco-voorraad",
     profile: "Account beheren",
   },
@@ -37,6 +40,7 @@ const READY_COPY: Record<Lang, ReadyCopy> = {
     loading: "Loading subscription…",
     title: "You are all set.",
     body: "As soon as an air conditioner appears in stock, we’ll notify you by email.",
+    bodyPaused: "Stock alert emails are paused. You can re-enable them at any time in your account.",
     inventoryCta: "View AC stock",
     profile: "Manage account",
   },
@@ -139,7 +143,7 @@ export function ReadyPage({ lang, setLang }: ReadyPageProps) {
           <>
             <p className="landing-kicker">{copy.productName}</p>
             <h1>{copy.title}</h1>
-            <p>{copy.body}</p>
+            <p>{user?.emailAlertsEnabled ? copy.body : copy.bodyPaused}</p>
             <div className="ready-actions">
               {user && hasRealtimeStockAccess(user) && (
                 <a className="landing-primary-button landing-primary-button--large" href={inventoryUrl}>

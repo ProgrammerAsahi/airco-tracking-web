@@ -29,6 +29,7 @@ import {
   type UserProfile,
 } from "../shared/auth.js";
 import type { Lang } from "../shared/i18n.js";
+import { verifyAlertUnsubscribeToken } from "./unsubscribe.js";
 
 type AuthCodeRecord = {
   email: string;
@@ -54,6 +55,7 @@ type SessionRecord = {
 
 type AuthStore = {
   getUser(email: string): Promise<StoredUserProfile | null>;
+  getUserById(userId: string): Promise<StoredUserProfile | null>;
   getUserByStripeCustomerId(stripeCustomerId: string): Promise<StoredUserProfile | null>;
   upsertUser(user: StoredUserProfile): Promise<StoredUserProfile>;
   mutateUser(userId: string, mutation: (current: StoredUserProfile) => StoredUserProfile): Promise<StoredUserProfile>;
@@ -82,6 +84,8 @@ type AuthServiceOptions = {
   alertRecipientsTableName?: string;
   emailEndpoint?: string;
   emailFrom?: string;
+  emailReplyTo?: string;
+  unsubscribeSigningKey?: string;
   exposeDevCode?: boolean;
   codeTtlSeconds?: number;
   codeResendSeconds?: number;
@@ -110,6 +114,7 @@ export type VerifyCodeResult = {
 export type StoredUserProfile = UserProfile & {
   userId: string;
   profileRevision: number;
+  emailAlertsTokenVersion: number;
 };
 
 export type RequestCodeResult = {
@@ -338,6 +343,7 @@ export type AlertRecipientEntity = {
   status: SubscriptionStatus;
   currentPeriodEnd: string;
   enabled: boolean;
+  unsubscribeTokenVersion: number;
   updatedAt: string;
   sourceRevision: number;
 };
@@ -353,6 +359,7 @@ export function alertRecipientEntity(user: StoredUserProfile, now = Date.now()):
     status: user.subscriptionStatus,
     currentPeriodEnd: user.subscriptionCurrentPeriodEnd ?? "",
     enabled: hasEmailAlertAccess(user, now),
+    unsubscribeTokenVersion: user.emailAlertsTokenVersion,
     updatedAt: user.updatedAt,
     sourceRevision: user.profileRevision,
   };
@@ -398,6 +405,7 @@ export class AlertRecipientProjectionStore {
       status: "none",
       currentPeriodEnd: "",
       enabled: false,
+      unsubscribeTokenVersion: 1,
       updatedAt: nowIso(),
       sourceRevision,
     });
@@ -465,6 +473,9 @@ function sameAlertRecipientPayload(
     && left.status === right.status
     && left.currentPeriodEnd === right.currentPeriodEnd
     && Boolean(left.enabled) === Boolean(right.enabled)
+    // A legacy projection has no token version; version 1 is its compatible
+    // default until the next canonical profile mutation rewrites the row.
+    && normalizeProfileRevision(left.unsubscribeTokenVersion) === right.unsubscribeTokenVersion
     && left.updatedAt === right.updatedAt
     && normalizeProfileRevision(left.sourceRevision, 0) === right.sourceRevision;
 }
@@ -634,6 +645,13 @@ export class TableAuthStore implements AuthStore {
     }
   }
 
+  async getUserById(userId: string): Promise<StoredUserProfile | null> {
+    const normalized = userId.trim().toLowerCase();
+    if (!UUID_PATTERN.test(normalized)) return null;
+    const entity = await this.activeEntityByUserId(normalized);
+    return entity ? userFromEntity(entity) : null;
+  }
+
   async getUserByStripeCustomerId(stripeCustomerId: string): Promise<StoredUserProfile | null> {
     const normalizedCustomerId = stripeCustomerId.trim();
     const index = await this.indexEntity(stripeIndexRowKey(normalizedCustomerId));
@@ -764,6 +782,7 @@ export class TableAuthStore implements AuthStore {
       const updated: StoredUserProfile = {
         ...current,
         email: normalizedEmail,
+        emailAlertsTokenVersion: current.emailAlertsTokenVersion + 1,
         profileRevision: current.profileRevision + 1,
         updatedAt: nowIso(),
       };
@@ -937,6 +956,11 @@ class MemoryAuthStore implements AuthStore {
     return user ? { ...user } : null;
   }
 
+  async getUserById(userId: string): Promise<StoredUserProfile | null> {
+    const user = [...this.users.values()].find((candidate) => candidate.userId === userId);
+    return user ? { ...user } : null;
+  }
+
   async getUserByStripeCustomerId(stripeCustomerId: string): Promise<StoredUserProfile | null> {
     for (const user of this.users.values()) {
       if (user.stripeCustomerId === stripeCustomerId) return { ...user };
@@ -985,6 +1009,7 @@ class MemoryAuthStore implements AuthStore {
     const updated: StoredUserProfile = {
       ...current,
       email: normalizedEmail,
+      emailAlertsTokenVersion: current.emailAlertsTokenVersion + 1,
       profileRevision: current.profileRevision + 1,
       updatedAt: nowIso(),
     };
@@ -1073,6 +1098,8 @@ type UserEntity = {
   supersededByEmail?: string;
   email: string;
   nickname?: string;
+  emailAlertsEnabled?: boolean;
+  emailAlertsTokenVersion?: number;
   subscriptionPlan?: string;
   subscriptionStatus?: string;
   subscriptionCurrentPeriodEnd?: string;
@@ -1114,6 +1141,8 @@ function userToEntity(user: StoredUserProfile): UserEntity & { partitionKey: str
     recordState: "active",
     email: user.email,
     nickname: user.nickname ?? "",
+    emailAlertsEnabled: user.emailAlertsEnabled,
+    emailAlertsTokenVersion: user.emailAlertsTokenVersion,
     subscriptionPlan: user.subscriptionPlan,
     subscriptionStatus: user.subscriptionStatus,
     subscriptionCurrentPeriodEnd: user.subscriptionCurrentPeriodEnd ?? "",
@@ -1223,6 +1252,8 @@ function userFromEntity(entity: TableEntityResult<UserEntity>): StoredUserProfil
     profileRevision: normalizeProfileRevision(entity.profileRevision),
     email: normalizeEmail(entity.email),
     nickname: typeof entity.nickname === "string" && entity.nickname.trim() ? entity.nickname.trim() : null,
+    emailAlertsEnabled: entity.emailAlertsEnabled !== false,
+    emailAlertsTokenVersion: normalizeProfileRevision(entity.emailAlertsTokenVersion),
     subscriptionPlan,
     subscriptionStatus,
     subscriptionCurrentPeriodEnd: typeof entity.subscriptionCurrentPeriodEnd === "string" && entity.subscriptionCurrentPeriodEnd.trim()
@@ -1249,6 +1280,8 @@ function sameStoredUserData(left: StoredUserProfile, right: StoredUserProfile): 
   return left.userId === right.userId
     && left.email === right.email
     && left.nickname === right.nickname
+    && left.emailAlertsEnabled === right.emailAlertsEnabled
+    && left.emailAlertsTokenVersion === right.emailAlertsTokenVersion
     && left.subscriptionPlan === right.subscriptionPlan
     && left.subscriptionStatus === right.subscriptionStatus
     && left.subscriptionCurrentPeriodEnd === right.subscriptionCurrentPeriodEnd
@@ -1309,6 +1342,7 @@ class AuthMailer {
   constructor(
     private readonly endpoint: string | undefined,
     private readonly senderAddress: string | undefined,
+    private readonly replyToAddress: string | undefined,
     private readonly managedIdentityClientId: string | undefined,
     private readonly exposeDevCode: boolean,
   ) {}
@@ -1321,7 +1355,7 @@ class AuthMailer {
     }
 
     const client = this.getClient();
-    const message = verificationEmailMessage(this.senderAddress, email, code, lang);
+    const message = verificationEmailMessage(this.senderAddress, email, code, lang, this.replyToAddress);
     const poller = await client.beginSend(message, { updateIntervalInMs: 1_000 });
     const result = await poller.pollUntilDone();
     if (result.status === "Failed") {
@@ -1349,6 +1383,7 @@ export class AuthService {
   private readonly codeResendSeconds: number;
   private readonly codeMaxAttempts: number;
   private readonly sessionTtlSeconds: number;
+  private readonly unsubscribeSigningKey: string | undefined;
 
   constructor(options: AuthServiceOptions = {}) {
     this.cookieName = options.cookieName || DEFAULT_COOKIE_NAME;
@@ -1356,6 +1391,10 @@ export class AuthService {
     this.codeResendSeconds = options.codeResendSeconds ?? DEFAULT_RESEND_SECONDS;
     this.codeMaxAttempts = options.codeMaxAttempts ?? DEFAULT_MAX_ATTEMPTS;
     this.sessionTtlSeconds = options.sessionTtlSeconds ?? DEFAULT_SESSION_TTL_SECONDS;
+    this.unsubscribeSigningKey = options.unsubscribeSigningKey?.trim() || undefined;
+    if (this.unsubscribeSigningKey && this.unsubscribeSigningKey.length < 32) {
+      throw new Error("Email unsubscribe signing key must be at least 32 characters");
+    }
 
     const tableNames = {
       users: options.usersTableName || "users",
@@ -1369,6 +1408,7 @@ export class AuthService {
     this.mailer = new AuthMailer(
       options.emailEndpoint,
       options.emailFrom,
+      options.emailReplyTo,
       options.managedIdentityClientId,
       Boolean(options.exposeDevCode),
     );
@@ -1448,6 +1488,8 @@ export class AuthService {
       profileRevision: 1,
       email,
       nickname: null,
+      emailAlertsEnabled: true,
+      emailAlertsTokenVersion: 1,
       subscriptionPlan: AUTH_SUBSCRIPTION_PLAN_DEFAULT,
       subscriptionStatus: AUTH_SUBSCRIPTION_STATUS_DEFAULT,
       subscriptionCurrentPeriodEnd: null,
@@ -1720,6 +1762,44 @@ export class AuthService {
     }));
   }
 
+  async updateEmailAlerts(request: IncomingMessage, rawEnabled: unknown): Promise<StoredUserProfile> {
+    const user = await this.requireUser(request);
+    if (typeof rawEnabled !== "boolean") throw new AuthHttpError(400, "invalid_email_alert_preference");
+    return this.store.mutateUser(user.userId, (current) => {
+      if (current.emailAlertsEnabled === rawEnabled) return current;
+      return reviseProfile(current, {
+        emailAlertsEnabled: rawEnabled,
+        emailAlertsTokenVersion: current.emailAlertsTokenVersion + 1,
+      });
+    });
+  }
+
+  async unsubscribeEmailAlerts(rawToken: unknown): Promise<void> {
+    if (!this.unsubscribeSigningKey) throw new AuthHttpError(503, "unsubscribe_unavailable");
+    const claims = verifyAlertUnsubscribeToken(this.unsubscribeSigningKey, rawToken);
+    if (!claims) throw new AuthHttpError(400, "invalid_unsubscribe_token");
+    const user = await this.store.getUserById(claims.userId);
+    if (!user) return;
+    try {
+      await this.store.mutateUser(user.userId, (current) => {
+        if (
+          current.emailAlertsTokenVersion !== claims.tokenVersion
+          || !current.emailAlertsEnabled
+        ) return current;
+        return reviseProfile(current, {
+          emailAlertsEnabled: false,
+          emailAlertsTokenVersion: current.emailAlertsTokenVersion + 1,
+        });
+      });
+    } catch (error) {
+      // Deletion can win the race after the point read. Treat an already-gone
+      // account exactly like an already-consumed link to keep the endpoint
+      // idempotent and avoid disclosing account state.
+      if (error instanceof AuthHttpError && error.code === "profile_conflict") return;
+      throw error;
+    }
+  }
+
   async logout(request: IncomingMessage): Promise<void> {
     const token = parseCookies(request)[this.cookieName];
     if (!token) return;
@@ -1737,6 +1817,10 @@ export function authServiceFromEnvironment(): AuthService {
     alertRecipientsTableName: process.env.AUTH_ALERT_RECIPIENTS_TABLE?.trim() || undefined,
     emailEndpoint: process.env.AUTH_EMAIL_ENDPOINT?.trim() || process.env.ACS_ENDPOINT?.trim() || undefined,
     emailFrom: process.env.AUTH_EMAIL_FROM?.trim() || process.env.EMAIL_FROM?.trim() || undefined,
+    emailReplyTo: process.env.AUTH_EMAIL_REPLY_TO?.trim() || undefined,
+    unsubscribeSigningKey: process.env.EMAIL_UNSUBSCRIBE_SIGNING_KEY?.trim()
+      || process.env.AUTH_EMAIL_UNSUBSCRIBE_SIGNING_KEY?.trim()
+      || undefined,
     exposeDevCode: process.env.AUTH_EXPOSE_DEV_CODE?.trim().toLowerCase() === "true",
     codeTtlSeconds: parsePositiveInteger(process.env.AUTH_CODE_TTL_SECONDS, DEFAULT_CODE_TTL_SECONDS),
     codeResendSeconds: parsePositiveInteger(process.env.AUTH_CODE_RESEND_SECONDS, DEFAULT_RESEND_SECONDS),
@@ -1748,7 +1832,7 @@ export function authServiceFromEnvironment(): AuthService {
 
 function reviseProfile(
   user: StoredUserProfile,
-  changes: Partial<UserProfile>,
+  changes: Partial<Omit<StoredUserProfile, "userId" | "profileRevision">>,
   updatedAt = nowIso(),
 ): StoredUserProfile {
   return {
@@ -1858,7 +1942,13 @@ function maskEmail(email: string): string {
   return `${visibleLocal}@${domain}`;
 }
 
-function verificationEmailMessage(senderAddress: string, recipientAddress: string, code: string, lang: Lang): EmailMessage {
+export function verificationEmailMessage(
+  senderAddress: string,
+  recipientAddress: string,
+  code: string,
+  lang: Lang,
+  replyToAddress?: string,
+): EmailMessage {
   const localized = verificationCopy(lang, code);
   return {
     senderAddress,
@@ -1870,6 +1960,7 @@ function verificationEmailMessage(senderAddress: string, recipientAddress: strin
       plainText: localized.plainText,
       html: localized.html,
     },
+    ...(replyToAddress ? { replyTo: [{ address: normalizeAndValidateEmail(replyToAddress) }] } : {}),
     disableUserEngagementTracking: true,
   };
 }

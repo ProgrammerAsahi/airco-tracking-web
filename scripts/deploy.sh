@@ -78,6 +78,8 @@ require_value IDENTITY_NAME "$IDENTITY_NAME"
 az identity show --name "$IDENTITY_NAME" --resource-group "$RESOURCE_GROUP" --output none
 STORAGE_NAME="$(single_resource_name STORAGE_ACCOUNT_NAME Microsoft.Storage/storageAccounts)"
 require_value STORAGE_ACCOUNT_NAME "$STORAGE_NAME"
+KEY_VAULT_NAME="$(single_resource_name KEY_VAULT_NAME Microsoft.KeyVault/vaults)"
+require_value KEY_VAULT_NAME "$KEY_VAULT_NAME"
 COMMUNICATION_SERVICE_NAME="$(single_resource_name COMMUNICATION_SERVICE_NAME Microsoft.Communication/CommunicationServices)"
 require_value COMMUNICATION_SERVICE_NAME "$COMMUNICATION_SERVICE_NAME"
 EMAIL_DOMAIN_ID="$(email_domain_id)"
@@ -91,6 +93,8 @@ MAIL_FROM_DOMAIN="$(
 require_value MAIL_FROM_DOMAIN "$MAIL_FROM_DOMAIN"
 AUTH_EMAIL_FROM="${AUTH_EMAIL_FROM:-DoNotReply@$MAIL_FROM_DOMAIN}"
 require_value AUTH_EMAIL_FROM "$AUTH_EMAIL_FROM"
+AUTH_EMAIL_REPLY_TO="${AUTH_EMAIL_REPLY_TO:-support@$MAIL_FROM_DOMAIN}"
+require_value AUTH_EMAIL_REPLY_TO "$AUTH_EMAIL_REPLY_TO"
 APP_BASE_URL="${APP_BASE_URL:-https://airco-tracker.eu}"
 STRIPE_SECRET_KEY="${STRIPE_SECRET_KEY:-}"
 STRIPE_WEBHOOK_SECRET="${STRIPE_WEBHOOK_SECRET:-}"
@@ -120,8 +124,10 @@ az deployment group create \
     acrName="$ACR_NAME" \
     identityName="$IDENTITY_NAME" \
     storageAccountName="$STORAGE_NAME" \
+    keyVaultName="$KEY_VAULT_NAME" \
     communicationServiceName="$COMMUNICATION_SERVICE_NAME" \
     authEmailFrom="$AUTH_EMAIL_FROM" \
+    authEmailReplyTo="$AUTH_EMAIL_REPLY_TO" \
     appBaseUrl="$APP_BASE_URL" \
     stripeSecretKey="$STRIPE_SECRET_KEY" \
     stripeWebhookSecret="$STRIPE_WEBHOOK_SECRET" \
