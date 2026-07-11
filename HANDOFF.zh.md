@@ -23,9 +23,10 @@
 - Container App：`airco-tracking-web`
 - Azure resource group：`airco-tracker-rg`
 - Backend repository：`https://github.com/ProgrammerAsahi/airco-tracking`
-- 已部署 commit/image：共享私有 ACR 中的 `715acf223377d6b450a2a594e32eee0515a85797`
-- Ready revision：`airco-tracking-web--0000041`；provisioning state 为 `Succeeded`
-- 成功的 deployment workflow run：`29061171454`
+- 已部署 frontend commit/image：共享私有 ACR 中的 `241be5cd0fc2d8c5359ba3c02758bd79b4f7da15`
+- 协调部署的 backend commit/image：`e4194c25cce82f650eb96d72b37f10bdd6d067a7`
+- Ready revision：`airco-tracking-web--0000044`；provisioning state 为 `Succeeded`
+- 成功的 deployment workflow runs：frontend `29167702772`、backend `29167702065`
 - Deployment workflow：`.github/workflows/deploy.yml`；纯 Markdown/docs push 不部署
 
 两个自定义 Web hostname 和现有 managed-certificate 名称都已写入 `infra/app.bicep`。不要删除这些 `customDomains`；否则 application Bicep 部署会清空绑定。
@@ -80,22 +81,24 @@
 - 旧的 storage-account 级 Table contributor 已移除。Shared identity 现在只保留所需的逐表权限；缩权后真实生产 OTP 登录、Profile/投影写入、登出、retention 和 scanner execution 全部通过。
 - GitHub Actions 使用限制到分支的 OIDC 和不可变 commit-SHA images；没有 Azure client secret 或 `AZURE_CREDENTIALS` secret。
 - `scripts/deploy.sh` 通过准确的 `ACS_EMAIL_DOMAIN_NAME` 选择 ACS Email Domain，默认使用 `AzureManagedDomain`；`EMAIL_DOMAIN_ID` 仍可作为明确的应急/管理覆盖。
-- 以后验证 customer-managed ACS sender 后，先在后端 foundation 中连接它，再在两个仓库设置相同的 `ACS_EMAIL_DOMAIN_NAME` GitHub variable，然后部署。在此之前，Azure-managed domain 始终是安全 fallback。
+- 生产现已在两个仓库使用验证完成的 customer-managed `airco-tracker.eu` ACS sender；Azure-managed domain 仍是明确的 fallback。
+- 用于播种和验证生产四语 rows 的临时 operator Table data 权限已撤销。Runtime 和 deploy identities 只保留各自受限的应用权限。
 - Stripe secrets 只能由 GitHub Actions 或明确配置的本地环境提供。缺少 Stripe 配置时，不要手工部署生产。
 
 ## 当前验证状态
 
 详细的订阅/支付矩阵维护在 `docs/SUBSCRIPTION_BILLING_TEST_PLAN.md` 和 `.en.md`。生产已经测试：首次 Checkout、成功/失败测试卡、3D Secure 成功/失败、到期取消、升级、预约降级、切换扣费周期、库存权益 gating、Profile 修改、语言/国家切换、邮箱修改、登出后重新登录，以及账户注销规则。
 
-四语 release candidate 已通过 71/71 前端 tests、app/server typecheck、production build、production-mode deployment verification 和 `git diff --check`。法语 Landing、Subscribe、Profile、登录/昵称和退订状态已在 1440×900 与 390×844 完成视觉检查；header 临时语言会在导航中保持，同时不会覆盖 Profile 已保存偏好。剩余 release 检查是生产部署和真实法语 OTP/库存提醒投递。
+四语 release 已部署，并通过 71/71 前端 tests、app/server typecheck、production build、production-mode deployment verification 和 `git diff --check`。法语 Landing、Subscribe、登录/昵称、Profile 和 Unsubscribe 状态已在生产的 1440×900 与 390×844 完成视觉检查，console 无 error 或 warning。Header 临时语言会在导航中保持，同时不会覆盖 Profile 已保存偏好；在 Profile 保存偏好会同时更新网页默认语言和提醒邮件语言。
 
-本次 Service Bus 协调 release 已部署并验证：
+本次前后端协调 release 已部署并验证：
 
-- CI run `29061171454` 通过 59/59 tests、typecheck、production build、shell/Bicep checks 和 deployment verification。
-- 生产在 ready revision `airco-tracking-web--0000041` 运行 immutable image `715acf223377d6b450a2a594e32eee0515a85797`。
+- Frontend workflow `29167702772` 部署 commit `241be5c`，backend workflow `29167702065` 部署 commit `e4194c2`；两者完整 test、build 和 deployment checks 均通过。
+- 生产运行 ready web revision `airco-tracking-web--0000044`，provisioning state 为 `Succeeded`。
 - `https://airco-tracker.eu/health` 和 `www` health 均返回 200；匿名 `/api/inventory` 返回 401。
-- 移除 account-wide Table 权限后，真实生产 OTP session 覆盖 code 创建/消费、session 创建/删除、canonical user 读取、语言写入并恢复，以及 `alertrecipients` 同步；所有请求返回 200，原偏好已恢复。
-- Backend 定向投递到达两个已授权 inbox；之后真实 scanner run 也完整通过恢复后的 Service Bus 流水线，最终 active/scheduled/dead-letter 全为零。
+- 生产 i18n Table 在 `web` 和 `email` 两个 scopes 中共有 56 个 translation entries。自动契约确认每个 key 都有四个非空的 `zh`/`nl`/`en`/`fr` 值，且前后端 web maps 一致。
+- 真实法语 OTP 通过自定义 ACS sender 到达已授权 Outlook inbox；法语提醒流水线 canary 通过 Service Bus 到达已授权 Gmail inbox，最终状态为 `delivered`。
+- 语言偏好测试覆盖 Profile 持久化和 `alertrecipients` 同步；测试结束后账户已恢复为 `zh`。Canary 完成后 Service Bus active、scheduled 和 dead-letter 均为零，临时 operator Table 权限也已撤销。
 
 ## 已知限制和下一步
 

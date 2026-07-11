@@ -23,9 +23,10 @@ The deployed coordinated frontend/backend release adds a stable user UUID and a 
 - Container App: `airco-tracking-web`
 - Azure resource group: `airco-tracker-rg`
 - Backend repository: `https://github.com/ProgrammerAsahi/airco-tracking`
-- Deployed commit/image: `715acf223377d6b450a2a594e32eee0515a85797` in the shared private ACR
-- Ready revision: `airco-tracking-web--0000041`; provisioning state `Succeeded`
-- Successful deployment workflow run: `29061171454`
+- Deployed frontend commit/image: `241be5cd0fc2d8c5359ba3c02758bd79b4f7da15` in the shared private ACR
+- Coordinated backend commit/image: `e4194c25cce82f650eb96d72b37f10bdd6d067a7`
+- Ready revision: `airco-tracking-web--0000044`; provisioning state `Succeeded`
+- Successful deployment workflow runs: frontend `29167702772`, backend `29167702065`
 - Deployment workflow: `.github/workflows/deploy.yml`; Markdown/docs-only pushes do not deploy
 
 Both custom web hostnames and their existing managed-certificate names are declared in `infra/app.bicep`. Do not remove those `customDomains` entries: an application Bicep deployment would otherwise clear the bindings.
@@ -80,22 +81,24 @@ The backend daily reconciler repairs partial cross-table failures and legacy row
 - The old storage-account-wide Table contributor assignment has been removed. The shared identity now has only the required per-table roles; real production OTP login, profile/projection writes, logout, retention, and scanner execution passed after narrowing.
 - GitHub Actions uses branch-restricted OIDC and immutable commit-SHA images; no Azure client secret or `AZURE_CREDENTIALS` secret exists.
 - `scripts/deploy.sh` selects an ACS Email Domain by exact `ACS_EMAIL_DOMAIN_NAME`, defaulting to `AzureManagedDomain`. `EMAIL_DOMAIN_ID` remains an explicit emergency/administrative override.
-- If a customer-managed ACS sender is later verified, link it in the backend foundation first, set the same `ACS_EMAIL_DOMAIN_NAME` GitHub variable in both repositories, and deploy. The Azure-managed domain remains the safe fallback until then.
+- Production now uses the verified customer-managed `airco-tracker.eu` ACS sender in both repositories; the Azure-managed domain remains the explicit fallback.
+- The temporary operator Table-data permission used to seed and verify the four-language production rows has been revoked. Runtime and deploy identities retain only their scoped application permissions.
 - Stripe secrets are supplied only by GitHub Actions or an explicitly configured local environment. Do not run a manual production deployment with missing Stripe configuration.
 
 ## Current verification state
 
 The detailed subscription/payment matrix is maintained in `docs/SUBSCRIPTION_BILLING_TEST_PLAN.md` and `.en.md`. Production testing has covered initial Checkout, successful and failed cards, 3D Secure success/failure, cancellation at period end, upgrade, scheduled downgrade, switching billing interval, inventory entitlement gating, profile changes, language/country changes, email changes, logout/login persistence, and account-deletion rules.
 
-The four-language release candidate passes 71/71 frontend tests, app/server typecheck, production build, production-mode deployment verification, and `git diff --check`. French Landing, Subscribe, Profile, login/nickname, and unsubscribe states were visually checked at 1440×900 and 390×844; header language changes preserve navigation while leaving the saved Profile preference unchanged. Production deployment and real French OTP/stock-alert delivery are the remaining release checks.
+The four-language release is deployed. It passed 71/71 frontend tests, app/server typecheck, production build, production-mode deployment verification, and `git diff --check`. French Landing, Subscribe, Login/nickname, Profile, and Unsubscribe states passed production visual checks at 1440×900 and 390×844 with no console errors or warnings. Header language changes preserve navigation while leaving the saved Profile preference unchanged; saving the Profile preference updates both the web default and alert-email language.
 
-The coordinated Service Bus release is deployed and verified:
+The coordinated frontend/backend release is deployed and verified:
 
-- CI run `29061171454` passed 59/59 tests, typecheck, production build, shell/Bicep checks, and deployment verification.
-- Production runs immutable image `715acf223377d6b450a2a594e32eee0515a85797` on ready revision `airco-tracking-web--0000041`.
+- Frontend workflow `29167702772` deployed commit `241be5c`; backend workflow `29167702065` deployed commit `e4194c2` after their complete test, build, and deployment checks passed.
+- Production runs ready web revision `airco-tracking-web--0000044` with provisioning state `Succeeded`.
 - `https://airco-tracker.eu/health` and the `www` health endpoint return 200; anonymous `/api/inventory` returns 401.
-- A real production OTP session exercised code creation/consumption, session creation/deletion, canonical user reads, a language write and restore, and `alertrecipients` synchronization after account-wide Table access was removed. All requests returned 200 and the original preference was restored.
-- Backend targeted delivery reached two authorized inboxes, and a later real scanner run completed the restored Service Bus pipeline with zero active/scheduled/dead-letter messages.
+- Production i18n Table contains 56 translation entries across the `web` and `email` scopes. Automated contracts confirm every key has exactly four non-empty `zh`/`nl`/`en`/`fr` values and that the frontend/backend web maps match.
+- A real French OTP sent through the custom ACS sender reached an authorized Outlook inbox. A French alert-pipeline canary traversed the Service Bus pipeline to an authorized Gmail inbox and reached final status `delivered`.
+- The language-preference test exercised Profile persistence and `alertrecipients` synchronization; the test account was restored to `zh` afterwards. Service Bus active, scheduled, and dead-letter counts were all zero after the canary, and the temporary operator Table permission was removed.
 
 ## Known limitations and next work
 

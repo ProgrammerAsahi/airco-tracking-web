@@ -5,7 +5,7 @@
   <a href="./SUBSCRIPTION_BILLING_TEST_PLAN.en.md"><img alt="English" src="https://img.shields.io/badge/docs-English-0969da"></a>
 </p>
 
-Last updated: 2026-07-08
+Last updated: 2026-07-11
 
 ## Maintenance rule
 
@@ -69,9 +69,12 @@ Status markers:
 | ✅ | User without a subscription opens `/deliver-to/nl` or `/deliver-to/fr` | Inventory data is hidden; user is guided to subscribe | Verified in production on 2026-07-08: after re-registering without a subscription, direct inventory-page access redirects to the subscription page |
 | ✅ | `basic` user opens a realtime inventory page | Inventory data is hidden; page explains the plan only includes email alerts | Verified in production on 2026-07-08: after subscribing to a basic plan, direct inventory-page access is blocked and realtime inventory remains hidden |
 | ✅ | `priority` user opens a realtime inventory page | User lands on `/deliver-to/nl` or `/deliver-to/fr` based on the saved country and sees deliverable retailers | Verified in production on 2026-07-08: after switching to priority, realtime inventory is accessible and deliverable retailers are visible |
-| ✅ | Switch language on the Ready page | Chinese, English, and Dutch switch immediately without changing delivery country | Verified in production on 2026-07-09: the Ready page language switcher works |
-| ✅ | Switch language on `/deliver-to/*` | Chinese, English, and Dutch switch immediately without changing delivery country | Verified in production on 2026-07-09: the inventory page language switcher works |
-| ✅ | Switch language from the Profile page header | Only the current Profile page display language changes; the account default language preference is not overwritten automatically; the dropdown is not hidden behind the card | Verified in production on 2026-07-09: the Profile header language switcher works and the dropdown is no longer hidden behind the card |
+| ✅ | Switch Chinese/Dutch/English on the Ready page | These three languages switch immediately without changing delivery country | Verified in production on 2026-07-09 |
+| ⬜ | Switch French on the Ready page | French switches immediately without changing delivery country | Four-language automated coverage passes; repeat the authenticated production Ready-page interaction separately |
+| ✅ | Switch Chinese/Dutch/English on `/deliver-to/*` | These three languages switch immediately without changing delivery country | Verified in production on 2026-07-09 |
+| ⬜ | Switch French on `/deliver-to/*` | French switches immediately without changing delivery country | Four-language automated coverage passes; repeat the authenticated production inventory-page interaction separately |
+| ✅ | Switch language from the Profile page header | Only the current Profile page display language changes; the account default language preference is not overwritten automatically; the dropdown is not hidden behind the card | Chinese/Dutch/English were verified on 2026-07-09; the French production page/menu and saved-preference semantics plus the complete automated contract passed on 2026-07-11 |
+| ✅ | Save French as the Profile preference | The default web language, verification emails, and stock-alert emails use French and remain French after login | Verified in production on 2026-07-11: saving `fr` synchronized the projection and email language; a real French OTP reached Outlook and a real French inventory canary reached Gmail; the account preference was restored to `zh` after testing |
 | ✅ | Change country in Profile | After confirmation, saved country changes and future inventory entry points use that country | Verified in production on 2026-07-09: switching between France and the Netherlands works both ways, including confirmation and future entry points |
 
 ## P0: Stripe webhook and sync safety
@@ -92,6 +95,9 @@ Status markers:
 | Status | Scenario | Expected result | Notes |
 | --- | --- | --- | --- |
 | ⬜ | New user registers with email code | User is created/logged in only with a valid code; first login opens the nickname card | Not tested yet |
+| ✅ | French verification email | Subject, plain text, HTML, safety copy, and language metadata are French and the message reaches the inbox | Verified in production on 2026-07-11: a real OTP from the custom ACS sender reached an authorized Outlook inbox |
+| ✅ | French alert-pipeline canary email | When the recipient Profile language is French, the canary subject, body, and visible pause-alert link are French and the real queue path delivers the message | Verified in production on 2026-07-11: the canary traversed Service Bus to an authorized Gmail inbox; final status was `delivered` and active/scheduled/dead-letter counts were all 0 |
+| ⬜ | French real-restock product email | A genuine restock renders the localized singular/plural subject, destination, price, product fields, footer, and unsubscribe link | Rendering is covered by unit tests; no false production restock was injected, so confirm this during the next genuine French-profile delivery |
 | ✅ | Send-code button countdown | After clicking, the button is disabled for 60 seconds; it can be used again after the countdown | Verified in production on 2026-07-09: countdown behavior works |
 | ✅ | Change nickname | The “What should we call you?” card opens; after saving, avatar initials update | Verified in production on 2026-07-09: avatar initials update after nickname changes |
 | ✅ | Change email | After verifying the new email code, stable user ID remains unchanged and email field updates | Verified in production on 2026-07-09: after changing email and logging back in, subscription, country, and language are preserved |
@@ -115,11 +121,13 @@ Status markers:
 | --- | --- | --- | --- |
 | ✅ | `/health` | Returns 200 | Verified in production on 2026-07-08 |
 | ✅ | `/ready?lang=zh` | Returns 200 | Verified in production on 2026-07-08 |
-| ✅ | Latest frontend bundle is loaded by production | Browser loads the new build artifact | New bundle observed on 2026-07-08 |
-| ⬜ | `/subscribe?lang=zh/en` | Both Chinese and English pages load and plan buttons behave consistently | Not tested yet |
-| ⬜ | `/profile?lang=zh/en` | Both Chinese and English pages load with consistent profile and subscription cards | Not tested yet |
-| ⬜ | `/deliver-to/nl?lang=zh/en` | Both Chinese and English inventory pages load and language switching works | Not tested yet |
-| ⬜ | `/deliver-to/fr?lang=zh/en` | Both Chinese and English inventory pages load and language switching works | Not tested yet |
+| ✅ | Latest frontend bundle is loaded by production | Browser loads the new build artifact | Production revision `airco-tracking-web--0000044` loaded frontend commit `241be5c` on 2026-07-11 |
+| ✅ | Automated four-language contract | Every application-owned translation key is present and non-empty for `zh`, `nl`, `en`, and `fr`, with matching frontend/backend web maps | Verified on 2026-07-11: 71/71 frontend tests, typecheck, production build, and deployment verifier passed; production i18n Table contains 56 entries across 2 scopes |
+| ✅ | French portal and account visual regression | Landing, Subscribe, Login, Profile, and Unsubscribe render correctly at desktop and narrow widths | Verified in production on 2026-07-11 at 1440×900 and 390×844, with no console errors or warnings |
+| ✅ | `/subscribe?lang=fr` | The French page loads and its plan-button behavior matches the existing languages | Production visual and header-switch verification passed on 2026-07-11 |
+| ✅ | `/profile?lang=fr` | The French page loads with correct profile/subscription cards and correct transient-versus-persistent language behavior | Verified in production on 2026-07-11: French Profile, transient header switching, and persistent preference save passed |
+| ⬜ | `/deliver-to/nl?lang=zh/nl/en/fr` | All four inventory pages load and language switching works | The automated four-language key contract passes; the complete authenticated route regression has not been repeated separately in every language |
+| ⬜ | `/deliver-to/fr?lang=zh/nl/en/fr` | All four inventory pages load and language switching works | The automated four-language key contract passes; the complete authenticated route regression has not been repeated separately in every language |
 
 ## Recommended test order
 
