@@ -27,6 +27,7 @@ import { AircoLogoMark } from "./AircoLogoMark";
 
 type ProfileCopy = {
   productName: string;
+  pageDescription: string;
   backHome: string;
   title: string;
   subtitle: string;
@@ -108,8 +109,9 @@ type ProfileCopy = {
 const PROFILE_COPY: Record<Lang, ProfileCopy> = {
   zh: {
     productName: "Airco Tracker",
+    pageDescription: "管理你的 Airco Tracker 账号、提醒、订阅、语言和配送国家。",
     backHome: "返回首页",
-    title: "Profile",
+    title: "个人资料",
     subtitle: "这里目前只保存最少的信息：邮箱、昵称、订阅档位、语言偏好和配送国家。",
     loading: "正在读取账号信息…",
     notLoggedIn: "你还没有登录。",
@@ -165,8 +167,8 @@ const PROFILE_COPY: Record<Lang, ProfileCopy> = {
     change: "更改",
     none: "尚未订阅",
     logout: "登出",
-    paidPlansTitle: "预留的订阅档位",
-    paidPlansBody: "支付接入后，会从下面四个付费档位里选择一个写入用户资料。",
+    paidPlansTitle: "订阅方案",
+    paidPlansBody: "登录并选择一个订阅方案后，方案和支付方式会显示在这里。",
     weeklyBasic: "周订阅 · 库存提醒",
     weeklyPriority: "周订阅 · 实时雷达",
     monthlyBasic: "月订阅 · 库存提醒",
@@ -187,8 +189,9 @@ const PROFILE_COPY: Record<Lang, ProfileCopy> = {
   },
   nl: {
     productName: "Airco Tracker",
+    pageDescription: "Beheer je Airco Tracker-account, meldingen, abonnement, taal en bezorgland.",
     backHome: "Terug naar home",
-    title: "Profile",
+    title: "Profiel",
     subtitle: "We bewaren nu alleen het minimum: e-mail, bijnaam, abonnement, taalvoorkeur en bezorgland.",
     loading: "Accountgegevens laden…",
     notLoggedIn: "Je bent nog niet ingelogd.",
@@ -244,8 +247,8 @@ const PROFILE_COPY: Record<Lang, ProfileCopy> = {
     change: "Wijzigen",
     none: "Nog geen abonnement",
     logout: "Uitloggen",
-    paidPlansTitle: "Voorbereide abonnementen",
-    paidPlansBody: "Zodra betaling gekoppeld is, wordt één van deze vier betaalde plannen opgeslagen.",
+    paidPlansTitle: "Abonnementen",
+    paidPlansBody: "Nadat je bent ingelogd en een abonnement hebt gekozen, verschijnen het plan en de betaalmethode hier.",
     weeklyBasic: "Week · voorraadmeldingen",
     weeklyPriority: "Week · realtime radar",
     monthlyBasic: "Maand · voorraadmeldingen",
@@ -266,6 +269,7 @@ const PROFILE_COPY: Record<Lang, ProfileCopy> = {
   },
   en: {
     productName: "Airco Tracker",
+    pageDescription: "Manage your Airco Tracker account, alerts, subscription, language and delivery country.",
     backHome: "Back home",
     title: "Profile",
     subtitle: "For now we only store the minimum: email, nickname, subscription plan, language preference and delivery country.",
@@ -323,8 +327,8 @@ const PROFILE_COPY: Record<Lang, ProfileCopy> = {
     change: "Change",
     none: "Not subscribed yet",
     logout: "Log out",
-    paidPlansTitle: "Prepared subscription plans",
-    paidPlansBody: "Once payment is wired, one of these four paid plans will be stored on the user profile.",
+    paidPlansTitle: "Subscription plans",
+    paidPlansBody: "After signing in and choosing a subscription, its plan and payment method will appear here.",
     weeklyBasic: "Weekly · stock alerts",
     weeklyPriority: "Weekly · realtime radar",
     monthlyBasic: "Monthly · stock alerts",
@@ -343,6 +347,86 @@ const PROFILE_COPY: Record<Lang, ProfileCopy> = {
     france: "France",
     netherlands: "Netherlands",
   },
+  fr: {
+    productName: "Airco Tracker",
+    pageDescription: "Gérez votre compte Airco Tracker, vos alertes, votre abonnement, votre langue et votre pays de livraison.",
+    backHome: "Retour à l’accueil",
+    title: "Profil",
+    subtitle: "Nous conservons uniquement le strict minimum : e-mail, pseudonyme, abonnement, langue préférée et pays de livraison.",
+    loading: "Chargement du compte…",
+    notLoggedIn: "Vous n’êtes pas encore connecté.",
+    loginFromHome: "Se connecter depuis l’accueil",
+    email: "E-mail",
+    emailAlerts: "Alertes de stock par e-mail",
+    emailAlertsEnabled: "Activées",
+    emailAlertsDisabled: "En pause",
+    emailAlertsEnable: "Activer",
+    emailAlertsDisable: "Mettre en pause",
+    emailAlertsError: "Votre préférence d’alerte n’a pas pu être enregistrée. Réessayez plus tard.",
+    nickname: "Pseudonyme",
+    edit: "Modifier",
+    nicknameModalTitle: "Comment devons-nous vous appeler ?",
+    nicknameModalBody: "Votre pseudonyme est utilisé pour votre avatar et vos messages personnalisés.",
+    nicknamePlaceholder: "Comment devons-nous vous appeler ?",
+    nicknameSave: "Enregistrer le pseudonyme",
+    nicknameError: "Utilisez 1 à 40 caractères et au moins une lettre ou un chiffre.",
+    emailModalTitle: "Modifier l’adresse e-mail",
+    emailModalBody: "Saisissez votre nouvelle adresse et confirmez-la avec un code à usage unique. Votre identifiant de connexion sera transféré vers cette adresse.",
+    emailPlaceholder: "nouvelle@exemple.fr",
+    codePlaceholder: "Saisissez le code à 6 chiffres",
+    sendCode: "Envoyer le code",
+    sendCodeBusy: "Envoi…",
+    codeSent: "Code envoyé. Consultez votre boîte de réception.",
+    emailSave: "Enregistrer l’e-mail",
+    emailError: "Votre adresse e-mail n’a pas pu être modifiée. Vérifiez le code ou réessayez plus tard.",
+    devCodeNotice: "Code de développement local : {code}",
+    subscriptionPlan: "Formule d’abonnement",
+    subscriptionActiveUntil: "Accès actif jusqu’au",
+    subscriptionCancelScheduled: "Résilié ; l’accès reste actif jusqu’à la fin de la période en cours.",
+    subscriptionExpired: "Abonnement expiré",
+    cancelSubscription: "Résilier l’abonnement",
+    cancelingSubscription: "Résiliation…",
+    subscriptionCancelError: "Votre abonnement n’a pas pu être résilié. Réessayez plus tard.",
+    changeSubscription: "Modifier l’abonnement",
+    subscribeNow: "S’abonner maintenant",
+    pendingSubscription: "Passage à {plan} le {date}",
+    currentSubscription: "Abonnement actuel",
+    paymentMethod: "Moyen de paiement",
+    noPaymentMethod: "Aucun moyen de paiement",
+    cardPayment: "{brand} · se terminant par {last4}",
+    idealPayment: "iDEAL · {bank}",
+    deleteAccount: "Supprimer le compte",
+    deleteAccountBlocked: "Votre abonnement est encore actif ; le compte ne peut pas encore être supprimé.",
+    deleteAccountTitle: "Supprimer le compte ?",
+    deleteAccountBody: "Nous supprimerons votre e-mail, votre pseudonyme, vos préférences et vos sessions. Cette action est irréversible.",
+    deleteAccountConfirm: "Supprimer le compte",
+    deletingAccount: "Suppression…",
+    deleteAccountError: "Votre compte n’a pas pu être supprimé. Vérifiez que votre abonnement a expiré.",
+    languagePreference: "Langue préférée",
+    country: "Pays",
+    change: "Modifier",
+    none: "Pas encore abonné",
+    logout: "Se déconnecter",
+    paidPlansTitle: "Formules d’abonnement",
+    paidPlansBody: "Après connexion et souscription, votre formule et votre moyen de paiement apparaîtront ici.",
+    weeklyBasic: "Hebdomadaire · alertes de stock",
+    weeklyPriority: "Hebdomadaire · radar en temps réel",
+    monthlyBasic: "Mensuel · alertes de stock",
+    monthlyPriority: "Mensuel · radar en temps réel",
+    languageModalTitle: "Choisir la langue préférée",
+    languageModalBody: "Nous enregistrons ce choix dans votre compte et changeons immédiatement la langue de cette page.",
+    countryModalTitle: "Choisir le pays de livraison",
+    countryModalBody: "Nous affichons les magasins et leur stock selon ce pays.",
+    countryOk: "OK",
+    cancel: "Annuler",
+    countryConfirmTitle: "Confirmer le changement de pays ?",
+    countryConfirmBody: "Changer de pays modifiera la liste des sites suivis. Voulez-vous continuer ?",
+    countryConfirm: "Confirmer",
+    saving: "Enregistrement…",
+    preferenceError: "Votre préférence n’a pas pu être enregistrée. Réessayez plus tard.",
+    france: "France",
+    netherlands: "Pays-Bas",
+  },
 };
 
 const PLAN_LABEL_KEYS: Record<PaidSubscriptionPlan, keyof ProfileCopy> = {
@@ -356,6 +440,7 @@ const LANGUAGE_OPTIONS: Record<Lang, { flag: string; label: string }> = {
   zh: { flag: "🇨🇳", label: "中文" },
   nl: { flag: "🇳🇱", label: "Nederlands" },
   en: { flag: "🇬🇧", label: "English" },
+  fr: { flag: "🇫🇷", label: "Français" },
 };
 
 type ProfilePageProps = {
@@ -395,13 +480,13 @@ export function ProfilePage({ lang, setLang }: ProfilePageProps) {
   const [deleteError, setDeleteError] = useState("");
 
   useEffect(() => {
-    document.title = "Profile · Airco Tracker";
     let ignore = false;
     getCurrentUser()
       .then((nextUser) => {
         if (ignore) return;
         setUser(nextUser);
-        if (nextUser?.languagePreference && nextUser.languagePreference !== lang) {
+        const hasExplicitLanguage = new URLSearchParams(window.location.search).has("lang");
+        if (!hasExplicitLanguage && nextUser?.languagePreference && nextUser.languagePreference !== lang) {
           setLang(nextUser.languagePreference);
         }
         if (nextUser?.deliveryCountry) {
@@ -416,6 +501,13 @@ export function ProfilePage({ lang, setLang }: ProfilePageProps) {
       ignore = true;
     };
   }, []);
+
+  useEffect(() => {
+    document.title = `${copy.title} · Airco Tracker`;
+    document
+      .querySelector('meta[name="description"]')
+      ?.setAttribute("content", copy.pageDescription);
+  }, [copy.pageDescription, copy.title]);
 
   useEffect(() => {
     document.body.classList.toggle(
@@ -988,7 +1080,8 @@ function paymentSummary(user: UserProfile, copy: ProfileCopy): string {
 function formatSubscriptionDate(value: string, lang: Lang): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat(lang === "zh" ? "zh-CN" : lang === "nl" ? "nl-NL" : "en-GB", {
+  const locale = lang === "zh" ? "zh-CN" : lang === "nl" ? "nl-NL" : lang === "fr" ? "fr-FR" : "en-GB";
+  return new Intl.DateTimeFormat(locale, {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);

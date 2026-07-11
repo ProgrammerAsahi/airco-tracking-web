@@ -1,4 +1,4 @@
-import type { Lang } from "./i18n.js";
+import { SUPPORTED_LANGS, type Lang } from "./i18n.js";
 
 export const PAID_SUBSCRIPTION_PLANS = [
   "weekly_basic",
@@ -42,7 +42,7 @@ export const SUBSCRIPTION_PLAN_DETAILS = {
   },
 } as const;
 
-export const SUPPORTED_LANGUAGE_PREFERENCES = ["zh", "nl", "en"] as const satisfies readonly Lang[];
+export const SUPPORTED_LANGUAGE_PREFERENCES = SUPPORTED_LANGS satisfies readonly Lang[];
 export const SUPPORTED_DELIVERY_COUNTRIES = ["fr", "nl"] as const;
 export const SUPPORTED_PAYMENT_METHODS = ["card", "ideal"] as const;
 export const SUBSCRIPTION_STATUSES = ["none", "active", "canceled"] as const;

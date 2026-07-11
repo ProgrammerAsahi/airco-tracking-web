@@ -16,6 +16,10 @@ import { AircoLogoMark } from "./AircoLogoMark";
 
 type LandingCopy = {
   productName: string;
+  pageTitle: string;
+  pageDescription: string;
+  navigationLabel: string;
+  statusLabel: string;
   navStory: string;
   navProduct: string;
   navPreview: string;
@@ -86,6 +90,10 @@ type LandingCopy = {
 const LANDING_COPY: Record<Lang, LandingCopy> = {
   zh: {
     productName: "Airco Tracker",
+    pageTitle: "欧洲空调库存雷达",
+    pageDescription: "Airco Tracker 持续追踪欧洲零售商的便携空调库存。",
+    navigationLabel: "Airco Tracker 主导航",
+    statusLabel: "Airco Tracker 追踪状态",
     navStory: "热浪现场",
     navProduct: "产品",
     navPreview: "库存演示",
@@ -106,12 +114,12 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     stepThreeBody: "我们持续追踪能配送到法国、荷兰等目的地的网站，区分现货和预售，把真正可买的移动空调集中到一个清爽页面里。",
     productKicker: "Airco Tracker",
     productTitle: "一个为热浪季节准备的空调雷达。",
-    productBody: "按配送国家筛选网站，保留语言选择独立；现货、预售、价格、BTU 和配送说明都放在同一个视图里。登录和付费订阅会在下一阶段接入。",
+    productBody: "按配送国家筛选网站，保留语言选择独立；现货、预售、价格、BTU 和配送说明都放在同一个视图里。登录并订阅后即可开启提醒及实时库存。",
     subscribeTitle: "清凉一夏，从少刷新一次页面开始。",
-    subscribeBody: "订阅入口已经预留。现在先展示门户体验，下一步再接入账号、支付和订阅权限。",
-    subscribeNotice: "订阅功能即将接入。现在展示的是交互预览：房间已经开始降温了。",
+    subscribeBody: "选择库存提醒或实时雷达方案，通过 Stripe 安全订阅，随时掌握真正可买的空调。",
+    subscribeNotice: "登录后即可选择方案。房间已经开始降温了。",
     loginTitle: "登录后开启清凉雷达",
-    loginSubtitle: "输入邮箱获取验证码，订阅功能接入后即可解锁实时库存提醒。",
+    loginSubtitle: "输入邮箱获取验证码，登录后即可选择订阅方案并解锁库存提醒。",
     emailLabel: "邮箱",
     emailPlaceholder: "you@example.com",
     codeLabel: "验证码",
@@ -124,8 +132,8 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     loginWithGoogle: "Google",
     loginWithApple: "Apple",
     loginWithMicrosoft: "Microsoft",
-    loginFinePrint: "继续即表示你同意之后接入的用户协议和隐私政策。",
-    loginPreviewNotice: "邮箱验证码已接入；第三方登录和订阅支付会在下一阶段接入。",
+    loginFinePrint: "继续即表示你同意用户协议和隐私政策。",
+    loginPreviewNotice: "邮箱验证码和订阅支付已接入；第三方登录即将开放。",
     closeLogin: "关闭登录弹窗",
     codeSent: "验证码已发送，请检查你的邮箱。",
     codeCooldown: "验证码刚刚发送过，请 {seconds} 秒后再试。",
@@ -144,7 +152,7 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     nicknameError: "昵称需要 1–40 个字符，且至少包含一个文字或数字。",
     accountMenu: "打开账号菜单",
     signedInAs: "已登录：{email}",
-    profile: "Profile",
+    profile: "个人资料",
     logout: "登出",
     socialComingSoon: "即将接入",
     previewNl: "预览荷兰库存",
@@ -154,6 +162,10 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
   },
   nl: {
     productName: "Airco Tracker",
+    pageTitle: "Europese radar voor airco-voorraad",
+    pageDescription: "Airco Tracker volgt doorlopend de voorraad van mobiele airco’s bij Europese winkels.",
+    navigationLabel: "Hoofdnavigatie van Airco Tracker",
+    statusLabel: "Status van Airco Tracker",
     navStory: "Hittegolf",
     navProduct: "Product",
     navPreview: "Voorraad demo",
@@ -174,12 +186,12 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     stepThreeBody: "We volgen winkels die naar Frankrijk, Nederland en andere bestemmingen leveren, scheiden voorraad van pre-orders en brengen koopbare modellen samen.",
     productKicker: "Airco Tracker",
     productTitle: "Een airco-radar voor het hittegolfseizoen.",
-    productBody: "Filter op bezorgland terwijl taal apart blijft; voorraad, pre-orders, prijzen, BTU en bezorgtekst staan in één helder overzicht. Login en abonnement volgen later.",
+    productBody: "Filter op bezorgland terwijl taal apart blijft; voorraad, pre-orders, prijzen, BTU en bezorgtekst staan in één helder overzicht. Log in en abonneer je voor meldingen en realtime voorraad.",
     subscribeTitle: "Een koelere zomer begint met minder refreshen.",
-    subscribeBody: "De abonnementsknop is alvast voorbereid. Nu tonen we eerst de portalervaring; accounts, betaling en rechten komen in de volgende stap.",
-    subscribeNotice: "Abonnementen komen binnenkort. Dit is de interactiepreview: de kamer koelt alvast af.",
+    subscribeBody: "Kies voorraadmeldingen of de realtime radar en abonneer je veilig via Stripe om beschikbare airco’s niet meer te missen.",
+    subscribeNotice: "Log in om een abonnement te kiezen. De kamer koelt alvast af.",
     loginTitle: "Log in voor je koele voorraad-radar",
-    loginSubtitle: "Vul je e-mail in voor een code. Zodra abonnementen live zijn, ontgrendel je realtime voorraadmeldingen.",
+    loginSubtitle: "Vul je e-mail in voor een code. Na het inloggen kun je een abonnement kiezen en voorraadmeldingen activeren.",
     emailLabel: "E-mail",
     emailPlaceholder: "jij@example.com",
     codeLabel: "Code",
@@ -192,8 +204,8 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     loginWithGoogle: "Google",
     loginWithApple: "Apple",
     loginWithMicrosoft: "Microsoft",
-    loginFinePrint: "Door verder te gaan ga je later akkoord met de voorwaarden en privacyverklaring.",
-    loginPreviewNotice: "E-mailcodes zijn gekoppeld; OAuth en betaling komen in de volgende stap.",
+    loginFinePrint: "Door verder te gaan ga je akkoord met de voorwaarden en privacyverklaring.",
+    loginPreviewNotice: "E-mailcodes en abonnementsbetalingen werken; externe login volgt binnenkort.",
     closeLogin: "Sluit loginvenster",
     codeSent: "De code is verstuurd. Check je mailbox.",
     codeCooldown: "Er is net een code verstuurd. Probeer opnieuw over {seconds} seconden.",
@@ -212,7 +224,7 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     nicknameError: "Gebruik 1–40 tekens en minstens één letter of cijfer.",
     accountMenu: "Open accountmenu",
     signedInAs: "Ingelogd als {email}",
-    profile: "Profile",
+    profile: "Profiel",
     logout: "Uitloggen",
     socialComingSoon: "Binnenkort",
     previewNl: "Bekijk Nederland",
@@ -222,6 +234,10 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
   },
   en: {
     productName: "Airco Tracker",
+    pageTitle: "European portable AC stock radar",
+    pageDescription: "Airco Tracker continuously monitors portable air-conditioner stock across European retailers.",
+    navigationLabel: "Airco Tracker main navigation",
+    statusLabel: "Airco Tracker tracking status",
     navStory: "Heatwave",
     navProduct: "Product",
     navPreview: "Stock demo",
@@ -242,12 +258,12 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     stepThreeBody: "We track stores that can deliver to France, the Netherlands, and other destinations, separate in-stock units from pre-orders, and collect buyable models in one calm view.",
     productKicker: "Airco Tracker",
     productTitle: "An AC radar for heatwave season.",
-    productBody: "Filter by delivery country while keeping language separate; stock, pre-orders, prices, BTU and delivery notes live in one view. Login and paid subscription come next.",
+    productBody: "Filter by delivery country while keeping language separate; stock, pre-orders, prices, BTU and delivery notes live in one view. Sign in and subscribe for alerts and realtime stock.",
     subscribeTitle: "A cooler summer starts with one less refresh.",
-    subscribeBody: "The subscription entry point is already reserved. For now this is the portal experience; accounts, payment and access control will follow.",
-    subscribeNotice: "Subscriptions are coming soon. This is the interaction preview: the room is already cooling down.",
+    subscribeBody: "Choose stock alerts or the realtime radar and subscribe securely with Stripe so you never miss a genuinely buyable AC.",
+    subscribeNotice: "Sign in to choose a plan. The room is already cooling down.",
     loginTitle: "Log in to unlock your cooling radar",
-    loginSubtitle: "Enter your email for a code. Once subscriptions go live, this will unlock realtime stock alerts.",
+    loginSubtitle: "Enter your email for a code. After signing in, choose a plan and unlock stock alerts.",
     emailLabel: "Email",
     emailPlaceholder: "you@example.com",
     codeLabel: "Verification code",
@@ -260,8 +276,8 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     loginWithGoogle: "Google",
     loginWithApple: "Apple",
     loginWithMicrosoft: "Microsoft",
-    loginFinePrint: "By continuing, you will later agree to the terms and privacy policy.",
-    loginPreviewNotice: "Email codes are wired; OAuth and subscription payment come next.",
+    loginFinePrint: "By continuing, you agree to the terms and privacy policy.",
+    loginPreviewNotice: "Email codes and subscription payments are available; third-party sign-in is coming soon.",
     closeLogin: "Close login dialog",
     codeSent: "Code sent. Please check your inbox.",
     codeCooldown: "A code was just sent. Try again in {seconds} seconds.",
@@ -287,6 +303,78 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     statSites: "45+ sites",
     statCountries: "France / Netherlands",
     statRefresh: "≈ 10 min refresh",
+  },
+  fr: {
+    productName: "Airco Tracker",
+    pageTitle: "Radar européen des climatiseurs disponibles",
+    pageDescription: "Airco Tracker surveille en continu le stock de climatiseurs mobiles chez les revendeurs européens.",
+    navigationLabel: "Navigation principale d’Airco Tracker",
+    statusLabel: "État du suivi Airco Tracker",
+    navStory: "Canicule",
+    navProduct: "Produit",
+    navPreview: "Aperçu du stock",
+    heroEyebrow: "Suivi des climatiseurs disponibles en Europe",
+    heroTitle: "Une canicule exceptionnelle frappe l’Europe.",
+    heroLead: "Quand les quais de Seine se mettent à rayonner la chaleur, les climatiseurs mobiles peuvent disparaître des stocks en moins d’une heure. Airco Tracker vous indique quels magasins peuvent encore livrer dans votre pays.",
+    primaryCta: "S’abonner maintenant",
+    secondaryCta: "Voir la France",
+    scrollCue: "Faites défiler pour entrer dans la canicule",
+    stepOneKicker: "Paris · 38 °C",
+    stepOneTitle: "La ville se transforme en four.",
+    stepOneBody: "Le fleuve renvoie une lumière blanche, les murs de pierre gardent la chaleur et les passants avancent au ralenti. Ces jours-là, un climatiseur mobile n’est plus un luxe.",
+    stepTwoKicker: "Dans un vieil appartement",
+    stepTwoTitle: "Aucun climatiseur en stock, et la pièce chauffe toujours ?",
+    stepTwoBody: "Le ventilateur rend l’âme, aucune brise ne passe par la fenêtre et tous les sites affichent rupture de stock, précommande ou livraison dans plusieurs semaines.",
+    stepThreeKicker: "Suivi en temps réel",
+    stepThreeTitle: "Ne rafraîchissez plus tous vos onglets. Laissez le stock venir à vous.",
+    stepThreeBody: "Nous suivons les magasins qui livrent en France, aux Pays-Bas et ailleurs, distinguons le stock des précommandes et rassemblons les modèles réellement disponibles dans une seule vue apaisante.",
+    productKicker: "Airco Tracker",
+    productTitle: "Un radar de climatiseurs pour la saison des canicules.",
+    productBody: "Filtrez par pays de livraison tout en gardant la langue indépendante ; stock, précommandes, prix, BTU et informations de livraison sont réunis dans une vue claire. Connectez-vous et abonnez-vous pour recevoir les alertes et consulter le stock en temps réel.",
+    subscribeTitle: "Un été plus frais commence par un rafraîchissement de page en moins.",
+    subscribeBody: "Choisissez les alertes de stock ou le radar en temps réel et abonnez-vous en toute sécurité avec Stripe pour ne plus manquer un climatiseur réellement disponible.",
+    subscribeNotice: "Connectez-vous pour choisir une formule. La pièce commence déjà à se rafraîchir.",
+    loginTitle: "Connectez-vous pour activer votre radar fraîcheur",
+    loginSubtitle: "Saisissez votre e-mail pour recevoir un code. Après connexion, choisissez une formule et activez les alertes de stock.",
+    emailLabel: "E-mail",
+    emailPlaceholder: "vous@exemple.fr",
+    codeLabel: "Code de vérification",
+    codePlaceholder: "Saisissez le code à 6 chiffres",
+    sendCode: "Envoyer le code",
+    sendCodeBusy: "Envoi…",
+    loginSubmit: "Se connecter / continuer",
+    loginBusy: "Connexion…",
+    socialDivider: "Ou continuer avec",
+    loginWithGoogle: "Google",
+    loginWithApple: "Apple",
+    loginWithMicrosoft: "Microsoft",
+    loginFinePrint: "En continuant, vous acceptez les conditions d’utilisation et la politique de confidentialité.",
+    loginPreviewNotice: "Les codes par e-mail et le paiement des abonnements sont disponibles ; la connexion avec un tiers arrive bientôt.",
+    closeLogin: "Fermer la fenêtre de connexion",
+    codeSent: "Code envoyé. Consultez votre boîte de réception.",
+    codeCooldown: "Un code vient d’être envoyé. Réessayez dans {seconds} secondes.",
+    devCodeNotice: "Code de développement local : {code}",
+    authErrorInvalidEmail: "Saisissez une adresse e-mail valide.",
+    authErrorInvalidCode: "Ce code est invalide ou a expiré. Vérifiez-le ou demandez-en un nouveau.",
+    authErrorTooMany: "Trop de tentatives. Demandez un nouveau code.",
+    authErrorEmailFailed: "L’e-mail de vérification n’a pas pu être envoyé. Réessayez plus tard.",
+    authErrorGeneric: "La connexion est temporairement indisponible. Réessayez plus tard.",
+    nicknameTitle: "Comment devons-nous vous appeler ?",
+    nicknameSubtitle: "Un simple pseudonyme suffit. Il servira pour votre avatar et vos futures alertes personnalisées.",
+    nicknameLabel: "Pseudonyme",
+    nicknamePlaceholder: "Comment devons-nous vous appeler ?",
+    nicknameSubmit: "Enregistrer le pseudonyme",
+    nicknameSaving: "Enregistrement…",
+    nicknameError: "Utilisez 1 à 40 caractères et au moins une lettre ou un chiffre.",
+    accountMenu: "Ouvrir le menu du compte",
+    signedInAs: "Connecté en tant que {email}",
+    profile: "Profil",
+    logout: "Se déconnecter",
+    socialComingSoon: "Bientôt disponible",
+    previewNl: "Voir les Pays-Bas",
+    statSites: "Plus de 45 sites",
+    statCountries: "France / Pays-Bas",
+    statRefresh: "Actualisation toutes les 10 min environ",
   },
 };
 
@@ -352,14 +440,14 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
   const menuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    document.title = "Airco Tracker · European AC stock radar";
+    document.title = `Airco Tracker · ${copy.pageTitle}`;
     document
       .querySelector('meta[name="description"]')
-      ?.setAttribute("content", "Airco Tracker monitors portable air-conditioner stock across European retailers.");
+      ?.setAttribute("content", copy.pageDescription);
     if (new URLSearchParams(window.location.search).get("subscribed") === "alerts") {
       setCoolingPreview(true);
     }
-  }, []);
+  }, [copy.pageDescription, copy.pageTitle]);
 
   useEffect(() => {
     let ignore = false;
@@ -367,14 +455,16 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
       .then((nextUser) => {
         if (ignore) return;
         setUser(nextUser);
-        if (nextUser?.languagePreference && nextUser.languagePreference !== lang) {
+        const hasExplicitLanguage = new URLSearchParams(window.location.search).has("lang");
+        const routeLanguage = hasExplicitLanguage ? lang : nextUser?.languagePreference ?? lang;
+        if (!hasExplicitLanguage && nextUser?.languagePreference && nextUser.languagePreference !== lang) {
           setLang(nextUser.languagePreference);
         }
         if (nextUser && !nextUser.nickname) {
           setNickname("");
           setNicknameOpen(true);
         } else if (nextUser && subscriptionIsActive(nextUser)) {
-          window.location.replace(`/ready?lang=${nextUser.languagePreference}`);
+          window.location.replace(`/ready?lang=${routeLanguage}`);
         }
       })
       .catch(() => undefined)
@@ -423,8 +513,8 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
     setLoginMessage("");
     if (user) {
       window.location.href = subscriptionIsActive(user)
-        ? `/ready?lang=${user.languagePreference}`
-        : `/subscribe?lang=${user.languagePreference}`;
+        ? `/ready?lang=${lang}`
+        : `/subscribe?lang=${lang}`;
       return;
     }
     setLoginOpen(true);
@@ -467,9 +557,9 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
         setNickname("");
         setNicknameOpen(true);
       } else if (!subscriptionIsActive(result.user)) {
-        window.location.href = `/subscribe?lang=${result.user.languagePreference}`;
+        window.location.href = `/subscribe?lang=${navigationLanguage(lang, result.user.languagePreference)}`;
       } else {
-        window.location.href = `/ready?lang=${result.user.languagePreference}`;
+        window.location.href = `/ready?lang=${navigationLanguage(lang, result.user.languagePreference)}`;
       }
     } catch (error) {
       setLoginError(authErrorMessage(error, copy));
@@ -488,9 +578,9 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
       setNicknameOpen(false);
       setNickname("");
       if (!subscriptionIsActive(updated)) {
-        window.location.href = `/subscribe?lang=${updated.languagePreference}`;
+        window.location.href = `/subscribe?lang=${navigationLanguage(lang, updated.languagePreference)}`;
       } else {
-        window.location.href = `/ready?lang=${updated.languagePreference}`;
+        window.location.href = `/ready?lang=${navigationLanguage(lang, updated.languagePreference)}`;
       }
     } catch {
       setNicknameError(copy.nicknameError);
@@ -511,7 +601,7 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
 
   return (
     <main className={`landing-shell landing-story--step-${activeStep}${coolingPreview ? " landing-story--cooling" : ""}`}>
-      <header className="landing-nav" aria-label="Airco Tracker">
+      <header className="landing-nav" aria-label={copy.navigationLabel}>
         <a className="landing-logo" href={`/?lang=${lang}`} aria-label={copy.productName}>
           <AircoLogoMark className="landing-logo-mark" />
           <span>{copy.productName}</span>
@@ -571,7 +661,7 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
             </button>
           </div>
         </div>
-        <div className="landing-hero-card" aria-label="Airco Tracker status">
+        <div className="landing-hero-card" aria-label={copy.statusLabel}>
           <span>{copy.statSites}</span>
           <span>{copy.statCountries}</span>
           <span>{copy.statRefresh}</span>
@@ -776,6 +866,10 @@ function renderLandingLines(value: string) {
       {line}
     </span>
   ));
+}
+
+function navigationLanguage(current: Lang, preference: Lang): Lang {
+  return new URLSearchParams(window.location.search).has("lang") ? current : preference;
 }
 
 function authErrorMessage(error: unknown, copy: LandingCopy): string {

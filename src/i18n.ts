@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
-import { parseTranslationData, type Lang, type TranslationMap } from "../shared/i18n";
+import { parseTranslationData, SUPPORTED_LANGS, type Lang, type TranslationMap } from "../shared/i18n";
 
 export type { Lang } from "../shared/i18n";
 
 const DEFAULT_LANG: Lang = "zh";
 const STORAGE_KEY = "airco-lang";
-const SUPPORTED_LANGS = new Set<Lang>(["zh", "nl", "en"]);
+const SUPPORTED_LANG_SET = new Set<Lang>(SUPPORTED_LANGS);
 
 let translations: TranslationMap | undefined;
 
@@ -27,11 +27,12 @@ function detectLang(): Lang {
   const browser = navigator.language.slice(0, 2);
   if (browser === "nl") return "nl";
   if (browser === "en") return "en";
+  if (browser === "fr") return "fr";
   return DEFAULT_LANG;
 }
 
 function isLang(value: string | null | undefined): value is Lang {
-  return SUPPORTED_LANGS.has(value as Lang);
+  return SUPPORTED_LANG_SET.has(value as Lang);
 }
 
 export function useTranslation() {

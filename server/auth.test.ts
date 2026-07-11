@@ -247,6 +247,28 @@ test("adds Reply-To but no unsubscribe headers to verification emails", () => {
   assert.equal(message.content.plainText?.includes("123456"), true);
 });
 
+test("localizes every verification-email text field and HTML language", () => {
+  const expectations = {
+    zh: { lang: "zh-CN", subject: "验证码", footer: "可以忽略这封邮件" },
+    nl: { lang: "nl", subject: "verificatiecode", footer: "e-mail negeren" },
+    en: { lang: "en", subject: "verification code", footer: "ignore this email" },
+    fr: { lang: "fr", subject: "code de vérification", footer: "ignorer cet e-mail" },
+  } as const;
+  for (const [lang, expected] of Object.entries(expectations)) {
+    const message = verificationEmailMessage(
+      "DoNotReply@airco-tracker.eu",
+      "user@example.test",
+      "123456",
+      lang as keyof typeof expectations,
+    );
+    assert.equal(message.content.subject.includes(expected.subject), true, lang);
+    assert.equal(message.content.plainText?.includes("123456"), true, lang);
+    assert.equal(message.content.plainText?.includes(expected.footer), true, lang);
+    assert.equal(message.content.html?.includes(`<html lang="${expected.lang}">`), true, lang);
+    assert.equal(message.content.html?.includes(expected.footer), true, lang);
+  }
+});
+
 test("validates nicknames with minimal stored profile data", () => {
   assert.deepEqual(validateNickname("  Asahi   Lee  "), { ok: true, nickname: "Asahi Lee" });
   assert.deepEqual(validateNickname("李开复"), { ok: true, nickname: "李开复" });
@@ -258,8 +280,9 @@ test("validates nicknames with minimal stored profile data", () => {
 test("validates stored language and delivery country preferences", () => {
   assert.equal(isLanguagePreference("zh"), true);
   assert.equal(isLanguagePreference("nl"), true);
+  assert.equal(isLanguagePreference("fr"), true);
   assert.equal(isLanguagePreference("en"), true);
-  assert.equal(isLanguagePreference("fr"), false);
+  assert.equal(isLanguagePreference("de"), false);
   assert.equal(isDeliveryCountry("fr"), true);
   assert.equal(isDeliveryCountry("nl"), true);
   assert.equal(isDeliveryCountry("de"), false);
@@ -390,6 +413,9 @@ test("projects only the fields needed for alert delivery", () => {
   assert.equal("paymentLast4" in entity, false);
   assert.equal("stripeCustomerId" in entity, false);
   assert.equal("nickname" in entity, false);
+
+  const french = alertRecipientEntity(testUser({ languagePreference: "fr" }));
+  assert.equal(french.language, "fr");
 
   const expired = alertRecipientEntity(testUser({
     subscriptionCurrentPeriodEnd: "2026-07-08T00:00:00.000Z",

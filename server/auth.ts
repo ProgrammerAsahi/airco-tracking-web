@@ -1969,34 +1969,66 @@ function verificationCopy(lang: Lang, code: string): { subject: string; plainTex
   if (lang === "nl") {
     return {
       subject: "Je Airco Tracker verificatiecode",
-      plainText: `Je Airco Tracker verificatiecode is ${code}. Deze code verloopt over 10 minuten.`,
-      html: verificationHtml("Je verificatiecode", "Gebruik deze code om in te loggen bij Airco Tracker. De code verloopt over 10 minuten.", code),
+      plainText: `Je Airco Tracker verificatiecode is ${code}. Deze code verloopt over 10 minuten.\n\nHeb je deze code niet aangevraagd? Dan kun je deze e-mail negeren.`,
+      html: verificationHtml(
+        "nl",
+        "Je verificatiecode",
+        "Gebruik deze code om in te loggen bij Airco Tracker. De code verloopt over 10 minuten.",
+        code,
+        "Heb je deze code niet aangevraagd? Dan kun je deze e-mail negeren.",
+      ),
     };
   }
   if (lang === "en") {
     return {
       subject: "Your Airco Tracker verification code",
-      plainText: `Your Airco Tracker verification code is ${code}. This code expires in 10 minutes.`,
-      html: verificationHtml("Your verification code", "Use this code to sign in to Airco Tracker. It expires in 10 minutes.", code),
+      plainText: `Your Airco Tracker verification code is ${code}. This code expires in 10 minutes.\n\nIf you did not request this code, you can ignore this email.`,
+      html: verificationHtml(
+        "en",
+        "Your verification code",
+        "Use this code to sign in to Airco Tracker. It expires in 10 minutes.",
+        code,
+        "If you did not request this code, you can ignore this email.",
+      ),
+    };
+  }
+  if (lang === "fr") {
+    return {
+      subject: "Votre code de vérification Airco Tracker",
+      plainText: `Votre code de vérification Airco Tracker est ${code}. Ce code expire dans 10 minutes.\n\nSi vous n’avez pas demandé ce code, vous pouvez ignorer cet e-mail.`,
+      html: verificationHtml(
+        "fr",
+        "Votre code de vérification",
+        "Utilisez ce code pour vous connecter à Airco Tracker. Il expire dans 10 minutes.",
+        code,
+        "Si vous n’avez pas demandé ce code, vous pouvez ignorer cet e-mail.",
+      ),
     };
   }
   return {
     subject: "你的 Airco Tracker 验证码",
-    plainText: `你的 Airco Tracker 验证码是 ${code}。验证码 10 分钟内有效。`,
-    html: verificationHtml("你的验证码", "请使用下方验证码登录 Airco Tracker。验证码 10 分钟内有效。", code),
+    plainText: `你的 Airco Tracker 验证码是 ${code}。验证码 10 分钟内有效。\n\n如果你没有请求此验证码，可以忽略这封邮件。`,
+    html: verificationHtml(
+      "zh-CN",
+      "你的验证码",
+      "请使用下方验证码登录 Airco Tracker。验证码 10 分钟内有效。",
+      code,
+      "如果你没有请求此验证码，可以忽略这封邮件。",
+    ),
   };
 }
 
-function verificationHtml(title: string, body: string, code: string): string {
+function verificationHtml(lang: string, title: string, body: string, code: string, footer: string): string {
   return `<!doctype html>
-<html>
+<html lang="${escapeHtml(lang)}">
+  <head><meta charset="utf-8"></head>
   <body style="margin:0;padding:24px;background:#eef8fb;font-family:Inter,Segoe UI,Arial,sans-serif;color:#12283a;">
     <div style="max-width:520px;margin:0 auto;padding:28px;border-radius:24px;background:#ffffff;box-shadow:0 18px 60px rgba(31,79,105,.12);">
       <p style="margin:0 0 10px;color:#0d83bd;font-weight:700;">Airco Tracker</p>
       <h1 style="margin:0 0 12px;font-size:26px;letter-spacing:-.04em;">${escapeHtml(title)}</h1>
       <p style="margin:0 0 22px;line-height:1.6;color:#526475;">${escapeHtml(body)}</p>
       <div style="padding:18px 22px;border-radius:18px;background:#e7f9fd;color:#10293f;font-size:32px;font-weight:800;letter-spacing:.18em;text-align:center;">${escapeHtml(code)}</div>
-      <p style="margin:22px 0 0;color:#7b93a2;font-size:13px;line-height:1.5;">If you did not request this code, you can ignore this email.</p>
+      <p style="margin:22px 0 0;color:#7b93a2;font-size:13px;line-height:1.5;">${escapeHtml(footer)}</p>
     </div>
   </body>
 </html>`;

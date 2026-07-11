@@ -9,7 +9,7 @@ Ice-blue TypeScript/React dashboard for the [Airco Tracker](https://github.com/P
 
 **Live:** [airco-tracker.eu](https://airco-tracker.eu/)
 
-The homepage (`/`) is a public heatwave-themed landing portal. Inventory dashboards live under `/deliver-to/<country>` and show current available and presale counts for retailers that can deliver to the selected destination country, with product drill-down, prices, BTU values, delivery text, and direct product links. Delivery destination is part of the URL (`/deliver-to/nl`, `/deliver-to/fr`); interface language stays independent through `?lang=en` and the language switcher. Chinese, Dutch, and English can be switched without reloading. Production uses a same-origin TypeScript API and Managed Identity; no Storage Key, SAS token, or secret reaches the browser.
+The homepage (`/`) is a public heatwave-themed landing portal. Inventory dashboards live under `/deliver-to/<country>` and show current available and presale counts for retailers that can deliver to the selected destination country, with product drill-down, prices, BTU values, delivery text, and direct product links. Delivery destination is part of the URL (`/deliver-to/nl`, `/deliver-to/fr`); interface language stays independent through `?lang=fr` and the language switcher. Chinese, Dutch, English, and French can be switched without reloading. Production uses a same-origin TypeScript API and Managed Identity; no Storage Key, SAS token, or secret reaches the browser.
 
 ## Architecture
 
@@ -50,7 +50,7 @@ pnpm dev
 
 Open <http://127.0.0.1:4173> for the public portal. Development proxies `/api` to a local Node server.
 
-Use `/deliver-to/<country>?lang=<language>` for country-aware views. For example, `/deliver-to/fr?lang=en` shows sites that can deliver to France with an English UI, while `/deliver-to/nl?lang=zh` keeps the Dutch delivery destination and switches only the interface language.
+Use `/deliver-to/<country>?lang=<language>` for country-aware views. For example, `/deliver-to/fr?lang=fr` shows sites that can deliver to France with a French UI, while `/deliver-to/nl?lang=zh` keeps the Dutch delivery destination and switches only the interface language. The header switcher changes the current browsing language only; saving a language preference in Profile makes it the account default for signed-in pages and stock-alert emails. Verification-code emails follow the current language of the page that requests the code.
 
 To test the production server locally:
 

@@ -5,7 +5,15 @@ const LANGUAGES: { code: Lang; flag: string; label: string }[] = [
   { code: "zh", flag: "🇨🇳", label: "中文" },
   { code: "nl", flag: "🇳🇱", label: "Nederlands" },
   { code: "en", flag: "🇬🇧", label: "English" },
+  { code: "fr", flag: "🇫🇷", label: "Français" },
 ];
+
+const SWITCHER_LABEL: Record<Lang, string> = {
+  zh: "选择语言",
+  nl: "Taal kiezen",
+  en: "Choose language",
+  fr: "Choisir la langue",
+};
 
 export function LanguageSwitcher({ lang, setLang }: { lang: Lang; setLang: (lang: Lang) => void }) {
   const [open, setOpen] = useState(false);
@@ -26,7 +34,7 @@ export function LanguageSwitcher({ lang, setLang }: { lang: Lang; setLang: (lang
         type="button"
         className="lang-switcher-button"
         onClick={() => setOpen(!open)}
-        aria-label="Language / Taal / 语言"
+        aria-label={SWITCHER_LABEL[lang]}
         aria-expanded={open}
         aria-haspopup="menu"
       >

@@ -13,7 +13,7 @@ import {
 } from "./auth.js";
 import { parseInventory, type InventorySnapshot } from "./inventory.js";
 import { buildI18nDataElement, type TranslationMap } from "../shared/i18n.js";
-import { hasRealtimeStockAccess, type UserProfile } from "../shared/auth.js";
+import { hasRealtimeStockAccess, isLanguagePreference, type UserProfile } from "../shared/auth.js";
 import type { Lang } from "../shared/i18n.js";
 import { loadI18n } from "./i18n.js";
 import { stripeBillingFromEnvironment, type StripeBillingService } from "./billing.js";
@@ -158,7 +158,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function parseLang(value: unknown): Lang {
-  return value === "nl" || value === "en" || value === "zh" ? value : "zh";
+  return isLanguagePreference(value) ? value : "zh";
 }
 
 async function readJsonBody(request: IncomingMessage, maxBytes = 4096): Promise<Record<string, unknown>> {
@@ -391,6 +391,11 @@ async function handleAuthRequest(request: IncomingMessage, response: ServerRespo
         languagePreference: body.languagePreference,
         deliveryCountry: body.deliveryCountry,
       });
+      try {
+        await getBillingService().syncCustomerProfile(user);
+      } catch {
+        console.error("stripe_customer_profile_sync_deferred");
+      }
       sendJson(response, 200, { user: publicUser(user), needsOnboarding: !user.nickname });
       return;
     }

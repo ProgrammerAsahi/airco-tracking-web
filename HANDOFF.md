@@ -5,7 +5,7 @@
   <a href="./HANDOFF.md"><img alt="English" src="https://img.shields.io/badge/HANDOFF-English-0969da"></a>
 </p>
 
-Last updated: 2026-07-10 (Europe/Amsterdam)
+Last updated: 2026-07-11 (Europe/Amsterdam)
 
 Update this English file and `HANDOFF.zh.md` together whenever current status, verification evidence, blockers, or next steps change. Do not record secrets, email addresses, access tokens, payment data, or unnecessary personal information.
 
@@ -40,16 +40,23 @@ Both custom web hostnames and their existing managed-certificate names are decla
 - `/subscribe` offers four Stripe test-mode plans: weekly/monthly × Inventory Alerts (`basic`) or Realtime Radar (`priority`). The current plan is disabled; upgrades are immediate and eligible downgrades are scheduled for period end.
 - `/ready` confirms that alerting is active. Priority subscribers also receive a button to the inventory page.
 - `/deliver-to/nl` and `/deliver-to/fr` filter retailers by delivery coverage. Anonymous, unsubscribed, and basic-only users cannot read realtime inventory.
-- Interface language (`zh`, `nl`, or `en`) is independent from delivery country and can be switched in the header. The Profile preference is the persisted account default.
+- Interface language (`zh`, `nl`, `en`, or `fr`) is independent from delivery country and can be switched in the header without a reload. An explicit header/query choice survives normal in-app navigation. Saving the Profile preference changes the persisted account default, the alert-recipient projection, stock-alert email language, and the Stripe customer locale.
 
 ### Same-origin API, auth, and billing
 
 - `server/server.ts` serves the Vite build and same-origin APIs. `/api/inventory` reads the private Blob through Managed Identity, validates schema version `1`, caches reads, and rate-limits low-effort abuse.
-- Auth codes, sessions, and canonical user profiles are stored in Azure Table Storage. Codes are hashed, expire, have a resend cooldown and attempt limit, and are delivered through Azure Communication Services Email.
+- Auth codes, sessions, and canonical user profiles are stored in Azure Table Storage. Codes are hashed, expire, have a resend cooldown and attempt limit, and are delivered through Azure Communication Services Email. Verification subjects, plain text, HTML, safety footer, and HTML language metadata are complete in all four supported languages.
 - The canonical `users` partition uses an `id:<uuid>` profile row plus `email:<base64url>` and `stripe:<base64url>` index rows. ETag/CAS protects codes and profile mutations; monotonic `profileRevision`/`sourceRevision` values reject stale writes. Verified email changes preserve the UUID and transactionally replace the email index.
 - Stripe uses hosted Checkout and Customer Portal; card numbers never touch the Airco Tracker server. Webhooks are signature-verified before subscription state is written.
 - `/api/billing/sync-checkout-status` repairs a delayed Checkout webhook after the authenticated user returns. Plan changes are resolved from the actual Stripe Price rather than stale metadata.
 - Subscription cancellation preserves entitlement through the paid period. Account deletion is rejected while an active subscription still grants benefits.
+
+### Internationalisation contract
+
+- Application-owned browser text, dialogs, errors, accessibility labels, metadata, dates, prices, verification emails, Stripe Checkout, and the Billing Portal support Chinese, Dutch, English, and French.
+- `test-fixtures/i18n.local.json` is the complete browser fallback schema. Azure Table values are optional non-empty overrides; a missing new language safely falls back to the bundled value during mixed-version rollout.
+- The backend `airco_tracker/i18n_local.json` `web` scope is the production seed source and must remain value-for-value equivalent as a JSON map. The current contract contains 38 browser keys, each with exactly four non-empty languages.
+- Retailer/product names and retailer-supplied delivery wording remain source evidence and are not machine-translated.
 
 ## Alert-recipient projection contract
 
@@ -80,6 +87,8 @@ The backend daily reconciler repairs partial cross-table failures and legacy row
 
 The detailed subscription/payment matrix is maintained in `docs/SUBSCRIPTION_BILLING_TEST_PLAN.md` and `.en.md`. Production testing has covered initial Checkout, successful and failed cards, 3D Secure success/failure, cancellation at period end, upgrade, scheduled downgrade, switching billing interval, inventory entitlement gating, profile changes, language/country changes, email changes, logout/login persistence, and account-deletion rules.
 
+The four-language release candidate passes 71/71 frontend tests, app/server typecheck, production build, production-mode deployment verification, and `git diff --check`. French Landing, Subscribe, Profile, login/nickname, and unsubscribe states were visually checked at 1440×900 and 390×844; header language changes preserve navigation while leaving the saved Profile preference unchanged. Production deployment and real French OTP/stock-alert delivery are the remaining release checks.
+
 The coordinated Service Bus release is deployed and verified:
 
 - CI run `29061171454` passed 59/59 tests, typecheck, production build, shell/Bicep checks, and deployment verification.
@@ -93,7 +102,7 @@ The coordinated Service Bus release is deployed and verified:
 1. Google, Apple, and Microsoft login buttons are UI placeholders; only email-code login is functional.
 2. Billing is still in Stripe test mode and card-first. iDEAL/Wero or other payment methods require a separate product and compliance pass.
 3. Several delayed/duplicate webhook and subscription-expiry boundary scenarios remain deferred in the billing test plan.
-4. The current Azure-managed ACS sender quota is suitable only for low-volume testing. Customer-managed sender verification and a quota increase are required before broad onboarding.
+4. Production uses the verified customer-managed `airco-tracker.eu` ACS sender. A higher-quota request remains open; keep the current one-worker/13-second limit and gradual domain warm-up until Azure approves it.
 5. There is no committed Playwright visual/accessibility regression suite or dedicated production alert for repeated frontend/API failures.
 
 ## Resume checklist

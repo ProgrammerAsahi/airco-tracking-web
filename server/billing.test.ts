@@ -5,6 +5,7 @@ import {
   isSubscriptionPaymentActionRequired,
   portalConfigurationSupportsSubscriptionUpdates,
   resolveSubscriptionPlan,
+  stripeLocale,
 } from "./billing.js";
 
 test("treats Stripe subscription update action-required errors as recoverable", () => {
@@ -81,10 +82,12 @@ test("builds a subscription update portal session with an explicit configuration
       quantity: 1,
       returnUrl: "https://example.test/ready",
       subscriptionId: "sub_test",
+      locale: "fr",
     }),
     {
       configuration: "bpc_test",
       customer: "cus_test",
+      locale: "fr",
       return_url: "https://example.test/ready",
       flow_data: {
         type: "subscription_update_confirm",
@@ -99,6 +102,13 @@ test("builds a subscription update portal session with an explicit configuration
       },
     },
   );
+});
+
+test("maps every supported site language to a Stripe locale", () => {
+  assert.equal(stripeLocale("zh"), "zh");
+  assert.equal(stripeLocale("nl"), "nl");
+  assert.equal(stripeLocale("en"), "en");
+  assert.equal(stripeLocale("fr"), "fr");
 });
 
 test("only accepts active portal configurations with immediate price updates", () => {

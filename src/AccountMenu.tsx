@@ -13,13 +13,13 @@ const ACCOUNT_MENU_COPY: Record<Lang, AccountMenuCopy> = {
   zh: {
     accountMenu: "打开账号菜单",
     signedInAs: "已登录：{email}",
-    profile: "Profile",
+    profile: "个人资料",
     logout: "登出",
   },
   nl: {
     accountMenu: "Open accountmenu",
     signedInAs: "Ingelogd als {email}",
-    profile: "Profile",
+    profile: "Profiel",
     logout: "Uitloggen",
   },
   en: {
@@ -27,6 +27,12 @@ const ACCOUNT_MENU_COPY: Record<Lang, AccountMenuCopy> = {
     signedInAs: "Signed in as {email}",
     profile: "Profile",
     logout: "Log out",
+  },
+  fr: {
+    accountMenu: "Ouvrir le menu du compte",
+    signedInAs: "Connecté en tant que {email}",
+    profile: "Profil",
+    logout: "Se déconnecter",
   },
 };
 

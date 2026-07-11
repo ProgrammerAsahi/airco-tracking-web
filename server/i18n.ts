@@ -3,7 +3,12 @@ import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { TableClient } from "@azure/data-tables";
 import { DefaultAzureCredential } from "@azure/identity";
-import type { TranslationMap } from "../shared/i18n.js";
+import {
+  parseTranslationData,
+  SUPPORTED_LANGS,
+  type TranslationBundle,
+  type TranslationMap,
+} from "../shared/i18n.js";
 
 const currentDirectory = dirname(fileURLToPath(import.meta.url));
 const projectDirectory = resolve(currentDirectory, "..", "..");
@@ -34,24 +39,28 @@ export async function loadI18n(): Promise<TranslationMap> {
 }
 
 async function readI18nSource(): Promise<TranslationMap> {
+  const localTranslations = await readLocalI18n();
   if (localFile && !accountUrl) {
     // Local development: read from JSON file.
-    const raw = await readFile(resolve(projectDirectory, localFile), "utf8");
-    return JSON.parse(raw) as TranslationMap;
+    return localTranslations;
   }
   if (!accountUrl) {
-    return {};
+    return localTranslations;
   }
   try {
-    return await readFromTable(accountUrl);
+    return await readFromTable(accountUrl, localTranslations);
   } catch (error) {
     console.error("i18n table read failed, falling back to local file:", error);
-    const raw = await readFile(resolve(projectDirectory, localFile), "utf8");
-    return JSON.parse(raw) as TranslationMap;
+    return localTranslations;
   }
 }
 
-async function readFromTable(url: string): Promise<TranslationMap> {
+async function readLocalI18n(): Promise<TranslationMap> {
+  const raw = await readFile(resolve(projectDirectory, localFile), "utf8");
+  return parseTranslationData(raw);
+}
+
+async function readFromTable(url: string, localTranslations: TranslationMap): Promise<TranslationMap> {
   // The AZURE_STORAGE_ACCOUNT_URL env var points to the blob endpoint;
   // derive the table endpoint from it.
   const tableUrl = url.includes(".table.") ? url : url.replace(".blob.", ".table.");
@@ -59,22 +68,34 @@ async function readFromTable(url: string): Promise<TranslationMap> {
     managedIdentityClientId: process.env.AZURE_CLIENT_ID?.trim() || undefined,
   });
   const table = new TableClient(tableUrl, tableName, credential);
-  const translations: TranslationMap = {};
+  const translations: TranslationMap = { ...localTranslations };
+  let tableEntityCount = 0;
   for await (const entity of table.listEntities({
     queryOptions: { filter: `PartitionKey eq '${scope}'` },
   })) {
     const key = entity.rowKey as string;
     if (!key) continue;
-    translations[key] = {
-      zh: String(entity.zh ?? ""),
-      nl: String(entity.nl ?? ""),
-      en: String(entity.en ?? ""),
-    };
+    const merged = mergeTranslationBundle(localTranslations[key], entity as Record<string, unknown>);
+    if (!merged) continue;
+    translations[key] = merged;
+    tableEntityCount += 1;
   }
-  if (Object.keys(translations).length === 0) {
+  if (tableEntityCount === 0) {
     console.warn("i18n table returned no entities; falling back to local file");
-    const raw = await readFile(resolve(projectDirectory, localFile), "utf8");
-    return JSON.parse(raw) as TranslationMap;
   }
   return translations;
+}
+
+export function mergeTranslationBundle(
+  fallback: TranslationBundle | undefined,
+  values: Record<string, unknown>,
+): TranslationBundle | null {
+  const merged = {} as Record<(typeof SUPPORTED_LANGS)[number], string>;
+  for (const lang of SUPPORTED_LANGS) {
+    const candidate = typeof values[lang] === "string" ? values[lang].trim() : "";
+    const value = candidate || fallback?.[lang] || "";
+    if (!value) return null;
+    merged[lang] = value;
+  }
+  return merged;
 }

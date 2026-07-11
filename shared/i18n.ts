@@ -1,4 +1,5 @@
-export type Lang = "zh" | "nl" | "en";
+export const SUPPORTED_LANGS = ["zh", "nl", "en", "fr"] as const;
+export type Lang = (typeof SUPPORTED_LANGS)[number];
 
 export type TranslationBundle = Record<Lang, string>;
 export type TranslationMap = Record<string, TranslationBundle>;
@@ -25,9 +26,7 @@ export function parseTranslationData(raw: string | null | undefined): Translatio
         bundle
         && typeof bundle === "object"
         && !Array.isArray(bundle)
-        && typeof (bundle as Record<string, unknown>).zh === "string"
-        && typeof (bundle as Record<string, unknown>).nl === "string"
-        && typeof (bundle as Record<string, unknown>).en === "string"
+        && SUPPORTED_LANGS.every((lang) => typeof (bundle as Record<string, unknown>)[lang] === "string")
       ) {
         translations[key] = bundle as TranslationBundle;
       }

@@ -9,7 +9,7 @@
 
 **线上站点：** [airco-tracker.eu](https://airco-tracker.eu/)
 
-首页 (`/`) 是公开的热浪主题门户页。库存页面位于 `/deliver-to/<country>`，会根据目标配送国家展示当前可配送零售商的现货和预售数量，并提供商品详情、价格、BTU、配送文本和商品直达链接。配送国家是 URL 状态（例如 `/deliver-to/nl`、`/deliver-to/fr`）；界面语言通过 `?lang=en` 和语言切换器单独控制。中文、荷兰语和英语可在不刷新页面的情况下切换。生产环境使用同源 TypeScript API 和 Managed Identity；Storage Key、SAS token 或任何秘密值都不会进入浏览器。
+首页 (`/`) 是公开的热浪主题门户页。库存页面位于 `/deliver-to/<country>`，会根据目标配送国家展示当前可配送零售商的现货和预售数量，并提供商品详情、价格、BTU、配送文本和商品直达链接。配送国家是 URL 状态（例如 `/deliver-to/nl`、`/deliver-to/fr`）；界面语言通过 `?lang=fr` 和语言切换器单独控制。中文、荷兰语、英语和法语可在不刷新页面的情况下切换。生产环境使用同源 TypeScript API 和 Managed Identity；Storage Key、SAS token 或任何秘密值都不会进入浏览器。
 
 ## 架构
 
@@ -50,7 +50,7 @@ pnpm dev
 
 打开 <http://127.0.0.1:4173> 查看公开门户页。开发环境会把 `/api` 代理到本地 Node server。
 
-使用 `/deliver-to/<country>?lang=<language>` 查看国家感知页面。例如，`/deliver-to/fr?lang=en` 会用英文界面显示可配送法国的网站，而 `/deliver-to/nl?lang=zh` 会保持荷兰配送目的地，仅切换为中文界面。
+使用 `/deliver-to/<country>?lang=<language>` 查看国家感知页面。例如，`/deliver-to/fr?lang=fr` 会用法语界面显示可配送法国的网站，而 `/deliver-to/nl?lang=zh` 会保持荷兰配送目的地，仅切换为中文界面。右上角语言切换器只改变当前浏览语言；在 Profile 保存语言偏好会把它设为账户默认语言，并决定登录后的默认界面和库存提醒邮件语言。验证码邮件跟随发码页面的当前语言。
 
 本地测试生产 server：
 

@@ -72,7 +72,7 @@ export class StripeBillingService {
       return this.changeActiveSubscription(request, user, values.plan, price, values.lang);
     }
 
-    const customerId = await this.ensureStripeCustomer(request, user);
+    const customerId = await this.ensureStripeCustomer(request, user, values.lang);
     const baseUrl = this.publicBaseUrl(request);
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
@@ -80,6 +80,7 @@ export class StripeBillingService {
       customer: customerId,
       client_reference_id: user.userId,
       line_items: [{ price, quantity: 1 }],
+      locale: stripeLocale(values.lang),
       success_url: `${baseUrl}/ready?lang=${values.lang}&checkout=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/subscribe?lang=${values.lang}&checkout=cancelled`,
       subscription_data: {
@@ -199,6 +200,7 @@ export class StripeBillingService {
       quantity: item.quantity || 1,
       returnUrl,
       subscriptionId: subscription.id,
+      locale: stripeLocale(lang),
     }));
     if (!session.url) throw new AuthHttpError(502, "stripe_portal_unavailable");
     return { url: session.url };
@@ -304,6 +306,7 @@ export class StripeBillingService {
     await this.stripe.customers.update(user.stripeCustomerId, {
       email: user.email,
       metadata: { airco_user_email: "", airco_user_id: user.userId },
+      preferred_locales: [stripeLocale(user.languagePreference)],
     });
   }
 
@@ -353,13 +356,14 @@ export class StripeBillingService {
     return this.stripe;
   }
 
-  private async ensureStripeCustomer(request: IncomingMessage, user: StoredUserProfile): Promise<string> {
+  private async ensureStripeCustomer(request: IncomingMessage, user: StoredUserProfile, lang: Lang): Promise<string> {
     const stripe = this.requireStripe();
     if (user.stripeCustomerId) {
       try {
         await stripe.customers.update(user.stripeCustomerId, {
           email: user.email,
           metadata: { airco_user_email: "", airco_user_id: user.userId },
+          preferred_locales: [stripeLocale(lang)],
         });
         return user.stripeCustomerId;
       } catch (error) {
@@ -370,6 +374,7 @@ export class StripeBillingService {
     const customer = await stripe.customers.create({
       email: user.email,
       metadata: { airco_user_id: user.userId },
+      preferred_locales: [stripeLocale(lang)],
     });
     await this.auth.attachStripeCustomer(request, customer.id);
     return customer.id;
@@ -561,6 +566,7 @@ type SubscriptionUpdatePortalSessionInput = {
   quantity: number;
   returnUrl: string;
   subscriptionId: string;
+  locale: ReturnType<typeof stripeLocale>;
 };
 
 export function buildSubscriptionUpdatePortalSessionParams(
@@ -569,6 +575,7 @@ export function buildSubscriptionUpdatePortalSessionParams(
   return {
     configuration: input.configurationId,
     customer: input.customer,
+    locale: input.locale,
     return_url: input.returnUrl,
     flow_data: {
       type: "subscription_update_confirm",
@@ -588,6 +595,10 @@ export function buildSubscriptionUpdatePortalSessionParams(
       },
     },
   };
+}
+
+export function stripeLocale(lang: Lang): "zh" | "nl" | "en" | "fr" {
+  return lang;
 }
 
 type PortalConfigurationLike = {

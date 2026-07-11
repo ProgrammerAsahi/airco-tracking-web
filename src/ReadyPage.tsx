@@ -8,6 +8,8 @@ import { AircoLogoMark } from "./AircoLogoMark";
 
 type ReadyCopy = {
   productName: string;
+  pageTitle: string;
+  pageDescription: string;
   loading: string;
   title: string;
   body: string;
@@ -19,6 +21,8 @@ type ReadyCopy = {
 const READY_COPY: Record<Lang, ReadyCopy> = {
   zh: {
     productName: "Airco Tracker",
+    pageTitle: "一切已就绪",
+    pageDescription: "Airco Tracker 已准备好发送空调库存提醒。",
     loading: "正在读取订阅状态…",
     title: "一切已就绪",
     body: "一旦出现空调上架，我们会邮件通知您。",
@@ -28,6 +32,8 @@ const READY_COPY: Record<Lang, ReadyCopy> = {
   },
   nl: {
     productName: "Airco Tracker",
+    pageTitle: "Alles staat klaar",
+    pageDescription: "Airco Tracker staat klaar om je meldingen over nieuwe airco-voorraad te sturen.",
     loading: "Abonnement laden…",
     title: "Alles staat klaar",
     body: "Zodra er airco-voorraad verschijnt, sturen we je een e-mail.",
@@ -37,12 +43,25 @@ const READY_COPY: Record<Lang, ReadyCopy> = {
   },
   en: {
     productName: "Airco Tracker",
+    pageTitle: "You are all set",
+    pageDescription: "Airco Tracker is ready to send your portable AC stock alerts.",
     loading: "Loading subscription…",
     title: "You are all set.",
     body: "As soon as an air conditioner appears in stock, we’ll notify you by email.",
     bodyPaused: "Stock alert emails are paused. You can re-enable them at any time in your account.",
     inventoryCta: "View AC stock",
     profile: "Manage account",
+  },
+  fr: {
+    productName: "Airco Tracker",
+    pageTitle: "Tout est prêt",
+    pageDescription: "Airco Tracker est prêt à vous envoyer des alertes de stock pour les climatiseurs mobiles.",
+    loading: "Chargement de l’abonnement…",
+    title: "Tout est prêt.",
+    body: "Dès qu’un climatiseur sera disponible, nous vous préviendrons par e-mail.",
+    bodyPaused: "Les alertes de stock par e-mail sont en pause. Vous pouvez les réactiver à tout moment depuis votre compte.",
+    inventoryCta: "Voir les climatiseurs disponibles",
+    profile: "Gérer le compte",
   },
 };
 
@@ -57,7 +76,7 @@ export function ReadyPage({ lang, setLang }: ReadyPageProps) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    document.title = "Ready · Airco Tracker";
+    document.title = `${copy.pageTitle} · Airco Tracker`;
     let ignore = false;
 
     async function loadUser() {
@@ -70,7 +89,7 @@ export function ReadyPage({ lang, setLang }: ReadyPageProps) {
         try {
           const syncedUser = await syncCheckoutStatus(sessionId);
           if (!ignore) {
-            const cleanUrl = `/ready?lang=${syncedUser.languagePreference}`;
+            const cleanUrl = `/ready?lang=${lang}`;
             window.history.replaceState(window.history.state, "", cleanUrl);
           }
           return syncedUser;
@@ -98,8 +117,13 @@ export function ReadyPage({ lang, setLang }: ReadyPageProps) {
           window.location.replace(`/?lang=${lang}`);
           return;
         }
+        const hasExplicitLanguage = new URLSearchParams(window.location.search).has("lang");
+        const routeLanguage = hasExplicitLanguage ? lang : nextUser.languagePreference;
+        if (!hasExplicitLanguage && nextUser.languagePreference !== lang) {
+          setLang(nextUser.languagePreference);
+        }
         if (!subscriptionIsActive(nextUser)) {
-          window.location.replace(`/subscribe?lang=${nextUser.languagePreference}`);
+          window.location.replace(`/subscribe?lang=${routeLanguage}`);
           return;
         }
         setUser(nextUser);
@@ -113,9 +137,15 @@ export function ReadyPage({ lang, setLang }: ReadyPageProps) {
     return () => {
       ignore = true;
     };
-  }, [lang, setLang]);
+  }, [copy.pageTitle, lang, setLang]);
 
-  const inventoryUrl = user ? `/deliver-to/${user.deliveryCountry}?lang=${user.languagePreference}` : `/deliver-to/fr?lang=${lang}`;
+  useEffect(() => {
+    document
+      .querySelector('meta[name="description"]')
+      ?.setAttribute("content", copy.pageDescription);
+  }, [copy.pageDescription]);
+
+  const inventoryUrl = user ? `/deliver-to/${user.deliveryCountry}?lang=${lang}` : `/deliver-to/fr?lang=${lang}`;
 
   return (
     <main className="ready-shell">

@@ -5,7 +5,7 @@
   <a href="./HANDOFF.md"><img alt="English" src="https://img.shields.io/badge/HANDOFF-English-0969da"></a>
 </p>
 
-最后更新：2026-07-10（Europe/Amsterdam）
+最后更新：2026-07-11（Europe/Amsterdam）
 
 当前状态、验证证据、blocker 或下一步变化时，必须同时更新本文件和 `HANDOFF.md`。不要记录 secrets、邮箱地址、access tokens、支付数据或不必要的个人信息。
 
@@ -40,16 +40,23 @@
 - `/subscribe` 提供四种 Stripe test-mode 方案：周/月 × Inventory Alerts（`basic`）或 Realtime Radar（`priority`）。当前方案按钮不可点击；升级立即生效，符合条件的降级在当前账期结束时执行。
 - `/ready` 会确认提醒已经启用；priority 用户还会看到前往库存页面的按钮。
 - `/deliver-to/nl` 和 `/deliver-to/fr` 按配送范围筛选零售商。匿名、未订阅和只有 basic 权益的用户都不能读取实时库存。
-- 界面语言（`zh`、`nl`、`en`）和配送国家相互独立，可从 header 切换；Profile 中的偏好是账户持久化默认语言。
+- 界面语言（`zh`、`nl`、`en`、`fr`）和配送国家相互独立，可从 header 无刷新切换。明确的 header/query 选择会在普通站内导航中保持；在 Profile 保存偏好会同时更新账户持久化默认、提醒收件人投影、库存提醒邮件语言和 Stripe customer locale。
 
 ### 同源 API、auth 和 billing
 
 - `server/server.ts` 同时提供 Vite build 和同源 API。`/api/inventory` 通过 Managed Identity 读取私有 Blob，验证 schema version `1`，缓存读取，并对低成本滥用做 rate limit。
-- Auth codes、sessions 和 canonical user profiles 存在 Azure Table Storage。验证码会 hash、过期，并受重发冷却和尝试次数限制，再通过 Azure Communication Services Email 投递。
+- Auth codes、sessions 和 canonical user profiles 存在 Azure Table Storage。验证码会 hash、过期，并受重发冷却和尝试次数限制，再通过 Azure Communication Services Email 投递。验证码 subject、纯文本、HTML、安全提示 footer 和 HTML language metadata 在四种支持语言中均完整覆盖。
 - Canonical `users` partition 使用 `id:<uuid>` profile row，以及 `email:<base64url>`、`stripe:<base64url>` index rows。验证码和 profile mutations 由 ETag/CAS 保护；单调递增的 `profileRevision`/`sourceRevision` 会拒绝旧写入。已验证邮箱变更保留 UUID，并以 transaction 替换邮箱索引。
 - Stripe 使用托管 Checkout 和 Customer Portal；卡号永远不会接触 Airco Tracker server。只有通过 signature 校验的 webhook 才能写订阅状态。
 - 登录用户从 Checkout 返回时，`/api/billing/sync-checkout-status` 可以修复延迟 webhook。方案变更根据真实 Stripe Price 解析，不信任过期 metadata。
 - 取消订阅后，权益保留到已付款周期结束；仍有有效订阅权益时不能注销账户。
+
+### 国际化契约
+
+- 应用自有的网页文字、弹窗、错误、无障碍标签、metadata、日期、价格、验证码邮件、Stripe Checkout 和 Billing Portal 均支持中文、荷兰语、英语和法语。
+- `test-fixtures/i18n.local.json` 是完整的浏览器 fallback schema。Azure Table 只提供非空 override；混合版本发布时，即使新语言尚未写入 Table，也会安全回退到镜像内置值。
+- 后端 `airco_tracker/i18n_local.json` 的 `web` scope 是生产播种源，必须和前端 JSON map 按值完全等价。当前契约包含 38 个浏览器 key，每个 key 都有四个非空语言值。
+- 商家名、商品名和商家原始配送说明作为来源证据保留原文，不做可能改变事实含义的机器翻译。
 
 ## 邮件订阅者投影契约
 
@@ -80,6 +87,8 @@
 
 详细的订阅/支付矩阵维护在 `docs/SUBSCRIPTION_BILLING_TEST_PLAN.md` 和 `.en.md`。生产已经测试：首次 Checkout、成功/失败测试卡、3D Secure 成功/失败、到期取消、升级、预约降级、切换扣费周期、库存权益 gating、Profile 修改、语言/国家切换、邮箱修改、登出后重新登录，以及账户注销规则。
 
+四语 release candidate 已通过 71/71 前端 tests、app/server typecheck、production build、production-mode deployment verification 和 `git diff --check`。法语 Landing、Subscribe、Profile、登录/昵称和退订状态已在 1440×900 与 390×844 完成视觉检查；header 临时语言会在导航中保持，同时不会覆盖 Profile 已保存偏好。剩余 release 检查是生产部署和真实法语 OTP/库存提醒投递。
+
 本次 Service Bus 协调 release 已部署并验证：
 
 - CI run `29061171454` 通过 59/59 tests、typecheck、production build、shell/Bicep checks 和 deployment verification。
@@ -93,7 +102,7 @@
 1. Google、Apple、Microsoft 登录按钮只是 UI placeholder；当前只有邮箱验证码登录可用。
 2. Billing 仍处于 Stripe test mode，且先支持信用卡。iDEAL/Wero 或其它支付方式需要单独的产品和合规评估。
 3. Billing 测试文档中仍有部分延迟/重复 webhook 和订阅到期边界场景尚未执行。
-4. 当前 Azure-managed ACS sender quota 只适合低流量测试。广泛开放注册前必须验证 customer-managed sender 并提高 quota。
+4. 生产已经使用验证完成的 customer-managed `airco-tracker.eu` ACS sender；更高 quota 申请仍处于 Open。在 Azure 批准前继续保持一 worker/13 秒限制并逐步 warm up 域名。
 5. 目前没有 committed Playwright 视觉/无障碍回归套件，也没有针对连续 frontend/API 故障的独立生产告警。
 
 ## 恢复 checklist

@@ -23,6 +23,10 @@ import { AircoLogoMark } from "./AircoLogoMark";
 
 type SubscriptionCopy = {
   productName: string;
+  pageTitle: string;
+  pageDescription: string;
+  billingCycleLabel: string;
+  subscriptionPlansLabel: string;
   backHome: string;
   eyebrow: string;
   title: string;
@@ -108,6 +112,10 @@ type SubscriptionCopy = {
 const SUBSCRIPTION_COPY: Record<Lang, SubscriptionCopy> = {
   zh: {
     productName: "Airco Tracker",
+    pageTitle: "订阅方案",
+    pageDescription: "选择 Airco Tracker 库存提醒或实时库存雷达订阅方案。",
+    billingCycleLabel: "计费周期",
+    subscriptionPlansLabel: "订阅方案列表",
     backHome: "返回首页",
     eyebrow: "热浪季订阅",
     title: "别再错过刚上线的空调库存。",
@@ -156,8 +164,8 @@ const SUBSCRIPTION_COPY: Record<Lang, SubscriptionCopy> = {
     loginWithGoogle: "Google",
     loginWithApple: "Apple",
     loginWithMicrosoft: "Microsoft",
-    loginFinePrint: "继续即表示你同意之后接入的用户协议和隐私政策。",
-    loginPreviewNotice: "邮箱验证码已接入；第三方登录和真实支付会在下一阶段接入。",
+    loginFinePrint: "继续即表示你同意用户协议和隐私政策。",
+    loginPreviewNotice: "邮箱验证码和 Stripe 支付已接入；第三方登录即将开放。",
     closeLogin: "关闭登录弹窗",
     socialComingSoon: "即将接入",
     authErrorInvalidEmail: "请填写一个有效的邮箱地址。",
@@ -186,11 +194,15 @@ const SUBSCRIPTION_COPY: Record<Lang, SubscriptionCopy> = {
     faqStockQ: "为什么收到提醒后商品可能已经没了？",
     faqStockA: "热浪期间库存变化非常快。我们会尽快提醒，但无法保证商家库存一定保留到你打开链接时。",
     faqCountryQ: "可以切换国家吗？",
-    faqCountryA: "可以，在 Profile 里切换配送国家后，实时库存页面会自动展示对应国家的网站列表。",
+    faqCountryA: "可以，在个人资料里切换配送国家后，实时库存页面会自动展示对应国家的网站列表。",
     error: "订阅暂时无法完成，请稍后再试。",
   },
   nl: {
     productName: "Airco Tracker",
+    pageTitle: "Abonnementen",
+    pageDescription: "Kies een Airco Tracker-abonnement voor voorraadmeldingen of de realtime voorraad-radar.",
+    billingCycleLabel: "Factureringsperiode",
+    subscriptionPlansLabel: "Abonnementen",
     backHome: "Terug naar home",
     eyebrow: "Hittegolf-abonnement",
     title: "Mis geen nieuwe airco-voorraad meer.",
@@ -239,8 +251,8 @@ const SUBSCRIPTION_COPY: Record<Lang, SubscriptionCopy> = {
     loginWithGoogle: "Google",
     loginWithApple: "Apple",
     loginWithMicrosoft: "Microsoft",
-    loginFinePrint: "Door verder te gaan ga je later akkoord met de voorwaarden en privacyverklaring.",
-    loginPreviewNotice: "E-mailcodes zijn gekoppeld; OAuth en echte betaling komen in de volgende stap.",
+    loginFinePrint: "Door verder te gaan ga je akkoord met de voorwaarden en privacyverklaring.",
+    loginPreviewNotice: "E-mailcodes en Stripe-betalingen werken; externe login volgt binnenkort.",
     closeLogin: "Sluit loginvenster",
     socialComingSoon: "Binnenkort",
     authErrorInvalidEmail: "Vul een geldig e-mailadres in.",
@@ -269,11 +281,15 @@ const SUBSCRIPTION_COPY: Record<Lang, SubscriptionCopy> = {
     faqStockQ: "Waarom kan voorraad na een melding alweer weg zijn?",
     faqStockA: "Tijdens hittegolven verandert voorraad snel. We melden zo snel mogelijk, maar kunnen winkelvoorraad niet reserveren.",
     faqCountryQ: "Kan ik van land wisselen?",
-    faqCountryA: "Ja, in Profile. Daarna toont de realtime pagina automatisch winkels voor dat land.",
+    faqCountryA: "Ja, in je profiel. Daarna toont de realtime pagina automatisch winkels voor dat land.",
     error: "Abonnement kon niet worden voltooid. Probeer het later opnieuw.",
   },
   en: {
     productName: "Airco Tracker",
+    pageTitle: "Subscription plans",
+    pageDescription: "Choose an Airco Tracker subscription for stock alerts or the realtime stock radar.",
+    billingCycleLabel: "Billing cycle",
+    subscriptionPlansLabel: "Subscription plans",
     backHome: "Back home",
     eyebrow: "Heatwave subscription",
     title: "Stop missing newly available AC stock.",
@@ -322,8 +338,8 @@ const SUBSCRIPTION_COPY: Record<Lang, SubscriptionCopy> = {
     loginWithGoogle: "Google",
     loginWithApple: "Apple",
     loginWithMicrosoft: "Microsoft",
-    loginFinePrint: "By continuing, you will later agree to the terms and privacy policy.",
-    loginPreviewNotice: "Email codes are wired; OAuth and real payment come next.",
+    loginFinePrint: "By continuing, you agree to the terms and privacy policy.",
+    loginPreviewNotice: "Email codes and Stripe payments are available; third-party sign-in is coming soon.",
     closeLogin: "Close login dialog",
     socialComingSoon: "Coming soon",
     authErrorInvalidEmail: "Please enter a valid email address.",
@@ -355,6 +371,93 @@ const SUBSCRIPTION_COPY: Record<Lang, SubscriptionCopy> = {
     faqCountryA: "Yes, from Profile. The realtime page then automatically shows stores for that delivery country.",
     error: "We could not complete the subscription. Please try again later.",
   },
+  fr: {
+    productName: "Airco Tracker",
+    pageTitle: "Formules d’abonnement",
+    pageDescription: "Choisissez une formule Airco Tracker pour les alertes de stock ou le radar de stock en temps réel.",
+    billingCycleLabel: "Période de facturation",
+    subscriptionPlansLabel: "Formules d’abonnement",
+    backHome: "Retour à l’accueil",
+    eyebrow: "Abonnement spécial canicule",
+    title: "Ne manquez plus aucun climatiseur remis en stock.",
+    subtitle: "Choisissez les alertes par e-mail ou débloquez le radar de stock en temps réel. Résiliez à tout moment ; votre accès reste actif jusqu’à la fin de la période en cours.",
+    weekly: "Par semaine",
+    monthly: "Par mois",
+    alertsName: "Alertes de stock",
+    alertsTagline: "Pour recevoir uniquement les alertes par e-mail, sans avoir besoin de la page de stock en temps réel.",
+    stockName: "Radar en temps réel",
+    stockTagline: "Pour les personnes qui cherchent activement un climatiseur pendant une canicule.",
+    bestValue: "Recommandé",
+    choose: "Choisir cette formule",
+    currentPlan: "Formule actuelle",
+    checkoutTitle: "Confirmer l’abonnement",
+    checkoutBody: "Vous serez redirigé vers le paiement sécurisé Stripe pour régler par carte. Vos données de carte ne transitent jamais par les serveurs d’Airco Tracker.",
+    changeCheckoutTitle: "Confirmer la modification de l’abonnement",
+    changeCheckoutBody: "Nous mettrons à jour votre abonnement via Stripe et utiliserons votre moyen de paiement enregistré pour toute différence. Vos données de carte ne transitent jamais par les serveurs d’Airco Tracker.",
+    downgradeCheckoutTitle: "Confirmer la réduction à la fin de la période",
+    downgradeCheckoutBody: "Votre accès actuel au stock en temps réel reste actif jusqu’au {date}. Stripe passera ensuite automatiquement à la formule d’alertes choisie.",
+    paymentMethod: "Moyen de paiement",
+    card: "Carte bancaire",
+    ideal: "iDEAL",
+    cardNumber: "Numéro de carte",
+    cardExpiry: "Date d’expiration",
+    cardCvc: "CVC",
+    idealBank: "Choisir une banque",
+    completePayment: "Continuer vers le paiement sécurisé Stripe",
+    completeChange: "Confirmer la modification",
+    completeDowngrade: "Confirmer la réduction",
+    processing: "Traitement…",
+    sandboxNotice: "Le paiement par carte est disponible en premier. iDEAL/Wero pourra être ajouté une fois l’intégration Stripe stabilisée.",
+    loginTitle: "Connectez-vous pour continuer",
+    loginSubtitle: "Saisissez votre e-mail pour recevoir un code. Après connexion, nous ouvrirons les options de paiement de la formule choisie.",
+    emailLabel: "E-mail",
+    emailPlaceholder: "vous@exemple.fr",
+    codeLabel: "Code de vérification",
+    codePlaceholder: "Saisissez le code à 6 chiffres",
+    sendCode: "Envoyer le code",
+    sendCodeBusy: "Envoi…",
+    codeSent: "Code envoyé. Consultez votre boîte de réception.",
+    codeCooldown: "Un code vient d’être envoyé. Réessayez dans {seconds} secondes.",
+    devCodeNotice: "Code de développement local : {code}",
+    loginSubmit: "Se connecter et continuer",
+    loginBusy: "Connexion…",
+    socialDivider: "Ou continuer avec",
+    loginWithGoogle: "Google",
+    loginWithApple: "Apple",
+    loginWithMicrosoft: "Microsoft",
+    loginFinePrint: "En continuant, vous acceptez les conditions d’utilisation et la politique de confidentialité.",
+    loginPreviewNotice: "Les codes par e-mail et les paiements Stripe sont disponibles ; la connexion avec un tiers arrive bientôt.",
+    closeLogin: "Fermer la fenêtre de connexion",
+    socialComingSoon: "Bientôt disponible",
+    authErrorInvalidEmail: "Saisissez une adresse e-mail valide.",
+    authErrorInvalidCode: "Ce code est invalide ou a expiré. Vérifiez-le ou demandez-en un nouveau.",
+    authErrorTooMany: "Trop de tentatives. Demandez un nouveau code.",
+    authErrorEmailFailed: "L’e-mail de vérification n’a pas pu être envoyé. Réessayez plus tard.",
+    authErrorGeneric: "La connexion est temporairement indisponible. Réessayez plus tard.",
+    nicknameTitle: "Comment devons-nous vous appeler ?",
+    nicknameSubtitle: "Un simple pseudonyme suffit. Il servira pour votre avatar et vos futures alertes personnalisées.",
+    nicknameLabel: "Pseudonyme",
+    nicknamePlaceholder: "Comment devons-nous vous appeler ?",
+    nicknameSubmit: "Enregistrer et continuer",
+    nicknameSaving: "Enregistrement…",
+    nicknameError: "Utilisez 1 à 40 caractères et au moins une lettre ou un chiffre.",
+    included: "Inclus",
+    alertsFeature: "Alertes par e-mail lors d’une remise en stock",
+    stockFeature: "Accès à la page de stock en temps réel",
+    deliveryFeature: "Filtrage des magasins par pays de livraison",
+    presaleFeature: "Séparation stock/précommande",
+    cancellationFeature: "Résiliation à tout moment, accès maintenu jusqu’à la fin de la période",
+    noStockFeature: "Pas d’accès à la page de stock en temps réel",
+    compareTitle: "Comparer les fonctionnalités",
+    faqTitle: "Questions fréquentes",
+    faqCancelQ: "Puis-je résilier à tout moment ?",
+    faqCancelA: "Oui. Après résiliation, le renouvellement s’arrête et votre accès actuel reste actif jusqu’à la fin de la période de facturation.",
+    faqStockQ: "Pourquoi le produit peut-il être épuisé après une alerte ?",
+    faqStockA: "Pendant une canicule, les stocks évoluent très vite. Nous vous prévenons au plus tôt, mais les magasins ne réservent pas les produits pour nous.",
+    faqCountryQ: "Puis-je changer de pays ?",
+    faqCountryA: "Oui, depuis votre profil. La page en temps réel affiche alors automatiquement les magasins correspondant au pays de livraison choisi.",
+    error: "L’abonnement n’a pas pu être finalisé. Réessayez plus tard.",
+  },
 };
 
 type SubscriptionPageProps = {
@@ -385,18 +488,31 @@ export function SubscriptionPage({ lang, setLang }: SubscriptionPageProps) {
   const nicknameInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    document.title = "Subscribe · Airco Tracker";
     let ignore = false;
     getCurrentUser()
       .then((nextUser) => {
         if (ignore) return;
         setUser(nextUser);
+        if (
+          !new URLSearchParams(window.location.search).has("lang")
+          && nextUser?.languagePreference
+          && nextUser.languagePreference !== lang
+        ) {
+          setLang(nextUser.languagePreference);
+        }
       })
       .catch(() => undefined);
     return () => {
       ignore = true;
     };
   }, []);
+
+  useEffect(() => {
+    document.title = `${copy.pageTitle} · Airco Tracker`;
+    document
+      .querySelector('meta[name="description"]')
+      ?.setAttribute("content", copy.pageDescription);
+  }, [copy.pageDescription, copy.pageTitle]);
 
   useEffect(() => {
     const dialogOpen = loginOpen || nicknameOpen;
@@ -552,7 +668,7 @@ export function SubscriptionPage({ lang, setLang }: SubscriptionPageProps) {
         <p className="landing-kicker">{copy.eyebrow}</p>
         <h1>{copy.title}</h1>
         <p>{copy.subtitle}</p>
-        <div className="subscription-toggle" aria-label="Billing cycle">
+        <div className="subscription-toggle" aria-label={copy.billingCycleLabel}>
           <button className={billingCycle === "weekly" ? "subscription-toggle--active" : ""} type="button" onClick={() => setBillingCycle("weekly")}>
             {copy.weekly}
           </button>
@@ -562,7 +678,7 @@ export function SubscriptionPage({ lang, setLang }: SubscriptionPageProps) {
         </div>
       </section>
 
-      <section className="subscription-grid" aria-label="Subscription plans">
+      <section className="subscription-grid" aria-label={copy.subscriptionPlansLabel}>
         {visiblePlans.map((plan) => {
           const details = SUBSCRIPTION_PLAN_DETAILS[plan];
           const isStockPlan = details.realtimeStock;
@@ -572,7 +688,7 @@ export function SubscriptionPage({ lang, setLang }: SubscriptionPageProps) {
               {isStockPlan && <span className="subscription-badge">{copy.bestValue}</span>}
               <div>
                 <p className="landing-kicker">{isStockPlan ? copy.stockName : copy.alertsName}</p>
-                <h2>€{details.priceEur}<span> / {billingCycle === "weekly" ? copy.weekly : copy.monthly}</span></h2>
+                <h2>{formatPlanPrice(details.priceEur, lang)}<span> / {billingCycle === "weekly" ? copy.weekly : copy.monthly}</span></h2>
                 <p>{isStockPlan ? copy.stockTagline : copy.alertsTagline}</p>
               </div>
               <ul>
@@ -599,7 +715,7 @@ export function SubscriptionPage({ lang, setLang }: SubscriptionPageProps) {
           </div>
           <div className="checkout-summary">
             <strong>{planName(selectedPlan, copy)}</strong>
-            <span>€{SUBSCRIPTION_PLAN_DETAILS[selectedPlan].priceEur} / {SUBSCRIPTION_PLAN_DETAILS[selectedPlan].billingCycle === "weekly" ? copy.weekly : copy.monthly}</span>
+            <span>{formatPlanPrice(SUBSCRIPTION_PLAN_DETAILS[selectedPlan].priceEur, lang)} / {SUBSCRIPTION_PLAN_DETAILS[selectedPlan].billingCycle === "weekly" ? copy.weekly : copy.monthly}</span>
           </div>
           <div className="payment-methods">
             <button className="payment-method--active" type="button" disabled>
@@ -759,10 +875,21 @@ function planName(plan: PaidSubscriptionPlan, copy: SubscriptionCopy): string {
   return SUBSCRIPTION_PLAN_DETAILS[plan].realtimeStock ? copy.stockName : copy.alertsName;
 }
 
+function formatPlanPrice(value: number, lang: Lang): string {
+  const locale = lang === "zh" ? "zh-CN" : lang === "nl" ? "nl-NL" : lang === "fr" ? "fr-FR" : "en-GB";
+  return new Intl.NumberFormat(locale, {
+    style: "currency",
+    currency: "EUR",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
 function formatSubscriptionDate(value: string, lang: Lang): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat(lang === "zh" ? "zh-CN" : lang === "nl" ? "nl-NL" : "en-GB", {
+  const locale = lang === "zh" ? "zh-CN" : lang === "nl" ? "nl-NL" : lang === "fr" ? "fr-FR" : "en-GB";
+  return new Intl.DateTimeFormat(locale, {
     year: "numeric",
     month: "short",
     day: "numeric",

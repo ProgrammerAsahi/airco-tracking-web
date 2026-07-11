@@ -31,6 +31,7 @@ const LOCALES: Record<Lang, string> = {
   zh: "zh-CN",
   nl: "nl-NL",
   en: "en-GB",
+  fr: "fr-FR",
 };
 
 class InventoryResponseError extends Error {
@@ -78,7 +79,16 @@ function destinationEyebrow(country: string, lang: Lang): string {
   const name = destinationCountryName(country, lang);
   if (lang === "zh") return `${name} · 实时库存`;
   if (lang === "nl") return `${name} · realtime voorraad`;
+  if (lang === "fr") return `${name} · stock en temps réel`;
   return `${name} · live stock`;
+}
+
+function metricLabel(t: Translator, key: string, count: number): string {
+  const translationKey = count === 1 ? `${key}_one` : key;
+  const rendered = t(translationKey, { count });
+  // Older Table Storage rows included the count in these labels. Strip one
+  // leading copy so mixed-version rollouts can never render the number twice.
+  return rendered.replace(new RegExp(`^${count}\\s*`), "");
 }
 
 function TranslatedHeading({ text }: { text: string }) {
@@ -346,8 +356,14 @@ function InventoryApp({ lang, setLang, t }: AppLocaleProps) {
         }
         setCurrentUser(user);
 
+        const hasExplicitLanguage = new URLSearchParams(window.location.search).has("lang");
+        const routeLanguage = hasExplicitLanguage ? lang : user.languagePreference;
+        if (!hasExplicitLanguage && user.languagePreference !== lang) {
+          setLang(user.languagePreference);
+        }
+
         if (!hasRealtimeStockAccess(user)) {
-          window.location.replace(`/ready?lang=${lang}`);
+          window.location.replace(`/ready?lang=${routeLanguage}`);
           return false;
         }
 
@@ -453,7 +469,7 @@ function InventoryApp({ lang, setLang, t }: AppLocaleProps) {
           <LanguageSwitcher lang={lang} setLang={setLang} />
           {currentUser && <AccountMenu user={currentUser} lang={lang} onLogout={() => { window.location.href = `/?lang=${lang}`; }} />}
         </div>
-        <div className="notice">Checking subscription…</div>
+        <div className="notice">{t("checking_subscription")}</div>
       </main>
     );
   }
@@ -477,11 +493,11 @@ function InventoryApp({ lang, setLang, t }: AppLocaleProps) {
         <div className="hero-metrics" aria-live="polite">
           <div className="primary-metric">
             <span className="metric-value">{immediateProductTotal ?? "—"}</span>
-            <span className="metric-label">{t("metric_in_stock")}</span>
+            <span className="metric-label">{metricLabel(t, "metric_in_stock", immediateProductTotal ?? 0)}</span>
           </div>
           <div className="secondary-metrics">
-            <span><strong>{snapshot ? storesWithStock : "—"}</strong> {t("metric_stores_stocked", { count: snapshot ? storesWithStock : 0 }).replace(/^0\s*/, "")}</span>
-            <span><strong>{snapshot ? sites.length : "—"}</strong> {t("metric_stores_tracked", { count: snapshot ? sites.length : 0 }).replace(/^0\s*/, "")}</span>
+            <span><strong>{snapshot ? storesWithStock : "—"}</strong> {metricLabel(t, "metric_stores_stocked", snapshot ? storesWithStock : 0)}</span>
+            <span><strong>{snapshot ? sites.length : "—"}</strong> {metricLabel(t, "metric_stores_tracked", snapshot ? sites.length : 0)}</span>
           </div>
         </div>
       </header>
