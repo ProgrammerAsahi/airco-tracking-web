@@ -601,7 +601,7 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
   };
 
   return (
-    <main className={`landing-shell landing-story--step-${activeStep}${coolingPreview ? " landing-story--cooling" : ""}`}>
+    <main data-lang={lang} className={`landing-shell landing-story--step-${activeStep}${coolingPreview ? " landing-story--cooling" : ""}`}>
       <header className="landing-nav" aria-label={copy.navigationLabel}>
         <a className="landing-logo" href={`/?lang=${lang}`} aria-label={copy.productName}>
           <AircoLogoMark className="landing-logo-mark" />
@@ -650,11 +650,11 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
               {copy.primaryCta}
             </button>
           </div>
-        </div>
-        <div className="landing-hero-card" aria-label={copy.statusLabel}>
-          <span>{copy.statSites}</span>
-          <span>{copy.statCountries}</span>
-          <span>{copy.statRefresh}</span>
+          <div className="landing-hero-meta" aria-label={copy.statusLabel}>
+            <span>{copy.statSites}</span>
+            <span>{copy.statCountries}</span>
+            <span>{copy.statRefresh}</span>
+          </div>
         </div>
         <a className="landing-scroll-cue" href="#heatwave">
           <span aria-hidden="true" />

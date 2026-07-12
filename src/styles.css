@@ -333,7 +333,8 @@ body.landing-dialog-open {
   position: relative;
   isolation: isolate;
   display: grid;
-  min-height: 100svh;
+  height: max(100svh, 720px);
+  min-height: 720px;
   overflow: hidden;
   place-items: center;
   padding: 132px 28px 76px;
@@ -343,7 +344,8 @@ body.landing-dialog-open {
 .landing-hero-copy {
   position: relative;
   z-index: 2;
-  width: min(100%, 1120px);
+  width: min(100%, 1180px);
+  transform: translateY(-1.5vh);
   text-align: center;
 }
 
@@ -376,21 +378,61 @@ body.landing-dialog-open {
 
 .landing-hero-copy h1 {
   color: #132b3c;
-  font-size: clamp(52px, 7.4vw, 108px);
-  font-weight: 820;
+  max-width: 1100px;
+  margin-inline: auto;
+  font-family: ui-serif, "New York", "Iowan Old Style", Baskerville, "Songti SC", STSong, "Noto Serif CJK SC", Georgia, serif;
+  font-size: clamp(70px, 6.2vw, 112px);
+  font-optical-sizing: auto;
+  font-weight: 650;
+  letter-spacing: -0.046em;
+  line-height: 0.92;
+  text-wrap: balance;
   text-shadow: 0 2px 0 rgba(255, 255, 255, 0.30), 0 24px 64px rgba(77, 45, 18, 0.14);
+}
+
+.landing-shell[data-lang="zh"] .landing-hero-copy h1 {
+  max-width: 920px;
+  font-size: clamp(72px, 6.4vw, 116px);
+  font-weight: 600;
+  letter-spacing: -0.055em;
+  line-height: 0.96;
+}
+
+.landing-shell[data-lang="nl"] .landing-hero-copy h1 {
+  max-width: 1080px;
+  font-size: clamp(68px, 5.9vw, 106px);
+}
+
+.landing-shell[data-lang="fr"] .landing-hero-copy h1 {
+  max-width: 1040px;
+  font-size: clamp(64px, 5.4vw, 96px);
+  letter-spacing: -0.04em;
+  line-height: 0.94;
 }
 
 .landing-title-line {
   display: block;
 }
 
-.landing-hero-copy p {
-  max-width: 720px;
-  margin: 26px auto 0;
+.landing-hero .landing-kicker {
+  margin: 0 0 19px;
+  color: #36505e;
+  font-family: "Avenir Next", Avenir, "PingFang SC", "Microsoft YaHei", ui-sans-serif, sans-serif;
+  font-size: clamp(11px, 0.82vw, 14px);
+  font-weight: 650;
+  letter-spacing: 0.21em;
+  text-shadow: 0 1px 10px rgba(255, 249, 231, 0.72);
+}
+
+.landing-hero-copy > p:not(.landing-kicker) {
+  max-width: 760px;
+  margin: 25px auto 0;
   color: #354b59;
-  font-size: clamp(17px, 1.55vw, 23px);
-  line-height: 1.62;
+  font-family: "Avenir Next", Avenir, "PingFang SC", "Microsoft YaHei", ui-sans-serif, sans-serif;
+  font-size: clamp(17px, 1.16vw, 21px);
+  font-weight: 500;
+  letter-spacing: -0.012em;
+  line-height: 1.58;
   text-shadow: 0 1px 10px rgba(255, 249, 231, 0.72);
 }
 
@@ -403,23 +445,28 @@ body.landing-dialog-open {
   margin-top: 32px;
 }
 
-.landing-hero-card {
-  position: absolute;
-  right: auto;
-  bottom: 60px;
-  left: max(28px, calc((100vw - 1180px) / 2));
-  z-index: 2;
-  display: grid;
-  gap: 8px;
-  padding: 18px 20px;
-  border: 1px solid rgba(31, 77, 104, 0.12);
-  border-radius: 24px;
-  background: rgba(255, 250, 239, 0.68);
-  color: #385466;
+.landing-hero-actions {
+  margin-top: 28px;
+}
+
+.landing-hero-meta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin: 21px auto 0;
+  color: rgba(37, 65, 79, 0.78);
+  font-family: "Avenir Next", Avenir, "PingFang SC", "Microsoft YaHei", ui-sans-serif, sans-serif;
   font-size: 13px;
-  font-weight: 760;
-  box-shadow: 0 18px 48px rgba(58, 78, 98, 0.12);
-  backdrop-filter: blur(18px);
+  font-weight: 650;
+  letter-spacing: 0.035em;
+  text-shadow: 0 1px 8px rgba(255, 249, 231, 0.82);
+}
+
+.landing-hero-meta span + span::before {
+  margin: 0 11px;
+  color: rgba(37, 65, 79, 0.42);
+  content: "·";
 }
 
 .landing-scroll-cue {
@@ -2473,24 +2520,39 @@ body.landing-dialog-open .landing-hero-particles i {
   }
 
   .landing-hero {
-    min-height: 96svh;
-    padding: 118px 20px 56px;
+    height: max(100svh, 760px);
+    min-height: 760px;
+    padding: 112px 20px 50px;
   }
 
-  .landing-hero-copy h1 {
-    font-size: clamp(48px, 13vw, 88px);
+  .landing-hero-copy {
+    transform: none;
   }
 
-  .landing-hero-copy p {
+  .landing-shell[data-lang="zh"] .landing-hero-copy h1 {
+    font-size: clamp(56px, 10.8vw, 82px);
+  }
+
+  .landing-shell[data-lang="en"] .landing-hero-copy h1 {
+    font-size: clamp(54px, 9.8vw, 76px);
+  }
+
+  .landing-shell[data-lang="nl"] .landing-hero-copy h1 {
+    font-size: clamp(50px, 9.2vw, 72px);
+  }
+
+  .landing-shell[data-lang="fr"] .landing-hero-copy h1 {
+    font-size: clamp(48px, 8.7vw, 68px);
+  }
+
+  .landing-hero-copy > p:not(.landing-kicker) {
+    max-width: 680px;
     font-size: 17px;
   }
 
-  .landing-hero-card {
-    position: relative;
-    right: auto;
-    bottom: auto;
-    left: auto;
-    margin-top: 28px;
+  .landing-hero-meta {
+    max-width: 660px;
+    font-size: 12px;
   }
 
   .landing-hero-copy::before {
@@ -2680,8 +2742,9 @@ body.landing-dialog-open .landing-hero-particles i {
   }
 
   .landing-hero {
-    min-height: 100svh;
-    padding-top: 102px;
+    height: max(100svh, 760px);
+    min-height: 760px;
+    padding: 92px 20px 44px;
   }
 
   .landing-hero-picture {
@@ -2728,9 +2791,32 @@ body.landing-dialog-open .landing-hero-particles i {
     background: radial-gradient(ellipse at center, rgba(255, 249, 230, 0.80) 0%, rgba(255, 247, 225, 0.42) 52%, transparent 78%);
   }
 
-  .landing-hero-copy h1 {
-    font-size: clamp(44px, 15vw, 68px);
-    letter-spacing: -0.06em;
+  .landing-shell[data-lang="zh"] .landing-hero-copy h1 {
+    font-size: clamp(49px, 13.7vw, 60px);
+  }
+
+  .landing-shell[data-lang="en"] .landing-hero-copy h1 {
+    font-size: clamp(45px, 12.4vw, 56px);
+  }
+
+  .landing-shell[data-lang="nl"] .landing-hero-copy h1 {
+    font-size: clamp(43px, 11.8vw, 53px);
+  }
+
+  .landing-shell[data-lang="fr"] .landing-hero-copy h1 {
+    font-size: clamp(41px, 11.2vw, 50px);
+    letter-spacing: -0.035em;
+  }
+
+  .landing-hero .landing-kicker {
+    margin-bottom: 14px;
+    font-size: 10px;
+  }
+
+  .landing-hero-copy > p:not(.landing-kicker) {
+    margin-top: 20px;
+    font-size: 15px;
+    line-height: 1.52;
   }
 
   .landing-hero-actions,
@@ -2744,8 +2830,15 @@ body.landing-dialog-open .landing-hero-particles i {
     width: 100%;
   }
 
-  .landing-hero-card {
-    width: min(100%, 260px);
+  .landing-hero-meta {
+    max-width: 335px;
+    margin-top: 17px;
+    font-size: 11px;
+    line-height: 1.6;
+  }
+
+  .landing-hero-meta span + span::before {
+    margin-inline: 7px;
   }
 
   .landing-story-step {
