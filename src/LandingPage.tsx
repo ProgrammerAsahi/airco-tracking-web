@@ -14,6 +14,7 @@ import { subscriptionIsActive } from "../shared/auth";
 import type { Lang } from "./i18n";
 import { AircoLogoMark } from "./AircoLogoMark";
 import { LandingHeroVisual } from "./LandingHeroVisual";
+import { LandingStoryVisual } from "./LandingStoryVisual";
 
 type LandingCopy = {
   productName: string;
@@ -107,11 +108,11 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     stepOneKicker: "Paris · 38°C",
     stepOneTitle: "太阳把城市烤成了烤箱。",
     stepOneBody: "河面反着刺眼的白光，石墙滚烫，行人像被按下慢放键。最热的那几天，空调不只是舒适品，而是家里能不能睡着的分界线。",
-    stepTwoKicker: "老宅室内",
-    stepTwoTitle: "抢不到空调，你是否已经酷暑难耐？",
-    stepTwoBody: "风扇转不动，窗外没有一丝风。你打开第十个网站，看到的还是“缺货”“预售”“预计数周后发货”。",
+    stepTwoKicker: "巴黎老宅 · 室内 34°C",
+    stepTwoTitle: "窗户开着，<br />热气却散不出去。",
+    stepTwoBody: "风扇只能搅动闷热的空气，厚重的石墙到了夜里仍在释放白天积下的热。这样的热浪里，空调不再是奢侈品，而是能让人好好休息的必需品。",
     stepThreeKicker: "实时追踪",
-    stepThreeTitle: "别再一页页刷新。让库存自己来找你。",
+    stepThreeTitle: "别再一页页刷新。<br />让库存自己来找你。",
     stepThreeBody: "我们持续追踪能配送到法国、荷兰等目的地的网站，区分现货和预售，把真正可买的移动空调集中到一个清爽页面里。",
     productKicker: "Airco Tracker",
     productTitle: "一个为热浪季节准备的空调雷达。",
@@ -179,11 +180,11 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     stepOneKicker: "Paris · 38°C",
     stepOneTitle: "De stad voelt als een oven.",
     stepOneBody: "Het rivierlicht is fel, de stenen houden warmte vast en iedereen beweegt trager. Op zulke dagen is een mobiele airco ineens geen luxe meer.",
-    stepTwoKicker: "Binnen in een oud appartement",
-    stepTwoTitle: "Geen airco gevonden, en de kamer blijft maar warmer worden?",
-    stepTwoBody: "De ventilator hapert, het raam helpt niet, en de webshops tonen vooral uitverkocht, pre-order of levering over enkele weken.",
+    stepTwoKicker: "Oud appartement in Parijs · 34 °C binnen",
+    stepTwoTitle: "Het raam staat open.<br />De hitte blijft hangen.",
+    stepTwoBody: "De ventilator verplaatst alleen de benauwde lucht, terwijl de oude stenen muren de warmte tot lang na zonsondergang blijven afgeven. Tijdens zo’n hittegolf is een airco geen luxe meer, maar essentieel om echt tot rust te komen.",
     stepThreeKicker: "Live tracking",
-    stepThreeTitle: "Stop met eindeloos refreshen. Laat voorraad jou vinden.",
+    stepThreeTitle: "Stop met eindeloos refreshen.<br />Laat voorraad jou vinden.",
     stepThreeBody: "We volgen winkels die naar Frankrijk, Nederland en andere bestemmingen leveren, scheiden voorraad van pre-orders en brengen koopbare modellen samen.",
     productKicker: "Airco Tracker",
     productTitle: "Een airco-radar voor het hittegolfseizoen.",
@@ -251,11 +252,11 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     stepOneKicker: "Paris · 38°C",
     stepOneTitle: "The city turns into an oven.",
     stepOneBody: "The river throws back white light, stone walls keep the heat, and pedestrians slow to a crawl. On those days, a portable AC stops being a luxury.",
-    stepTwoKicker: "Inside an old apartment",
-    stepTwoTitle: "No AC in stock, and the room keeps getting hotter?",
-    stepTwoBody: "The fan gives up, the window brings no breeze, and every shop says out of stock, pre-order, or delivery in several weeks.",
+    stepTwoKicker: "Old Paris apartment · 34°C indoors",
+    stepTwoTitle: "The window is open.<br />The heat won’t leave.",
+    stepTwoBody: "The fan only stirs the heavy air, while old stone walls keep releasing the day’s heat long after sunset. In a heatwave like this, air conditioning is no longer a luxury. It is what finally makes rest possible.",
     stepThreeKicker: "Live tracking",
-    stepThreeTitle: "Stop refreshing every tab. Let stock find you.",
+    stepThreeTitle: "Stop refreshing every tab.<br />Let stock find you.",
     stepThreeBody: "We track stores that can deliver to France, the Netherlands, and other destinations, separate in-stock units from pre-orders, and collect buyable models in one calm view.",
     productKicker: "Airco Tracker",
     productTitle: "An AC radar for heatwave season.",
@@ -323,11 +324,11 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     stepOneKicker: "Paris · 38 °C",
     stepOneTitle: "La ville se transforme en four.",
     stepOneBody: "Le fleuve renvoie une lumière blanche, les murs de pierre gardent la chaleur et les passants avancent au ralenti. Ces jours-là, un climatiseur mobile n’est plus un luxe.",
-    stepTwoKicker: "Dans un vieil appartement",
-    stepTwoTitle: "Aucun climatiseur en stock, et la pièce chauffe toujours ?",
-    stepTwoBody: "Le ventilateur rend l’âme, aucune brise ne passe par la fenêtre et tous les sites affichent rupture de stock, précommande ou livraison dans plusieurs semaines.",
+    stepTwoKicker: "Appartement ancien à Paris · 34 °C à l’intérieur",
+    stepTwoTitle: "La fenêtre est ouverte.<br />La chaleur, elle, reste.",
+    stepTwoBody: "Le ventilateur ne fait que brasser un air étouffant, tandis que les vieux murs restituent encore la chaleur bien après le coucher du soleil. Dans une telle canicule, la climatisation n’est plus un luxe : elle devient essentielle pour vraiment se reposer.",
     stepThreeKicker: "Suivi en temps réel",
-    stepThreeTitle: "Ne rafraîchissez plus tous vos onglets. Laissez le stock venir à vous.",
+    stepThreeTitle: "Ne rafraîchissez plus chaque onglet.<br />Laissez le stock venir à vous.",
     stepThreeBody: "Nous suivons les magasins qui livrent en France, aux Pays-Bas et ailleurs, distinguons le stock des précommandes et rassemblons les modèles réellement disponibles dans une seule vue apaisante.",
     productKicker: "Airco Tracker",
     productTitle: "Un radar de climatiseurs pour la saison des canicules.",
@@ -419,7 +420,7 @@ function useStoryStepObserver(stepCount: number) {
 
 export function LandingPage({ lang, setLang }: LandingPageProps) {
   const copy = LANDING_COPY[lang];
-  const { activeStep, setStepRef } = useStoryStepObserver(3);
+  const { activeStep, setStepRef } = useStoryStepObserver(2);
   const [coolingPreview, setCoolingPreview] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -664,49 +665,25 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
 
       <section id="heatwave" className="landing-story" aria-label={copy.navStory}>
         <div className="landing-stage" aria-hidden="true">
-          <div className="landing-stage-sky" />
-          <div className="landing-stage-outdoor">
-            <div className="landing-stage-sun" />
-            <div className="landing-stage-river" />
-            <div className="landing-stage-quay" />
-            <div className="landing-stage-buildings" />
-            <div className="landing-stage-people">
-              <i /><i /><i />
-            </div>
-            <div className="landing-stage-animal" />
-          </div>
-          <div className="landing-window">
-            <div className="landing-window-view" />
-          </div>
-          <div className="landing-room">
-            <div className="landing-room-wall" />
-            <div className="landing-room-window" />
-            <div className="landing-fan"><i /><i /><i /></div>
-            <div className="landing-sofa" />
-            <div className="landing-human" />
-            <div className="landing-thermometer" />
-            <div className="landing-ac-unit" />
-            <div className="landing-cool-air" />
-          </div>
+          <LandingStoryVisual />
         </div>
         <div className="landing-story-copy">
-          <article className="landing-story-step" data-step="0" ref={setStepRef(0)}>
-            <p className="landing-kicker">{copy.stepOneKicker}</p>
-            <h2>{copy.stepOneTitle}</h2>
-            <p>{copy.stepOneBody}</p>
+          <article className="landing-story-step landing-story-step--room landing-story-step--right" data-step="0" ref={setStepRef(0)}>
+            <div className="landing-story-card">
+              <p className="landing-kicker">{copy.stepTwoKicker}</p>
+              <h2>{renderLandingLines(copy.stepTwoTitle)}</h2>
+              <p>{copy.stepTwoBody}</p>
+            </div>
           </article>
-          <article className="landing-story-step landing-story-step--right" data-step="1" ref={setStepRef(1)}>
-            <p className="landing-kicker">{copy.stepTwoKicker}</p>
-            <h2>{copy.stepTwoTitle}</h2>
-            <p>{copy.stepTwoBody}</p>
-          </article>
-          <article className="landing-story-step" data-step="2" ref={setStepRef(2)}>
-            <p className="landing-kicker">{copy.stepThreeKicker}</p>
-            <h2>{copy.stepThreeTitle}</h2>
-            <p>{copy.stepThreeBody}</p>
-            <button className="landing-primary-button" type="button" onClick={openLogin}>
-              {copy.primaryCta}
-            </button>
+          <article className="landing-story-step landing-story-step--solution landing-story-step--right" data-step="1" ref={setStepRef(1)}>
+            <div className="landing-story-card">
+              <p className="landing-kicker">{copy.stepThreeKicker}</p>
+              <h2>{renderLandingLines(copy.stepThreeTitle)}</h2>
+              <p>{copy.stepThreeBody}</p>
+              <button className="landing-primary-button" type="button" onClick={openLogin}>
+                {copy.primaryCta}
+              </button>
+            </div>
           </article>
         </div>
       </section>

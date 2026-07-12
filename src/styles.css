@@ -680,7 +680,12 @@ body.landing-dialog-open .landing-hero-image,
 body.landing-dialog-open .landing-hero-sun-bloom,
 body.landing-dialog-open .landing-hero-refraction,
 body.landing-dialog-open .landing-hero-river-glints i,
-body.landing-dialog-open .landing-hero-particles i {
+body.landing-dialog-open .landing-hero-particles i,
+body.landing-dialog-open .landing-room-scene-image,
+body.landing-dialog-open .landing-room-scene-sunbeam,
+body.landing-dialog-open .landing-room-scene-refraction,
+body.landing-dialog-open .landing-room-scene-dust i,
+body.landing-dialog-open .landing-room-scene-still-air i {
   animation-play-state: paused;
 }
 
@@ -1121,6 +1126,335 @@ body.landing-dialog-open .landing-hero-particles i {
 
 .landing-story-step .landing-primary-button {
   margin-top: 28px;
+}
+
+/* --- Cinematic apartment story --- */
+
+.landing-story {
+  min-height: 200svh;
+  background: #806246;
+}
+
+.landing-stage {
+  height: 100svh;
+  background: #94704b;
+}
+
+.landing-room-scene {
+  --room-image-x: 0px;
+  --room-image-y: 0px;
+  --room-image-scale: 1.075;
+  --room-foreground-x: 0px;
+  --room-foreground-y: 0px;
+  --room-light-x: 20%;
+  --room-light-y: 33%;
+  --room-entry-opacity: 1;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.landing-room-scene-picture,
+.landing-room-scene-warmth,
+.landing-room-scene-sunbeam,
+.landing-room-scene-refraction,
+.landing-room-scene-dust,
+.landing-room-scene-still-air,
+.landing-room-scene-cooling,
+.landing-room-scene-scrim,
+.landing-room-scene-entry,
+.landing-room-scene-depth {
+  position: absolute;
+  inset: 0;
+}
+
+.landing-room-scene-picture {
+  inset: -3%;
+  display: block;
+  transform: translate3d(var(--room-image-x), var(--room-image-y), 0) scale(var(--room-image-scale));
+  transform-origin: 42% 51%;
+  will-change: transform;
+}
+
+.landing-room-scene-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  animation: landing-room-image-breathe 14s ease-in-out infinite alternate;
+}
+
+@keyframes landing-room-image-breathe {
+  from { transform: scale(1); }
+  to { transform: scale(1.006); }
+}
+
+.landing-room-scene-warmth {
+  background:
+    radial-gradient(circle at var(--room-light-x) var(--room-light-y), rgba(255, 247, 205, 0.24), transparent 31%),
+    linear-gradient(180deg, rgba(153, 78, 31, 0.08), rgba(85, 43, 24, 0.13));
+  opacity: 0.94;
+  transition: opacity 760ms ease;
+}
+
+.landing-room-scene-sunbeam {
+  inset: -8%;
+  background:
+    conic-gradient(from 111deg at 12% 28%, transparent 0 8deg, rgba(255, 245, 204, 0.12) 13deg, rgba(255, 235, 169, 0.24) 22deg, transparent 38deg),
+    radial-gradient(ellipse 28% 62% at var(--room-light-x) var(--room-light-y), rgba(255, 251, 220, 0.30), transparent 76%);
+  opacity: 0.78;
+  transform: translate3d(var(--room-foreground-x), var(--room-foreground-y), 0) scale(1.03);
+  animation: landing-room-sunbeam 7.6s ease-in-out infinite alternate;
+  will-change: transform, opacity;
+}
+
+@keyframes landing-room-sunbeam {
+  from { opacity: 0.60; }
+  to { opacity: 0.88; }
+}
+
+.landing-room-scene-refraction {
+  inset: -3%;
+  background: url("/media/room-paris-heatwave-v1.jpg") center / cover no-repeat;
+  opacity: 0.075;
+  will-change: transform, opacity;
+}
+
+.landing-room-scene-refraction--high {
+  clip-path: polygon(0 20%, 55% 18%, 62% 48%, 0 53%);
+  animation: landing-room-refraction-high 9s ease-in-out infinite alternate;
+}
+
+.landing-room-scene-refraction--low {
+  clip-path: polygon(0 53%, 72% 48%, 68% 86%, 0 92%);
+  opacity: 0.055;
+  animation: landing-room-refraction-low 12s ease-in-out -4s infinite alternate;
+}
+
+@keyframes landing-room-refraction-high {
+  from { transform: translate3d(-6px, -1px, 0) scale(1.035) skewX(-0.24deg); }
+  to { transform: translate3d(7px, 2px, 0) scale(1.04) skewX(0.30deg); }
+}
+
+@keyframes landing-room-refraction-low {
+  from { transform: translate3d(6px, 2px, 0) scale(1.034) skewX(0.2deg); }
+  to { transform: translate3d(-5px, -2px, 0) scale(1.041) skewX(-0.28deg); }
+}
+
+.landing-room-scene-dust {
+  opacity: 0.76;
+  transform: translate3d(var(--room-foreground-x), var(--room-foreground-y), 0);
+  will-change: transform;
+}
+
+.landing-room-scene-dust i {
+  position: absolute;
+  display: block;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: rgba(255, 242, 196, 0.86);
+  box-shadow: 0 0 9px rgba(255, 219, 143, 0.55);
+  animation: landing-room-dust 9s ease-in-out infinite;
+}
+
+.landing-room-scene-dust i:nth-child(1) { top: 22%; left: 17%; animation-delay: -1.3s; }
+.landing-room-scene-dust i:nth-child(2) { top: 34%; left: 25%; width: 2px; height: 2px; animation-delay: -6.1s; }
+.landing-room-scene-dust i:nth-child(3) { top: 47%; left: 33%; animation-delay: -3.8s; }
+.landing-room-scene-dust i:nth-child(4) { top: 62%; left: 19%; width: 4px; height: 4px; animation-delay: -7.4s; }
+.landing-room-scene-dust i:nth-child(5) { top: 72%; left: 42%; width: 2px; height: 2px; animation-delay: -2.6s; }
+.landing-room-scene-dust i:nth-child(6) { top: 29%; left: 49%; animation-delay: -8.2s; }
+.landing-room-scene-dust i:nth-child(7) { top: 78%; left: 55%; width: 2px; height: 2px; animation-delay: -4.9s; }
+.landing-room-scene-dust i:nth-child(8) { top: 56%; left: 12%; animation-delay: -5.5s; }
+
+@keyframes landing-room-dust {
+  0%, 100% { opacity: 0.12; transform: translate3d(-2px, 8px, 0); }
+  48% { opacity: 0.88; transform: translate3d(7px, -13px, 0); }
+}
+
+.landing-room-scene-still-air {
+  inset: 22% auto auto 3%;
+  width: 52%;
+  height: 58%;
+  opacity: 0.34;
+  transform: translate3d(var(--room-foreground-x), var(--room-foreground-y), 0);
+}
+
+.landing-room-scene-still-air i {
+  position: absolute;
+  left: 0;
+  display: block;
+  width: 82%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 238, 194, 0.52), transparent);
+  animation: landing-room-still-air 8.5s ease-in-out infinite alternate;
+}
+
+.landing-room-scene-still-air i:nth-child(1) { top: 17%; animation-delay: -2s; }
+.landing-room-scene-still-air i:nth-child(2) { top: 49%; left: 8%; width: 91%; animation-delay: -5s; }
+.landing-room-scene-still-air i:nth-child(3) { top: 76%; left: 18%; width: 70%; animation-delay: -3.4s; }
+
+@keyframes landing-room-still-air {
+  from { opacity: 0.12; transform: translateX(-10px) scaleX(0.94); }
+  to { opacity: 0.64; transform: translateX(10px) scaleX(1.04); }
+}
+
+.landing-room-scene-cooling {
+  background:
+    radial-gradient(ellipse 45% 70% at 92% 48%, rgba(150, 226, 244, 0.24), transparent 72%),
+    linear-gradient(90deg, transparent 44%, rgba(160, 224, 240, 0.12));
+  opacity: 0;
+  transition: opacity 900ms ease;
+}
+
+.landing-story--step-1 .landing-room-scene-warmth {
+  opacity: 0.68;
+}
+
+.landing-story--step-1 .landing-room-scene-cooling {
+  opacity: 0.12;
+}
+
+.landing-story--cooling .landing-room-scene-warmth {
+  opacity: 0.42;
+}
+
+.landing-story--cooling .landing-room-scene-cooling {
+  opacity: 0.32;
+}
+
+.landing-room-scene-scrim {
+  background:
+    radial-gradient(ellipse 46% 74% at 81% 47%, rgba(255, 248, 231, 0.23), transparent 82%),
+    linear-gradient(90deg, rgba(32, 20, 13, 0.14) 0%, transparent 36%, rgba(46, 29, 18, 0.06) 58%, rgba(30, 19, 13, 0.18) 100%),
+    linear-gradient(180deg, rgba(28, 18, 12, 0.08), transparent 42%, rgba(23, 15, 10, 0.23));
+}
+
+.landing-room-scene-entry {
+  box-shadow:
+    inset 15vw 0 16vw -9vw rgba(28, 17, 10, 0.62),
+    inset -8vw 0 13vw -8vw rgba(23, 14, 9, 0.50),
+    inset 0 12vh 16vh -10vh rgba(25, 15, 9, 0.46);
+  opacity: var(--room-entry-opacity);
+  transform: scale(0.985);
+  transform-origin: 21% 46%;
+}
+
+.landing-room-scene-depth {
+  box-shadow:
+    inset 0 120px 160px -132px rgba(255, 242, 205, 0.42),
+    inset 0 -160px 200px -130px rgba(25, 15, 10, 0.70),
+    inset 72px 0 140px -134px rgba(27, 16, 10, 0.56),
+    inset -72px 0 140px -136px rgba(21, 13, 9, 0.56);
+}
+
+.landing-story-copy {
+  margin-top: -100svh;
+}
+
+.landing-story-step,
+.landing-story-step--right {
+  position: relative;
+  isolation: isolate;
+  width: min(calc(100% - 56px), 640px);
+  min-height: 100svh;
+  margin-right: max(28px, calc((100vw - 1180px) / 2));
+  margin-left: auto;
+  padding: 118px 0 78px;
+  justify-content: center;
+  opacity: 0.34;
+  transform: translate3d(0, 32px, 0);
+  transition: opacity 620ms ease, transform 760ms cubic-bezier(0.2, 0.75, 0.2, 1);
+}
+
+.landing-story-step::before {
+  content: none;
+}
+
+.landing-story-card {
+  width: 100%;
+  padding: 38px 40px 40px;
+  border: 1px solid rgba(255, 255, 255, 0.30);
+  border-radius: 34px;
+  background:
+    radial-gradient(circle at 18% 8%, rgba(255, 255, 255, 0.44), transparent 14rem),
+    linear-gradient(145deg, rgba(255, 249, 236, 0.70), rgba(248, 235, 211, 0.51));
+  box-shadow: 0 28px 90px rgba(30, 18, 10, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.44);
+  backdrop-filter: blur(14px) saturate(0.88);
+}
+
+.landing-story-step--solution .landing-story-card {
+  background:
+    radial-gradient(circle at 18% 8%, rgba(255, 255, 255, 0.52), transparent 14rem),
+    linear-gradient(145deg, rgba(246, 250, 244, 0.76), rgba(218, 239, 238, 0.56));
+}
+
+.landing-story--step-0 .landing-story-step[data-step="0"],
+.landing-story--step-1 .landing-story-step[data-step="1"] {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+}
+
+.landing-story-step .landing-kicker {
+  margin-bottom: 18px;
+  color: #a75025;
+  font-family: "Avenir Next", Avenir, "PingFang SC", "Microsoft YaHei", ui-sans-serif, sans-serif;
+  font-size: clamp(10px, 0.78vw, 12px);
+  font-weight: 720;
+  letter-spacing: 0.16em;
+}
+
+.landing-story-step--solution .landing-kicker {
+  color: #0c769d;
+}
+
+.landing-story-step h2 {
+  max-width: 570px;
+  color: #172d3b;
+  font-family: ui-serif, "New York", "Iowan Old Style", Baskerville, "Songti SC", STSong, "Noto Serif CJK SC", Georgia, serif;
+  font-size: clamp(48px, 4.1vw, 70px);
+  font-optical-sizing: auto;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  line-height: 0.99;
+  text-wrap: balance;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.36);
+}
+
+.landing-story-step p:not(.landing-kicker) {
+  max-width: 52ch;
+  margin: 24px 0 0;
+  color: #455a64;
+  font-family: "Avenir Next", Avenir, "PingFang SC", "Microsoft YaHei", ui-sans-serif, sans-serif;
+  font-size: clamp(17px, 1.2vw, 20px);
+  font-weight: 500;
+  letter-spacing: -0.012em;
+  line-height: 1.65;
+}
+
+.landing-shell[data-lang="zh"] .landing-story-step h2 {
+  font-size: clamp(48px, 4vw, 68px);
+  font-weight: 600;
+  letter-spacing: -0.045em;
+  line-height: 1.06;
+}
+
+.landing-shell[data-lang="nl"] .landing-story-step h2 {
+  font-size: clamp(46px, 3.8vw, 66px);
+  letter-spacing: -0.038em;
+  line-height: 1;
+}
+
+.landing-shell[data-lang="fr"] .landing-story-step h2 {
+  font-size: clamp(44px, 3.55vw, 62px);
+  letter-spacing: -0.032em;
+  line-height: 1.01;
+}
+
+.landing-story-step .landing-primary-button {
+  margin-top: 30px;
 }
 
 .landing-product-section {
@@ -3637,4 +3971,179 @@ h1 {
   .product-grid { grid-template-columns: 1fr; }
   .detail-header { flex-wrap: wrap; gap: 12px; }
   .detail-footer { flex-direction: column; gap: 10px; }
+}
+
+/* Keep the apartment composition and text stage identical for every language. */
+@media (max-width: 860px) {
+  .landing-room-scene-picture {
+    transform-origin: 50% 46%;
+  }
+
+  .landing-room-scene-image {
+    object-position: center 42%;
+  }
+
+  .landing-room-scene-refraction {
+    background-image: url("/media/room-paris-heatwave-v2-mobile.jpg");
+    background-position: center 42%;
+  }
+
+  .landing-room-scene-sunbeam {
+    opacity: 0.64;
+  }
+
+  .landing-room-scene-dust i:nth-child(n + 6),
+  .landing-room-scene-still-air i:nth-child(3) {
+    display: none;
+  }
+
+  .landing-room-scene-scrim {
+    background:
+      linear-gradient(180deg, rgba(28, 18, 12, 0.05) 0%, transparent 34%, rgba(28, 18, 12, 0.18) 62%, rgba(22, 14, 9, 0.42) 100%),
+      radial-gradient(ellipse 88% 48% at 50% 83%, rgba(255, 244, 222, 0.18), transparent 78%);
+  }
+
+  .landing-story-step,
+  .landing-story-step--right {
+    width: min(calc(100% - 32px), 620px);
+    margin-right: auto;
+    margin-left: auto;
+    padding: 104px 0 54px;
+    justify-content: flex-end;
+  }
+
+  .landing-story-card {
+    padding: 30px 32px 34px;
+    border-radius: 30px;
+    background:
+      radial-gradient(circle at 18% 8%, rgba(255, 255, 255, 0.48), transparent 13rem),
+      linear-gradient(145deg, rgba(255, 249, 236, 0.76), rgba(244, 228, 200, 0.62));
+    backdrop-filter: blur(12px) saturate(0.9);
+  }
+
+  .landing-story-step--solution .landing-story-card {
+    background:
+      radial-gradient(circle at 18% 8%, rgba(255, 255, 255, 0.54), transparent 13rem),
+      linear-gradient(145deg, rgba(246, 250, 244, 0.82), rgba(214, 237, 237, 0.68));
+  }
+
+  .landing-shell[data-lang="zh"] .landing-story-step h2 {
+    font-size: clamp(40px, 8.1vw, 54px);
+  }
+
+  .landing-shell[data-lang="en"] .landing-story-step h2 {
+    font-size: clamp(39px, 7.8vw, 52px);
+  }
+
+  .landing-shell[data-lang="nl"] .landing-story-step h2 {
+    font-size: clamp(37px, 7.3vw, 49px);
+  }
+
+  .landing-shell[data-lang="fr"] .landing-story-step h2 {
+    font-size: clamp(36px, 6.9vw, 47px);
+  }
+
+  .landing-story-step p:not(.landing-kicker) {
+    max-width: 50ch;
+    font-size: 16px;
+    line-height: 1.62;
+  }
+}
+
+@media (max-width: 560px) {
+  .landing-room-scene-picture {
+    inset: -2%;
+  }
+
+  .landing-room-scene-image {
+    object-position: center 42%;
+  }
+
+  .landing-room-scene-refraction {
+    background-position: center 42%;
+  }
+
+  .landing-room-scene-still-air {
+    width: 78%;
+  }
+
+  .landing-story-step,
+  .landing-story-step--right {
+    width: calc(100% - 24px);
+    padding: 92px 0 42px;
+  }
+
+  .landing-story-card {
+    padding: 25px 22px 27px;
+    border-radius: 27px;
+  }
+
+  .landing-story-step .landing-kicker {
+    margin-bottom: 13px;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+  }
+
+  .landing-shell[data-lang="zh"] .landing-story-step h2 {
+    font-size: clamp(38px, 11.2vw, 48px);
+  }
+
+  .landing-shell[data-lang="en"] .landing-story-step h2 {
+    font-size: clamp(37px, 10.7vw, 46px);
+  }
+
+  .landing-shell[data-lang="nl"] .landing-story-step h2 {
+    font-size: clamp(35px, 10.1vw, 44px);
+  }
+
+  .landing-shell[data-lang="fr"] .landing-story-step h2 {
+    font-size: clamp(34px, 9.5vw, 42px);
+  }
+
+  .landing-story-step p:not(.landing-kicker) {
+    margin-top: 18px;
+    font-size: 15px;
+    line-height: 1.56;
+  }
+
+  .landing-story-step .landing-primary-button {
+    width: 100%;
+    margin-top: 22px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-room-scene-picture {
+    transform: scale(1.035);
+  }
+
+  .landing-room-scene-image,
+  .landing-room-scene-sunbeam,
+  .landing-room-scene-dust i,
+  .landing-room-scene-still-air i {
+    animation: none;
+  }
+
+  .landing-room-scene-warmth,
+  .landing-room-scene-cooling {
+    transition: none;
+  }
+
+  .landing-room-scene-refraction,
+  .landing-room-scene-still-air {
+    display: none;
+  }
+
+  .landing-room-scene-entry {
+    opacity: 0;
+  }
+
+  .landing-story-step {
+    transition: none;
+  }
+}
+
+@media (hover: none), (pointer: coarse) {
+  .landing-room-scene-refraction--high { animation-duration: 14s; }
+  .landing-room-scene-refraction--low { animation-duration: 18s; }
 }
