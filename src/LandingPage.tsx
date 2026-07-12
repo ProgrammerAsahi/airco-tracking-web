@@ -13,6 +13,7 @@ import { LanguageSwitcher } from "./LanguageSwitcher";
 import { subscriptionIsActive } from "../shared/auth";
 import type { Lang } from "./i18n";
 import { AircoLogoMark } from "./AircoLogoMark";
+import { LandingHeroVisual } from "./LandingHeroVisual";
 
 type LandingCopy = {
   productName: string;
@@ -639,18 +640,7 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
       </header>
 
       <section className="landing-hero" aria-labelledby="landing-title">
-        <div className="landing-hero-visual" aria-hidden="true">
-          <div className="landing-sun" />
-          <div className="landing-heat-haze landing-heat-haze--one" />
-          <div className="landing-heat-haze landing-heat-haze--two" />
-          <div className="landing-river" />
-          <div className="landing-bridge" />
-          <div className="landing-building landing-building--left" />
-          <div className="landing-building landing-building--right" />
-          <div className="landing-person landing-person--one" />
-          <div className="landing-person landing-person--two" />
-          <div className="landing-dog" />
-        </div>
+        <LandingHeroVisual />
         <div className="landing-hero-copy">
           <p className="landing-kicker">{copy.heroEyebrow}</p>
           <h1 id="landing-title">{renderLandingLines(copy.heroTitle)}</h1>
