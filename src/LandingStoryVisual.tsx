@@ -32,6 +32,19 @@ export function LandingStoryVisual() {
         "--room-light-x",
         "--room-light-y",
         "--room-entry-opacity",
+        "--room-cool-layer-opacity",
+        "--room-cool-reveal-inner",
+        "--room-cool-reveal-outer",
+        "--room-hot-opacity",
+        "--room-warmth-opacity",
+        "--room-refraction-high-opacity",
+        "--room-refraction-low-opacity",
+        "--room-dust-opacity",
+        "--room-still-opacity",
+        "--room-airflow-opacity",
+        "--room-cooling-opacity",
+        "--room-transition-mist-opacity",
+        "--room-cool-wave-x",
       ].forEach((property) => visual.style.removeProperty(property));
     };
 
@@ -43,6 +56,12 @@ export function LandingStoryVisual() {
       currentY += (targetY - currentY) * 0.09;
       currentProgress += (targetProgress - currentProgress) * 0.1;
 
+      const coolLinear = Math.min(1, Math.max(0, (currentProgress - 0.34) / 0.56));
+      const coolProgress = coolLinear * coolLinear * (3 - 2 * coolLinear);
+      const transitionMist = Math.sin(coolProgress * Math.PI) * 0.30;
+      const revealOuter = coolProgress === 0 ? 0 : coolProgress * 150 + 10;
+      const revealInner = Math.max(0, revealOuter - 32);
+
       visual.style.setProperty("--room-image-x", `${currentX * -12}px`);
       visual.style.setProperty("--room-image-y", `${currentY * -7 - currentProgress * 15}px`);
       visual.style.setProperty("--room-image-scale", `${1.075 - currentProgress * 0.038}`);
@@ -51,6 +70,19 @@ export function LandingStoryVisual() {
       visual.style.setProperty("--room-light-x", `${20 + currentX * 7}%`);
       visual.style.setProperty("--room-light-y", `${33 + currentY * 6}%`);
       visual.style.setProperty("--room-entry-opacity", `${Math.max(0, 1 - currentProgress * 7.5)}`);
+      visual.style.setProperty("--room-cool-layer-opacity", `${Math.min(1, coolProgress * 3.2)}`);
+      visual.style.setProperty("--room-cool-reveal-inner", `${revealInner}%`);
+      visual.style.setProperty("--room-cool-reveal-outer", `${revealOuter}%`);
+      visual.style.setProperty("--room-hot-opacity", "1");
+      visual.style.setProperty("--room-warmth-opacity", `${0.94 - coolProgress * 0.82}`);
+      visual.style.setProperty("--room-refraction-high-opacity", `${0.075 * (1 - coolProgress)}`);
+      visual.style.setProperty("--room-refraction-low-opacity", `${0.055 * (1 - coolProgress)}`);
+      visual.style.setProperty("--room-dust-opacity", `${0.76 * (1 - coolProgress)}`);
+      visual.style.setProperty("--room-still-opacity", `${0.34 * (1 - coolProgress)}`);
+      visual.style.setProperty("--room-airflow-opacity", `${Math.max(0, (coolProgress - 0.18) / 0.82)}`);
+      visual.style.setProperty("--room-cooling-opacity", `${coolProgress * 0.46}`);
+      visual.style.setProperty("--room-transition-mist-opacity", `${transitionMist}`);
+      visual.style.setProperty("--room-cool-wave-x", `${(1 - coolProgress) * -18}px`);
 
       const stillMoving = Math.abs(targetX - currentX) > 0.001
         || Math.abs(targetY - currentY) > 0.001
@@ -140,7 +172,7 @@ export function LandingStoryVisual() {
 
   return (
     <div ref={visualRef} className="landing-room-scene" aria-hidden="true">
-      <picture className="landing-room-scene-picture">
+      <picture className="landing-room-scene-picture landing-room-scene-picture--hot">
         <source media="(max-width: 640px)" srcSet="/media/room-paris-heatwave-v2-mobile.jpg" />
         <img
           className="landing-room-scene-image"
@@ -152,6 +184,22 @@ export function LandingStoryVisual() {
           alt=""
         />
       </picture>
+      <picture className="landing-room-scene-picture landing-room-scene-picture--cool">
+        <source media="(max-width: 640px)" srcSet="/media/room-paris-cooled-portasplit-v1-mobile.jpg" />
+        <img
+          className="landing-room-scene-image"
+          src="/media/room-paris-cooled-portasplit-v1.jpg"
+          width="1672"
+          height="941"
+          loading="lazy"
+          decoding="async"
+          alt=""
+        />
+      </picture>
+      <div className="landing-room-scene-cool-motion">
+        <i className="landing-room-scene-cool-motion-curtain" />
+        <i className="landing-room-scene-cool-motion-plant" />
+      </div>
       <div className="landing-room-scene-warmth" />
       <div className="landing-room-scene-sunbeam" />
       <div className="landing-room-scene-refraction landing-room-scene-refraction--high" />
@@ -160,7 +208,9 @@ export function LandingStoryVisual() {
         <i /><i /><i /><i /><i /><i /><i /><i />
       </div>
       <div className="landing-room-scene-still-air"><i /><i /><i /></div>
+      <div className="landing-room-scene-transition-mist" />
       <div className="landing-room-scene-cooling" />
+      <div className="landing-room-scene-airflow"><i /><i /><i /></div>
       <div className="landing-room-scene-scrim" />
       <div className="landing-room-scene-entry" />
       <div className="landing-room-scene-depth" />

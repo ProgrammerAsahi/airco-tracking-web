@@ -111,9 +111,9 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     stepTwoKicker: "巴黎老宅 · 室内 34°C",
     stepTwoTitle: "窗户开着，<br />热气却散不出去。",
     stepTwoBody: "风扇只能搅动闷热的空气，厚重的石墙到了夜里仍在释放白天积下的热。这样的热浪里，空调不再是奢侈品，而是能让人好好休息的必需品。",
-    stepThreeKicker: "实时追踪",
-    stepThreeTitle: "别再一页页刷新。<br />让库存自己来找你。",
-    stepThreeBody: "我们持续追踪能配送到法国、荷兰等目的地的网站，区分现货和预售，把真正可买的移动空调集中到一个清爽页面里。",
+    stepThreeKicker: "现货提醒 · 实时雷达",
+    stepThreeTitle: "让现货先找到你。<br />让清凉随后到家。",
+    stepThreeBody: "Airco Tracker 持续追踪能配送到你所在国家的网站，并自动区分现货与预售。<br />空调一上架，我们就立即通知你。",
     productKicker: "Airco Tracker",
     productTitle: "一个为热浪季节准备的空调雷达。",
     productBody: "按配送国家筛选网站，保留语言选择独立；现货、预售、价格、BTU 和配送说明都放在同一个视图里。登录并订阅后即可开启提醒及实时库存。",
@@ -183,9 +183,9 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     stepTwoKicker: "Oud appartement in Parijs · 34 °C binnen",
     stepTwoTitle: "Het raam staat open.<br />De hitte blijft hangen.",
     stepTwoBody: "De ventilator verplaatst alleen de benauwde lucht, terwijl de oude stenen muren de warmte tot lang na zonsondergang blijven afgeven. Tijdens zo’n hittegolf is een airco geen luxe meer, maar essentieel om echt tot rust te komen.",
-    stepThreeKicker: "Live tracking",
-    stepThreeTitle: "Stop met eindeloos refreshen.<br />Laat voorraad jou vinden.",
-    stepThreeBody: "We volgen winkels die naar Frankrijk, Nederland en andere bestemmingen leveren, scheiden voorraad van pre-orders en brengen koopbare modellen samen.",
+    stepThreeKicker: "Voorraadmeldingen · live radar",
+    stepThreeTitle: "Laat voorraad jou vinden.<br />De verkoeling<br />volgt vanzelf.",
+    stepThreeBody: "Airco Tracker volgt winkels die in jouw land bezorgen en scheidt voorraad van pre-orders.<br />Zodra een airco beschikbaar is, laten we het je weten.",
     productKicker: "Airco Tracker",
     productTitle: "Een airco-radar voor het hittegolfseizoen.",
     productBody: "Filter op bezorgland terwijl taal apart blijft; voorraad, pre-orders, prijzen, BTU en bezorgtekst staan in één helder overzicht. Log in en abonneer je voor meldingen en realtime voorraad.",
@@ -255,9 +255,9 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     stepTwoKicker: "Old Paris apartment · 34°C indoors",
     stepTwoTitle: "The window is open.<br />The heat won’t leave.",
     stepTwoBody: "The fan only stirs the heavy air, while old stone walls keep releasing the day’s heat long after sunset. In a heatwave like this, air conditioning is no longer a luxury. It is what finally makes rest possible.",
-    stepThreeKicker: "Live tracking",
-    stepThreeTitle: "Stop refreshing every tab.<br />Let stock find you.",
-    stepThreeBody: "We track stores that can deliver to France, the Netherlands, and other destinations, separate in-stock units from pre-orders, and collect buyable models in one calm view.",
+    stepThreeKicker: "Stock alerts · live radar",
+    stepThreeTitle: "Let stock find you.<br />Let cool air follow.",
+    stepThreeBody: "Airco Tracker monitors stores that deliver to your country and separates in-stock units from pre-orders.<br />The moment an AC becomes available, we let you know.",
     productKicker: "Airco Tracker",
     productTitle: "An AC radar for heatwave season.",
     productBody: "Filter by delivery country while keeping language separate; stock, pre-orders, prices, BTU and delivery notes live in one view. Sign in and subscribe for alerts and realtime stock.",
@@ -327,9 +327,9 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     stepTwoKicker: "Appartement ancien à Paris · 34 °C à l’intérieur",
     stepTwoTitle: "La fenêtre est ouverte.<br />La chaleur, elle, reste.",
     stepTwoBody: "Le ventilateur ne fait que brasser un air étouffant, tandis que les vieux murs restituent encore la chaleur bien après le coucher du soleil. Dans une telle canicule, la climatisation n’est plus un luxe : elle devient essentielle pour vraiment se reposer.",
-    stepThreeKicker: "Suivi en temps réel",
-    stepThreeTitle: "Ne rafraîchissez plus chaque onglet.<br />Laissez le stock venir à vous.",
-    stepThreeBody: "Nous suivons les magasins qui livrent en France, aux Pays-Bas et ailleurs, distinguons le stock des précommandes et rassemblons les modèles réellement disponibles dans une seule vue apaisante.",
+    stepThreeKicker: "Alertes de stock · radar en direct",
+    stepThreeTitle: "Laissez le stock<br />venir à vous.<br />La fraîcheur suivra.",
+    stepThreeBody: "Airco Tracker surveille les magasins qui livrent dans votre pays et distingue le stock des précommandes.<br />Dès qu’un climatiseur est disponible, nous vous prévenons.",
     productKicker: "Airco Tracker",
     productTitle: "Un radar de climatiseurs pour la saison des canicules.",
     productBody: "Filtrez par pays de livraison tout en gardant la langue indépendante ; stock, précommandes, prix, BTU et informations de livraison sont réunis dans une vue claire. Connectez-vous et abonnez-vous pour recevoir les alertes et consulter le stock en temps réel.",
@@ -679,7 +679,7 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
             <div className="landing-story-card">
               <p className="landing-kicker">{copy.stepThreeKicker}</p>
               <h2>{renderLandingLines(copy.stepThreeTitle)}</h2>
-              <p>{copy.stepThreeBody}</p>
+              <p>{renderLandingLines(copy.stepThreeBody)}</p>
               <button className="landing-primary-button" type="button" onClick={openLogin}>
                 {copy.primaryCta}
               </button>
