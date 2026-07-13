@@ -23,10 +23,10 @@
 - Container App：`airco-tracking-web`
 - Azure resource group：`airco-tracker-rg`
 - Backend repository：`https://github.com/ProgrammerAsahi/airco-tracking`
-- 已部署 frontend commit/image：共享私有 ACR 中的 `241be5cd0fc2d8c5359ba3c02758bd79b4f7da15`
+- 已部署 frontend commit/image：`aircotrackertdzvfmmi.azurecr.io/airco-tracking-web:d103255318a228bfa533fbaec7249131aae7e9ef`
 - 协调部署的 backend commit/image：`e4194c25cce82f650eb96d72b37f10bdd6d067a7`
-- Ready revision：`airco-tracking-web--0000044`；provisioning state 为 `Succeeded`
-- 成功的 deployment workflow runs：frontend `29167702772`、backend `29167702065`
+- Ready revision：`airco-tracking-web--0000051`；provisioning state 为 `Succeeded`；revision health 为 `Healthy`；流量为 100%
+- 成功的 deployment workflow runs：frontend `29268807477`、backend `29167702065`
 - Deployment workflow：`.github/workflows/deploy.yml`；纯 Markdown/docs push 不部署
 
 两个自定义 Web hostname 和现有 managed-certificate 名称都已写入 `infra/app.bicep`。不要删除这些 `customDomains`；否则 application Bicep 部署会清空绑定。
@@ -91,10 +91,12 @@
 
 四语 release 已部署，并通过 71/71 前端 tests、app/server typecheck、production build、production-mode deployment verification 和 `git diff --check`。法语 Landing、Subscribe、登录/昵称、Profile 和 Unsubscribe 状态已在生产的 1440×900 与 390×844 完成视觉检查，console 无 error 或 warning。Header 临时语言会在导航中保持，同时不会覆盖 Profile 已保存偏好；在 Profile 保存偏好会同时更新网页默认语言和提醒邮件语言。
 
+门户第四屏还在 1440×900、1024×768、390×844 和 844×390 下完成了中文、荷兰语、英语、法语本地视觉检查。生产复核确认邮件提醒/实时库存分阶段过渡、法语和中文文案、优化后的 1672×941 背景、五张库存数据卡、订阅 CTA、匿名库存保护和浏览器 console 均符合预期。
+
 本次前后端协调 release 已部署并验证：
 
-- Frontend workflow `29167702772` 部署 commit `241be5c`，backend workflow `29167702065` 部署 commit `e4194c2`；两者完整 test、build 和 deployment checks 均通过。
-- 生产运行 ready web revision `airco-tracking-web--0000044`，provisioning state 为 `Succeeded`。
+- Frontend workflow `29268807477` 部署 commit `d103255`，backend workflow `29167702065` 部署 commit `e4194c2`；两者完整 test、build 和 deployment checks 均通过。
+- 生产运行 ready web revision `airco-tracking-web--0000051`，provisioning state 为 `Succeeded`，revision health 为 `Healthy`，流量为 100%。
 - `https://airco-tracker.eu/health` 和 `www` health 均返回 200；匿名 `/api/inventory` 返回 401。
 - 生产 i18n Table 在 `web` 和 `email` 两个 scopes 中共有 56 个 translation entries。自动契约确认每个 key 都有四个非空的 `zh`/`nl`/`en`/`fr` 值，且前后端 web maps 一致。
 - 真实法语 OTP 通过自定义 ACS sender 到达已授权 Outlook inbox；法语提醒流水线 canary 通过 Service Bus 到达已授权 Gmail inbox，最终状态为 `delivered`。

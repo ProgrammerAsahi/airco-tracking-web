@@ -23,10 +23,10 @@ The deployed coordinated frontend/backend release adds a stable user UUID and a 
 - Container App: `airco-tracking-web`
 - Azure resource group: `airco-tracker-rg`
 - Backend repository: `https://github.com/ProgrammerAsahi/airco-tracking`
-- Deployed frontend commit/image: `241be5cd0fc2d8c5359ba3c02758bd79b4f7da15` in the shared private ACR
+- Deployed frontend commit/image: `aircotrackertdzvfmmi.azurecr.io/airco-tracking-web:d103255318a228bfa533fbaec7249131aae7e9ef`
 - Coordinated backend commit/image: `e4194c25cce82f650eb96d72b37f10bdd6d067a7`
-- Ready revision: `airco-tracking-web--0000044`; provisioning state `Succeeded`
-- Successful deployment workflow runs: frontend `29167702772`, backend `29167702065`
+- Ready revision: `airco-tracking-web--0000051`; provisioning state `Succeeded`; revision health `Healthy`; traffic 100%
+- Successful deployment workflow runs: frontend `29268807477`, backend `29167702065`
 - Deployment workflow: `.github/workflows/deploy.yml`; Markdown/docs-only pushes do not deploy
 
 Both custom web hostnames and their existing managed-certificate names are declared in `infra/app.bicep`. Do not remove those `customDomains` entries: an application Bicep deployment would otherwise clear the bindings.
@@ -91,10 +91,12 @@ The detailed subscription/payment matrix is maintained in `docs/SUBSCRIPTION_BIL
 
 The four-language release is deployed. It passed 71/71 frontend tests, app/server typecheck, production build, production-mode deployment verification, and `git diff --check`. French Landing, Subscribe, Login/nickname, Profile, and Unsubscribe states passed production visual checks at 1440×900 and 390×844 with no console errors or warnings. Header language changes preserve navigation while leaving the saved Profile preference unchanged; saving the Profile preference updates both the web default and alert-email language.
 
+The fourth landing scene additionally passed local visual QA at 1440×900, 1024×768, 390×844, and 844×390 across Chinese, Dutch, English, and French. Production rechecks confirmed the staged email/live-stock transition, French and Chinese copy, optimized 1672×941 background, five stock data cards, subscription CTA, protected anonymous inventory behavior, and a clean browser console.
+
 The coordinated frontend/backend release is deployed and verified:
 
-- Frontend workflow `29167702772` deployed commit `241be5c`; backend workflow `29167702065` deployed commit `e4194c2` after their complete test, build, and deployment checks passed.
-- Production runs ready web revision `airco-tracking-web--0000044` with provisioning state `Succeeded`.
+- Frontend workflow `29268807477` deployed commit `d103255`; backend workflow `29167702065` deployed commit `e4194c2` after their complete test, build, and deployment checks passed.
+- Production runs ready web revision `airco-tracking-web--0000051` with provisioning state `Succeeded`, revision health `Healthy`, and 100% traffic.
 - `https://airco-tracker.eu/health` and the `www` health endpoint return 200; anonymous `/api/inventory` returns 401.
 - Production i18n Table contains 56 translation entries across the `web` and `email` scopes. Automated contracts confirm every key has exactly four non-empty `zh`/`nl`/`en`/`fr` values and that the frontend/backend web maps match.
 - A real French OTP sent through the custom ACS sender reached an authorized Outlook inbox. A French alert-pipeline canary traversed the Service Bus pipeline to an authorized Gmail inbox and reached final status `delivered`.
