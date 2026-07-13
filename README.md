@@ -9,7 +9,7 @@
 
 **线上站点：** [airco-tracker.eu](https://airco-tracker.eu/)
 
-首页 (`/`) 是公开的热浪主题门户页。库存页面位于 `/deliver-to/<country>`，会根据目标配送国家展示当前可配送零售商的现货和预售数量，并提供商品详情、价格、BTU、配送文本和商品直达链接。配送国家是 URL 状态（例如 `/deliver-to/nl`、`/deliver-to/fr`）；界面语言通过 `?lang=fr` 和语言切换器单独控制。中文、荷兰语、英语和法语可在不刷新页面的情况下切换。生产环境使用同源 TypeScript API 和 Managed Identity；Storage Key、SAS token 或任何秘密值都不会进入浏览器。
+首页 (`/`) 是公开的热浪主题门户页，通过四段滚动叙事依次呈现塞纳河畔热浪、闷热的巴黎老宅、PortaSplit 降温，以及邮件提醒与实时库存雷达。库存页面位于 `/deliver-to/<country>`，会根据目标配送国家展示当前可配送零售商的现货和预售数量，并提供商品详情、价格、BTU、配送文本和商品直达链接。配送国家是 URL 状态（例如 `/deliver-to/nl`、`/deliver-to/fr`）；界面语言通过 `?lang=fr` 和语言切换器单独控制。中文、荷兰语、英语和法语可在不刷新页面的情况下切换。生产环境使用同源 TypeScript API 和 Managed Identity；Storage Key、SAS token 或任何秘密值都不会进入浏览器。
 
 ## 架构
 

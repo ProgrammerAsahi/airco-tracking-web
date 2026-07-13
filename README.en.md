@@ -9,7 +9,7 @@ Ice-blue TypeScript/React dashboard for the [Airco Tracker](https://github.com/P
 
 **Live:** [airco-tracker.eu](https://airco-tracker.eu/)
 
-The homepage (`/`) is a public heatwave-themed landing portal. Inventory dashboards live under `/deliver-to/<country>` and show current available and presale counts for retailers that can deliver to the selected destination country, with product drill-down, prices, BTU values, delivery text, and direct product links. Delivery destination is part of the URL (`/deliver-to/nl`, `/deliver-to/fr`); interface language stays independent through `?lang=fr` and the language switcher. Chinese, Dutch, English, and French can be switched without reloading. Production uses a same-origin TypeScript API and Managed Identity; no Storage Key, SAS token, or secret reaches the browser.
+The homepage (`/`) is a public heatwave-themed landing portal with a four-part scroll narrative: the Seine during a heatwave, a stifling old Paris apartment, PortaSplit cooling, and finally email alerts plus the live stock radar. Inventory dashboards live under `/deliver-to/<country>` and show current available and presale counts for retailers that can deliver to the selected destination country, with product drill-down, prices, BTU values, delivery text, and direct product links. Delivery destination is part of the URL (`/deliver-to/nl`, `/deliver-to/fr`); interface language stays independent through `?lang=fr` and the language switcher. Chinese, Dutch, English, and French can be switched without reloading. Production uses a same-origin TypeScript API and Managed Identity; no Storage Key, SAS token, or secret reaches the browser.
 
 ## Architecture
 

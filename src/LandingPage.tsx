@@ -15,6 +15,7 @@ import type { Lang } from "./i18n";
 import { AircoLogoMark } from "./AircoLogoMark";
 import { LandingHeroVisual } from "./LandingHeroVisual";
 import { LandingStoryVisual } from "./LandingStoryVisual";
+import { LandingTrackerVisual } from "./LandingTrackerVisual";
 
 type LandingCopy = {
   productName: string;
@@ -40,6 +41,22 @@ type LandingCopy = {
   stepThreeKicker: string;
   stepThreeTitle: string;
   stepThreeBody: string;
+  stepFourAlertKicker: string;
+  stepFourAlertTitle: string;
+  stepFourAlertBody: string;
+  trackerAlertStatus: string;
+  trackerAlertSubject: string;
+  trackerOverviewLabel: string;
+  trackerCountryLabel: string;
+  trackerCountryValue: string;
+  trackerAvailabilityLabel: string;
+  trackerAvailabilityValue: string;
+  trackerRetailerLabel: string;
+  trackerRetailerValue: string;
+  trackerModelLabel: string;
+  trackerModelValue: string;
+  trackerPriceLabel: string;
+  trackerPriceValue: string;
   productKicker: string;
   productTitle: string;
   productBody: string;
@@ -114,9 +131,25 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     stepThreeKicker: "现货提醒 · 实时雷达",
     stepThreeTitle: "让现货先找到你。<br />让清凉随后到家。",
     stepThreeBody: "Airco Tracker 持续追踪能配送到你所在国家的网站，并自动区分现货与预售。<br />空调一上架，我们就立即通知你。",
-    productKicker: "Airco Tracker",
-    productTitle: "一个为热浪季节准备的空调雷达。",
-    productBody: "按配送国家筛选网站，保留语言选择独立；现货、预售、价格、BTU 和配送说明都放在同一个视图里。登录并订阅后即可开启提醒及实时库存。",
+    stepFourAlertKicker: "库存上架 · 邮件提醒",
+    stepFourAlertTitle: "不用守着刷新。<br />现货会主动来找你。",
+    stepFourAlertBody: "当能配送到你所在国家的便携空调重新上架，Airco Tracker 会立即发出邮件提醒。点开通知，就能直接查看商家和型号。",
+    trackerAlertStatus: "刚刚收到",
+    trackerAlertSubject: "1 台便携空调恢复库存",
+    trackerOverviewLabel: "实时库存预览",
+    trackerCountryLabel: "配送国家",
+    trackerCountryValue: "法国",
+    trackerAvailabilityLabel: "库存状态",
+    trackerAvailabilityValue: "现货 7 · 预售 5",
+    trackerRetailerLabel: "商家",
+    trackerRetailerValue: "Rue du Commerce",
+    trackerModelLabel: "型号",
+    trackerModelValue: "Tristar AT-5468",
+    trackerPriceLabel: "价格",
+    trackerPriceValue: "€244.74",
+    productKicker: "实时库存 · 一眼看清",
+    productTitle: "能不能送、<br />现在能不能买，<br />一眼看清。",
+    productBody: "配送国家、现货与预售、商家、型号和价格都在同一个视图里。少一点搜索，多一点抢到现货的把握。",
     subscribeTitle: "清凉一夏，从少刷新一次页面开始。",
     subscribeBody: "选择库存提醒或实时雷达方案，通过 Stripe 安全订阅，随时掌握真正可买的空调。",
     subscribeNotice: "登录后即可选择方案。房间已经开始降温了。",
@@ -186,9 +219,25 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     stepThreeKicker: "Voorraadmeldingen · live radar",
     stepThreeTitle: "Laat voorraad jou vinden.<br />De verkoeling<br />volgt vanzelf.",
     stepThreeBody: "Airco Tracker volgt winkels die in jouw land bezorgen en scheidt voorraad van pre-orders.<br />Zodra een airco beschikbaar is, laten we het je weten.",
-    productKicker: "Airco Tracker",
-    productTitle: "Een airco-radar voor het hittegolfseizoen.",
-    productBody: "Filter op bezorgland terwijl taal apart blijft; voorraad, pre-orders, prijzen, BTU en bezorgtekst staan in één helder overzicht. Log in en abonneer je voor meldingen en realtime voorraad.",
+    stepFourAlertKicker: "Terug op voorraad · e-mailmelding",
+    stepFourAlertTitle: "Je hoeft niet te blijven vernieuwen.<br />De voorraad vindt jou.",
+    stepFourAlertBody: "Zodra een mobiele airco die in jouw land kan worden bezorgd weer beschikbaar is, stuurt Airco Tracker direct een e-mail. Via de melding ga je rechtstreeks naar de winkel en het juiste model.",
+    trackerAlertStatus: "Zojuist ontvangen",
+    trackerAlertSubject: "1 mobiele airco weer op voorraad",
+    trackerOverviewLabel: "Voorbeeld van live voorraad",
+    trackerCountryLabel: "Bezorgland",
+    trackerCountryValue: "Frankrijk",
+    trackerAvailabilityLabel: "Voorraadstatus",
+    trackerAvailabilityValue: "Op voorraad 7 · Pre-order 5",
+    trackerRetailerLabel: "Winkel",
+    trackerRetailerValue: "Rue du Commerce",
+    trackerModelLabel: "Model",
+    trackerModelValue: "Tristar AT-5468",
+    trackerPriceLabel: "Prijs",
+    trackerPriceValue: "€ 244,74",
+    productKicker: "Realtime voorraad · in één oogopslag",
+    productTitle: "Bezorging, status<br />en prijs.<br />Alles in één beeld.",
+    productBody: "Bezorgland, voorraad en pre-orders, winkel, model en prijs staan in één overzicht. Minder zoeken, meer kans om echte voorraad op tijd te vinden.",
     subscribeTitle: "Een koelere zomer begint met minder refreshen.",
     subscribeBody: "Kies voorraadmeldingen of de realtime radar en abonneer je veilig via Stripe om beschikbare airco’s niet meer te missen.",
     subscribeNotice: "Log in om een abonnement te kiezen. De kamer koelt alvast af.",
@@ -258,9 +307,25 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     stepThreeKicker: "Stock alerts · live radar",
     stepThreeTitle: "Let stock find you.<br />Let cool air follow.",
     stepThreeBody: "Airco Tracker monitors stores that deliver to your country and separates in-stock units from pre-orders.<br />The moment an AC becomes available, we let you know.",
-    productKicker: "Airco Tracker",
-    productTitle: "An AC radar for heatwave season.",
-    productBody: "Filter by delivery country while keeping language separate; stock, pre-orders, prices, BTU and delivery notes live in one view. Sign in and subscribe for alerts and realtime stock.",
+    stepFourAlertKicker: "Back in stock · email alert",
+    stepFourAlertTitle: "Stop refreshing.<br />Stock comes to you.",
+    stepFourAlertBody: "When a portable air conditioner that can be delivered to your country comes back in stock, Airco Tracker sends an email straight away. Open the alert to jump straight to the retailer and model.",
+    trackerAlertStatus: "Just received",
+    trackerAlertSubject: "1 portable AC back in stock",
+    trackerOverviewLabel: "Live stock preview",
+    trackerCountryLabel: "Delivery country",
+    trackerCountryValue: "France",
+    trackerAvailabilityLabel: "Availability",
+    trackerAvailabilityValue: "In stock 7 · Pre-order 5",
+    trackerRetailerLabel: "Retailer",
+    trackerRetailerValue: "Rue du Commerce",
+    trackerModelLabel: "Model",
+    trackerModelValue: "Tristar AT-5468",
+    trackerPriceLabel: "Price",
+    trackerPriceValue: "€244.74",
+    productKicker: "Live stock · at a glance",
+    productTitle: "Delivery, availability<br />and price.<br />Clear at a glance.",
+    productBody: "Delivery country, in-stock and pre-order status, retailer, model and price all live in one view. Less searching, a better chance of catching genuine stock.",
     subscribeTitle: "A cooler summer starts with one less refresh.",
     subscribeBody: "Choose stock alerts or the realtime radar and subscribe securely with Stripe so you never miss a genuinely buyable AC.",
     subscribeNotice: "Sign in to choose a plan. The room is already cooling down.",
@@ -330,9 +395,25 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     stepThreeKicker: "Alertes de stock · radar en direct",
     stepThreeTitle: "Laissez le stock<br />venir à vous.<br />La fraîcheur suivra.",
     stepThreeBody: "Airco Tracker surveille les magasins qui livrent dans votre pays et distingue le stock des précommandes.<br />Dès qu’un climatiseur est disponible, nous vous prévenons.",
-    productKicker: "Airco Tracker",
-    productTitle: "Un radar de climatiseurs pour la saison des canicules.",
-    productBody: "Filtrez par pays de livraison tout en gardant la langue indépendante ; stock, précommandes, prix, BTU et informations de livraison sont réunis dans une vue claire. Connectez-vous et abonnez-vous pour recevoir les alertes et consulter le stock en temps réel.",
+    stepFourAlertKicker: "Retour en stock · alerte e-mail",
+    stepFourAlertTitle: "Plus besoin d’actualiser la page.<br />Le stock vient à vous.",
+    stepFourAlertBody: "Dès qu’un climatiseur mobile livrable dans votre pays revient en stock, Airco Tracker vous prévient par e-mail. Ouvrez l’alerte pour retrouver aussitôt le magasin et le modèle.",
+    trackerAlertStatus: "Reçue à l’instant",
+    trackerAlertSubject: "1 climatiseur mobile de nouveau en stock",
+    trackerOverviewLabel: "Aperçu du stock en temps réel",
+    trackerCountryLabel: "Pays de livraison",
+    trackerCountryValue: "France",
+    trackerAvailabilityLabel: "Disponibilité",
+    trackerAvailabilityValue: "En stock 7 · Précommande 5",
+    trackerRetailerLabel: "Magasin",
+    trackerRetailerValue: "Rue du Commerce",
+    trackerModelLabel: "Modèle",
+    trackerModelValue: "Tristar AT-5468",
+    trackerPriceLabel: "Prix",
+    trackerPriceValue: "244,74 €",
+    productKicker: "Stock en temps réel · en un coup d’œil",
+    productTitle: "Livraison, disponibilité<br />et prix.<br />Tout devient clair.",
+    productBody: "Pays de livraison, stock et précommandes, magasin, modèle et prix sont réunis dans une seule vue. Moins de recherches, plus de chances de trouver un appareil réellement disponible.",
     subscribeTitle: "Un été plus frais commence par un rafraîchissement de page en moins.",
     subscribeBody: "Choisissez les alertes de stock ou le radar en temps réel et abonnez-vous en toute sécurité avec Stripe pour ne plus manquer un climatiseur réellement disponible.",
     subscribeNotice: "Connectez-vous pour choisir une formule. La pièce commence déjà à se rafraîchir.",
@@ -421,6 +502,7 @@ function useStoryStepObserver(stepCount: number) {
 export function LandingPage({ lang, setLang }: LandingPageProps) {
   const copy = LANDING_COPY[lang];
   const { activeStep, setStepRef } = useStoryStepObserver(2);
+  const { activeStep: activeTrackerStep, setStepRef: setTrackerStepRef } = useStoryStepObserver(2);
   const [coolingPreview, setCoolingPreview] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -688,16 +770,75 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
         </div>
       </section>
 
-      <section id="product" className="landing-product-section">
-        <div className="landing-product-copy">
-          <p className="landing-kicker">{copy.productKicker}</p>
-          <h2>{copy.productTitle}</h2>
-          <p>{copy.productBody}</p>
-          <div className="landing-product-actions">
-            <button className="landing-primary-button" type="button" onClick={openLogin}>
-              {copy.primaryCta}
-            </button>
+      <section
+        id="product"
+        className={`landing-product-story landing-product-story--step-${activeTrackerStep}`}
+        aria-label={copy.navProduct}
+      >
+        <div className="landing-product-stage">
+          <LandingTrackerVisual />
+          <div className="landing-tracker-alert-card" aria-hidden="true">
+            <span className="landing-tracker-alert-icon" aria-hidden="true">✦</span>
+            <div>
+              <span>{copy.trackerAlertStatus}</span>
+              <strong>{copy.trackerAlertSubject}</strong>
+              <small>Rue du Commerce · {copy.trackerPriceValue}</small>
+            </div>
           </div>
+          <div className="landing-tracker-data-rail" aria-hidden="true">
+            <span className="landing-tracker-data-label">{copy.trackerOverviewLabel}</span>
+            <div className="landing-tracker-data-card landing-tracker-data-card--country">
+              <span>{copy.trackerCountryLabel}</span>
+              <strong><i aria-hidden="true">FR</i>{copy.trackerCountryValue}</strong>
+            </div>
+            <div className="landing-tracker-data-card landing-tracker-data-card--stock">
+              <span>{copy.trackerAvailabilityLabel}</span>
+              <strong>{copy.trackerAvailabilityValue}</strong>
+            </div>
+            <div className="landing-tracker-data-card landing-tracker-data-card--retailer">
+              <span>{copy.trackerRetailerLabel}</span>
+              <strong>{copy.trackerRetailerValue}</strong>
+            </div>
+            <div className="landing-tracker-data-card landing-tracker-data-card--model">
+              <span>{copy.trackerModelLabel}</span>
+              <strong>{copy.trackerModelValue}</strong>
+            </div>
+            <div className="landing-tracker-data-card landing-tracker-data-card--price">
+              <span>{copy.trackerPriceLabel}</span>
+              <strong>{copy.trackerPriceValue}</strong>
+            </div>
+          </div>
+        </div>
+        <div className="landing-product-story-copy">
+          <article
+            className="landing-product-story-step landing-product-story-step--alert"
+            data-step="0"
+            ref={setTrackerStepRef(0)}
+            aria-hidden={activeTrackerStep !== 0}
+            inert={activeTrackerStep !== 0}
+          >
+            <div className="landing-product-story-card">
+              <p className="landing-kicker">{copy.stepFourAlertKicker}</p>
+              <h2>{renderLandingLines(copy.stepFourAlertTitle)}</h2>
+              <p>{copy.stepFourAlertBody}</p>
+            </div>
+          </article>
+          <article
+            className="landing-product-story-step landing-product-story-step--radar"
+            data-step="1"
+            ref={setTrackerStepRef(1)}
+            aria-hidden={activeTrackerStep !== 1}
+            inert={activeTrackerStep !== 1}
+          >
+            <div className="landing-product-story-card">
+              <p className="landing-kicker">{copy.productKicker}</p>
+              <h2>{renderLandingLines(copy.productTitle)}</h2>
+              <p>{copy.productBody}</p>
+              <button className="landing-primary-button" type="button" onClick={openLogin}>
+                {copy.primaryCta}
+              </button>
+            </div>
+          </article>
         </div>
       </section>
 

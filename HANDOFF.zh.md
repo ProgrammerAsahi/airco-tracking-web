@@ -5,7 +5,7 @@
   <a href="./HANDOFF.md"><img alt="English" src="https://img.shields.io/badge/HANDOFF-English-0969da"></a>
 </p>
 
-最后更新：2026-07-11（Europe/Amsterdam）
+最后更新：2026-07-13（Europe/Amsterdam）
 
 当前状态、验证证据、blocker 或下一步变化时，必须同时更新本文件和 `HANDOFF.md`。不要记录 secrets、邮箱地址、access tokens、支付数据或不必要的个人信息。
 
@@ -35,7 +35,7 @@
 
 ### Browser UI 和 routing
 
-- `/` 是公开热浪主题门户。已经登录并订阅的用户会进入凉爽的 Ready 体验，不会再次看到拉新门户。
+- `/` 是公开热浪主题门户。四段 sticky-scroll 叙事依次从塞纳河畔热浪进入闷热的巴黎老宅、PortaSplit 降温，再进入基于真实法语库存界面的邮件提醒/实时雷达场景。第四屏包含分阶段邮件和库存数据显隐、与前三屏一致的衬线/无衬线字体、四语响应式文案、reduced-motion fallback 和优化后的高分辨率背景。已经登录并订阅的用户会进入凉爽的 Ready 体验，不会再次看到拉新门户。
 - 邮箱验证码登录已经实现。首次注册用户需要设置昵称；Google、Apple、Microsoft 按钮仍是明确的 placeholder，不会启动 OAuth。
 - `/profile` 支持修改昵称和已验证邮箱、语言偏好、配送国家、登出、管理订阅，以及在没有有效权益时注销账户。
 - `/subscribe` 提供四种 Stripe test-mode 方案：周/月 × Inventory Alerts（`basic`）或 Realtime Radar（`priority`）。当前方案按钮不可点击；升级立即生效，符合条件的降级在当前账期结束时执行。

@@ -5,7 +5,7 @@
   <a href="./HANDOFF.md"><img alt="English" src="https://img.shields.io/badge/HANDOFF-English-0969da"></a>
 </p>
 
-Last updated: 2026-07-11 (Europe/Amsterdam)
+Last updated: 2026-07-13 (Europe/Amsterdam)
 
 Update this English file and `HANDOFF.zh.md` together whenever current status, verification evidence, blockers, or next steps change. Do not record secrets, email addresses, access tokens, payment data, or unnecessary personal information.
 
@@ -35,7 +35,7 @@ Both custom web hostnames and their existing managed-certificate names are decla
 
 ### Browser UI and routing
 
-- `/` is the public heatwave-themed landing portal. Logged-in subscribers are directed to the cool Ready experience instead of being shown the acquisition portal again.
+- `/` is the public heatwave-themed landing portal. Its four-part sticky-scroll narrative moves from the Seine heatwave to a stifling Paris apartment, PortaSplit cooling, and a final notification/live-radar scene built from the real French inventory UI. The fourth scene uses staged email and stock-data reveals, matching serif/sans typography, four-language responsive copy, reduced-motion fallbacks, and an optimized high-resolution background. Logged-in subscribers are directed to the cool Ready experience instead of being shown the acquisition portal again.
 - Email-code login is implemented. First-time users choose a nickname; Google, Apple, and Microsoft buttons remain explicit placeholders and do not start OAuth.
 - `/profile` supports nickname and verified-email changes, language preference, delivery country, logout, subscription management, and account deletion when no active entitlement remains.
 - `/subscribe` offers four Stripe test-mode plans: weekly/monthly × Inventory Alerts (`basic`) or Realtime Radar (`priority`). The current plan is disabled; upgrades are immediate and eligible downgrades are scheduled for period end.
