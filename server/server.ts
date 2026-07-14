@@ -411,33 +411,6 @@ async function handleAuthRequest(request: IncomingMessage, response: ServerRespo
       return;
     }
 
-    if (url.pathname === "/api/auth/subscription/preview-payment") {
-      if (method !== "POST") {
-        rejectMethod(response, ["POST"]);
-        return;
-      }
-      const body = await readJsonBody(request);
-      const user = await auth.completePreviewSubscriptionPayment(request, {
-        plan: body.plan,
-        paymentMethod: body.paymentMethod,
-        paymentBrand: body.paymentBrand,
-        paymentLast4: body.paymentLast4,
-        idealBank: body.idealBank,
-      });
-      sendJson(response, 200, { user: publicUser(user), needsOnboarding: !user.nickname });
-      return;
-    }
-
-    if (url.pathname === "/api/auth/subscription/cancel") {
-      if (method !== "POST") {
-        rejectMethod(response, ["POST"]);
-        return;
-      }
-      const user = await auth.cancelSubscription(request);
-      sendJson(response, 200, { user: publicUser(user), needsOnboarding: !user.nickname });
-      return;
-    }
-
     if (url.pathname === "/api/auth/account/delete") {
       if (method !== "POST") {
         rejectMethod(response, ["POST"]);

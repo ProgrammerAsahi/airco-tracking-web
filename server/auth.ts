@@ -18,7 +18,6 @@ import {
   hasEmailAlertAccess,
   normalizeEmail,
   SUBSCRIPTION_PLAN_DETAILS,
-  subscriptionChangeDirection,
   subscriptionIsActive,
   validateNickname,
   type DeliveryCountry,
@@ -123,7 +122,7 @@ export type RequestCodeResult = {
   devCode?: string;
 };
 
-type PreviewPaymentDetails = {
+type PaymentDisplayDetails = {
   paymentBrand: string | null;
   paymentLast4: string | null;
 };
@@ -1703,19 +1702,6 @@ export class AuthService {
     });
   }
 
-  async completePreviewSubscriptionPayment(request: IncomingMessage, values: { plan?: unknown; paymentMethod?: unknown; paymentBrand?: unknown; paymentLast4?: unknown; idealBank?: unknown }): Promise<StoredUserProfile> {
-    const user = await this.requireUser(request);
-    if (!isPaidSubscriptionPlan(values.plan)) throw new AuthHttpError(400, "invalid_subscription_plan");
-    if (!isPaymentMethod(values.paymentMethod)) throw new AuthHttpError(400, "invalid_payment_method");
-
-    return this.store.mutateUser(user.userId, (current) => changeSubscription(
-      current,
-      values.plan as PaidSubscriptionPlan,
-      values.paymentMethod as PaymentMethod,
-      sanitizePaymentDetails(values.paymentMethod as PaymentMethod, values),
-    ));
-  }
-
   async cancelSubscription(request: IncomingMessage): Promise<StoredUserProfile> {
     const user = await this.requireUser(request);
     if (!isPaidSubscriptionPlan(user.subscriptionPlan) || !user.subscriptionCurrentPeriodEnd) {
@@ -1843,31 +1829,12 @@ function reviseProfile(
   };
 }
 
-function changeSubscription(user: StoredUserProfile, plan: PaidSubscriptionPlan, paymentMethod: PaymentMethod, paymentDetails: PreviewPaymentDetails): StoredUserProfile {
-  const settled = settleSubscription(user);
-  if (subscriptionIsActive(settled)) {
-    const direction = subscriptionChangeDirection(settled.subscriptionPlan, plan);
-    if (direction === "downgrade") {
-      return reviseProfile(user, {
-        ...settled,
-        pendingSubscriptionPlan: plan,
-        pendingSubscriptionEffectiveAt: settled.subscriptionCurrentPeriodEnd,
-        subscriptionCancelAtPeriodEnd: false,
-        paymentMethod,
-        paymentBrand: paymentDetails.paymentBrand,
-        paymentLast4: paymentDetails.paymentLast4,
-      });
-    }
-  }
-  return activateSubscription(user, plan, Date.now(), paymentMethod, paymentDetails);
-}
-
 function activateSubscription(
   user: StoredUserProfile,
   plan: PaidSubscriptionPlan,
   startsAt = Date.now(),
   paymentMethod: PaymentMethod | null = user.paymentMethod,
-  paymentDetails: PreviewPaymentDetails = { paymentBrand: user.paymentBrand, paymentLast4: user.paymentLast4 },
+  paymentDetails: PaymentDisplayDetails = { paymentBrand: user.paymentBrand, paymentLast4: user.paymentLast4 },
 ): StoredUserProfile {
   const details = SUBSCRIPTION_PLAN_DETAILS[plan];
   return reviseProfile(user, {
@@ -1906,23 +1873,6 @@ function settleSubscription(user: StoredUserProfile, now = Date.now()): StoredUs
     }
   }
   return user;
-}
-
-function sanitizePaymentDetails(method: PaymentMethod, values: { paymentBrand?: unknown; paymentLast4?: unknown; idealBank?: unknown }): PreviewPaymentDetails {
-  if (method === "ideal") {
-    const bank = typeof values.idealBank === "string" && values.idealBank.trim()
-      ? values.idealBank.trim().slice(0, 40)
-      : "iDEAL";
-    return { paymentBrand: bank, paymentLast4: null };
-  }
-
-  const brand = typeof values.paymentBrand === "string" && values.paymentBrand.trim()
-    ? values.paymentBrand.trim().slice(0, 24).toUpperCase()
-    : "VISA";
-  const last4 = typeof values.paymentLast4 === "string" && /^\d{4}$/.test(values.paymentLast4)
-    ? values.paymentLast4
-    : "4242";
-  return { paymentBrand: brand, paymentLast4: last4 };
 }
 
 function sanitizeStripeId(value: unknown): string {

@@ -1,14 +1,8 @@
-import { userInitials, type DeliveryCountry, type PaidSubscriptionPlan, type PaymentMethod, type UserProfile } from "../shared/auth";
+import { userInitials, type DeliveryCountry, type PaidSubscriptionPlan, type UserProfile } from "../shared/auth";
 import type { Lang } from "./i18n";
 
-export type { DeliveryCountry, PaidSubscriptionPlan, PaymentMethod, UserProfile } from "../shared/auth";
+export type { DeliveryCountry, PaidSubscriptionPlan, UserProfile } from "../shared/auth";
 export { userInitials };
-
-export type PreviewPaymentDetails = {
-  paymentBrand?: string;
-  paymentLast4?: string;
-  idealBank?: string;
-};
 
 export class AuthApiError extends Error {
   constructor(
@@ -122,11 +116,6 @@ export async function unsubscribeEmailAlerts(token: string): Promise<void> {
     body: "List-Unsubscribe=One-Click",
   });
   await parseJsonResponse<{ ok: true }>(response);
-}
-
-export async function completePreviewPayment(plan: PaidSubscriptionPlan, paymentMethod: PaymentMethod, details: PreviewPaymentDetails = {}): Promise<UserProfile> {
-  const response = await postJson<AuthSessionResponse>("/api/auth/subscription/preview-payment", { plan, paymentMethod, ...details });
-  return response.user;
 }
 
 export async function createCheckoutSession(plan: PaidSubscriptionPlan, lang: Lang): Promise<CheckoutSessionResponse> {

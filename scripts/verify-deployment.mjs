@@ -52,7 +52,26 @@ while (Date.now() < deadline) {
       throw new Error("anonymous inventory did not return the expected auth error");
     }
 
-    console.log(`Verified ${appUrl}: app shell healthy and anonymous inventory access is protected`);
+    for (const retiredAuthEndpoint of [
+      "/api/auth/subscription/preview-payment",
+      "/api/auth/subscription/cancel",
+    ]) {
+      const retiredResponse = await fetch(`${appUrl}${retiredAuthEndpoint}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+        signal: AbortSignal.timeout(15_000),
+      });
+      if (retiredResponse.status !== 404) {
+        throw new Error(`retired auth endpoint ${retiredAuthEndpoint} should return 404; returned ${retiredResponse.status}`);
+      }
+      const retiredError = await retiredResponse.json();
+      if (retiredError?.error !== "Unknown auth endpoint") {
+        throw new Error(`retired auth endpoint ${retiredAuthEndpoint} did not fail closed`);
+      }
+    }
+
+    console.log(`Verified ${appUrl}: app shell healthy, inventory protected, and legacy subscription bypasses retired`);
     process.exit(0);
   } catch (error) {
     lastError = error;
