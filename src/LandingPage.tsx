@@ -16,6 +16,7 @@ import { AircoLogoMark } from "./AircoLogoMark";
 import { LandingHeroVisual } from "./LandingHeroVisual";
 import { LandingStoryVisual } from "./LandingStoryVisual";
 import { LandingTrackerVisual } from "./LandingTrackerVisual";
+import { LandingFinaleVisual } from "./LandingFinaleVisual";
 
 type LandingCopy = {
   productName: string;
@@ -60,6 +61,7 @@ type LandingCopy = {
   productKicker: string;
   productTitle: string;
   productBody: string;
+  finaleKicker: string;
   subscribeTitle: string;
   subscribeBody: string;
   subscribeNotice: string;
@@ -150,7 +152,8 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     productKicker: "实时库存 · 一眼看清",
     productTitle: "能不能送、<br />现在能不能买，<br />一眼看清。",
     productBody: "配送国家、现货与预售、商家、型号和价格都在同一个视图里。少一点搜索，多一点抢到现货的把握。",
-    subscribeTitle: "清凉一夏，从少刷新一次页面开始。",
+    finaleKicker: "夜色降临 · 清凉仍在",
+    subscribeTitle: "清凉一夏，<br />从少刷新一次页面开始。",
     subscribeBody: "选择库存提醒或实时雷达方案，通过 Stripe 安全订阅，随时掌握真正可买的空调。",
     subscribeNotice: "登录后即可选择方案。房间已经开始降温了。",
     loginTitle: "登录后开启清凉雷达",
@@ -238,7 +241,8 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     productKicker: "Realtime voorraad · in één oogopslag",
     productTitle: "Bezorging, status<br />en prijs.<br />Alles in één beeld.",
     productBody: "Bezorgland, voorraad en pre-orders, winkel, model en prijs staan in één overzicht. Minder zoeken, meer kans om echte voorraad op tijd te vinden.",
-    subscribeTitle: "Een koelere zomer begint met minder refreshen.",
+    finaleKicker: "De avond valt · de kamer blijft koel",
+    subscribeTitle: "Een koelere zomer begint<br />met minder refreshen.",
     subscribeBody: "Kies voorraadmeldingen of de realtime radar en abonneer je veilig via Stripe om beschikbare airco’s niet meer te missen.",
     subscribeNotice: "Log in om een abonnement te kiezen. De kamer koelt alvast af.",
     loginTitle: "Log in voor je koele voorraad-radar",
@@ -326,7 +330,8 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     productKicker: "Live stock · at a glance",
     productTitle: "Delivery, availability<br />and price.<br />Clear at a glance.",
     productBody: "Delivery country, in-stock and pre-order status, retailer, model and price all live in one view. Less searching, a better chance of catching genuine stock.",
-    subscribeTitle: "A cooler summer starts with one less refresh.",
+    finaleKicker: "Blue hour · comfort restored",
+    subscribeTitle: "A cooler summer starts<br />with one less refresh.",
     subscribeBody: "Choose stock alerts or the realtime radar and subscribe securely with Stripe so you never miss a genuinely buyable AC.",
     subscribeNotice: "Sign in to choose a plan. The room is already cooling down.",
     loginTitle: "Log in to unlock your cooling radar",
@@ -414,7 +419,8 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     productKicker: "Stock en temps réel · en un coup d’œil",
     productTitle: "Livraison, disponibilité<br />et prix.<br />Tout devient clair.",
     productBody: "Pays de livraison, stock et précommandes, magasin, modèle et prix sont réunis dans une seule vue. Moins de recherches, plus de chances de trouver un appareil réellement disponible.",
-    subscribeTitle: "Un été plus frais commence par un rafraîchissement de page en moins.",
+    finaleKicker: "L’heure bleue · la fraîcheur retrouvée",
+    subscribeTitle: "Un été plus frais commence<br />par une actualisation en moins.",
     subscribeBody: "Choisissez les alertes de stock ou le radar en temps réel et abonnez-vous en toute sécurité avec Stripe pour ne plus manquer un climatiseur réellement disponible.",
     subscribeNotice: "Connectez-vous pour choisir une formule. La pièce commence déjà à se rafraîchir.",
     loginTitle: "Connectez-vous pour activer votre radar fraîcheur",
@@ -842,15 +848,17 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
         </div>
       </section>
 
-      <section className="landing-subscribe-panel" aria-live="polite">
-        <div>
-          <h2>{copy.subscribeTitle}</h2>
+      <section className="landing-finale" aria-live="polite">
+        <LandingFinaleVisual />
+        <div className="landing-finale-copy">
+          <p className="landing-kicker">{copy.finaleKicker}</p>
+          <h2>{renderLandingLines(copy.subscribeTitle)}</h2>
           <p>{copy.subscribeBody}</p>
           {coolingPreview && <p className="landing-subscribe-note">{copy.subscribeNotice}</p>}
+          <button className="landing-primary-button landing-primary-button--large" type="button" onClick={openLogin}>
+            {copy.primaryCta}
+          </button>
         </div>
-        <button className="landing-primary-button landing-primary-button--large" type="button" onClick={openLogin}>
-          {copy.primaryCta}
-        </button>
       </section>
 
       {loginOpen && (

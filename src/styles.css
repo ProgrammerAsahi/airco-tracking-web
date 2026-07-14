@@ -2434,20 +2434,243 @@ body.landing-dialog-open .landing-tracker-scene-glints i {
   }
 }
 
-.landing-subscribe-panel {
-  display: flex;
+/* --- Blue-hour finale --- */
+
+.landing-finale {
+  --finale-image-x: 0px;
+  --finale-image-y: 0px;
+  --finale-image-scale: 1.035;
+  --finale-foreground-x: 0px;
+  --finale-foreground-y: 0px;
+  --finale-light-x: 82%;
+  --finale-light-y: 42%;
+  --finale-glint-opacity: 0.26;
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  min-height: max(100svh, 720px);
   align-items: center;
-  justify-content: space-between;
-  gap: 32px;
-  width: min(calc(100% - 56px), 1180px);
-  margin: 0 auto 56px;
-  padding: clamp(32px, 5vw, 64px);
-  border: 1px solid rgba(23, 74, 107, 0.12);
-  border-radius: 42px;
+  overflow: hidden;
+  padding: 126px 28px 78px;
+  background: #071827;
+}
+
+.landing-finale-visual,
+.landing-finale-picture,
+.landing-finale-color-wash,
+.landing-finale-window-glow,
+.landing-finale-scrim,
+.landing-finale-depth {
+  position: absolute;
+  inset: 0;
+}
+
+.landing-finale-visual {
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.landing-finale-picture {
+  inset: -2.5%;
+  display: block;
+  transform: translate3d(var(--finale-image-x), var(--finale-image-y), 0) scale(var(--finale-image-scale));
+  transform-origin: 58% 52%;
+  will-change: transform;
+}
+
+.landing-finale-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  animation: landing-finale-breathe 16s ease-in-out infinite alternate;
+}
+
+@keyframes landing-finale-breathe {
+  from { transform: scale(1); }
+  to { transform: scale(1.0045); }
+}
+
+.landing-finale-color-wash {
   background:
-    radial-gradient(circle at 90% 10%, rgba(38, 188, 230, 0.18), transparent 18rem),
-    linear-gradient(145deg, rgba(255, 255, 255, 0.88), rgba(236, 250, 253, 0.78));
-  box-shadow: 0 28px 80px rgba(33, 81, 114, 0.12);
+    radial-gradient(ellipse 42% 56% at var(--finale-light-x) var(--finale-light-y), rgba(255, 192, 112, 0.11), transparent 68%),
+    radial-gradient(ellipse 64% 62% at 34% 62%, rgba(29, 154, 212, 0.10), transparent 74%),
+    linear-gradient(108deg, rgba(2, 16, 30, 0.17), transparent 58%, rgba(3, 13, 23, 0.09));
+}
+
+.landing-finale-window-glow {
+  inset: -8%;
+  background: radial-gradient(ellipse 15% 39% at var(--finale-light-x) var(--finale-light-y), rgba(255, 201, 134, 0.18), transparent 72%);
+  mix-blend-mode: screen;
+  opacity: 0.78;
+  transform: translate3d(var(--finale-foreground-x), var(--finale-foreground-y), 0);
+  animation: landing-finale-window-pulse 5.6s ease-in-out infinite alternate;
+  will-change: opacity, transform;
+}
+
+@keyframes landing-finale-window-pulse {
+  from { opacity: 0.56; }
+  to { opacity: 0.86; }
+}
+
+.landing-finale-river-glints {
+  position: absolute;
+  right: 48%;
+  bottom: 8%;
+  left: 7%;
+  height: 39%;
+  opacity: var(--finale-glint-opacity);
+  transform: translate3d(var(--finale-foreground-x), var(--finale-foreground-y), 0);
+  will-change: opacity, transform;
+}
+
+.landing-finale-river-glints i {
+  position: absolute;
+  display: block;
+  height: 1px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, rgba(122, 224, 255, 0.08), rgba(194, 241, 255, 0.52), rgba(255, 193, 109, 0.30), transparent);
+  filter: blur(0.2px);
+  animation: landing-finale-glint 6.6s ease-in-out infinite;
+}
+
+.landing-finale-river-glints i:nth-child(1) { bottom: 16%; left: 5%; width: 38%; animation-delay: -1.4s; }
+.landing-finale-river-glints i:nth-child(2) { bottom: 31%; left: 29%; width: 44%; animation-delay: -3.7s; }
+.landing-finale-river-glints i:nth-child(3) { bottom: 48%; left: 12%; width: 31%; animation-delay: -5.1s; }
+.landing-finale-river-glints i:nth-child(4) { bottom: 66%; left: 54%; width: 34%; animation-delay: -2.3s; }
+
+@keyframes landing-finale-glint {
+  0%, 100% { opacity: 0.08; transform: translateX(-12px) scaleX(0.82); }
+  48% { opacity: 0.72; transform: translateX(15px) scaleX(1.08); }
+}
+
+.landing-finale-scrim {
+  background:
+    radial-gradient(ellipse 78% 72% at 22% 52%, rgba(3, 18, 34, 0.42) 0%, rgba(4, 21, 38, 0.20) 55%, transparent 82%),
+    linear-gradient(90deg, rgba(2, 14, 27, 0.64) 0%, rgba(3, 19, 34, 0.48) 30%, rgba(3, 17, 31, 0.14) 57%, transparent 74%),
+    linear-gradient(180deg, rgba(2, 12, 24, 0.15) 0%, transparent 48%, rgba(1, 8, 16, 0.32) 100%);
+}
+
+.landing-finale-depth {
+  box-shadow:
+    inset 0 150px 190px -170px rgba(83, 175, 230, 0.28),
+    inset 0 -180px 220px -150px rgba(0, 7, 15, 0.72);
+}
+
+.landing-finale-copy {
+  position: relative;
+  z-index: 2;
+  width: min(100%, 1180px);
+  margin: 0 auto;
+  color: #eef8fd;
+}
+
+.landing-finale-copy::before {
+  position: absolute;
+  z-index: -1;
+  inset: -68px auto -58px -84px;
+  width: min(760px, 72vw);
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 42% 50%, rgba(3, 18, 33, 0.64) 0%, rgba(3, 19, 35, 0.30) 52%, transparent 76%);
+  content: "";
+  pointer-events: none;
+}
+
+.landing-finale-copy .landing-kicker {
+  margin-bottom: 17px;
+  color: #8fdff7;
+  font-family: "Avenir Next", Avenir, "PingFang SC", "Microsoft YaHei", ui-sans-serif, sans-serif;
+  font-size: clamp(10px, 0.82vw, 13px);
+  font-weight: 760;
+  letter-spacing: 0.22em;
+  text-shadow: 0 3px 18px rgba(0, 10, 20, 0.62);
+}
+
+.landing-finale-copy h2 {
+  max-width: 780px;
+  margin: 0;
+  color: #f7f4eb;
+  font-family: ui-serif, "New York", "Iowan Old Style", Baskerville, "Songti SC", STSong, "Noto Serif CJK SC", Georgia, serif;
+  font-size: clamp(54px, 5vw, 84px);
+  font-optical-sizing: auto;
+  font-weight: 600;
+  letter-spacing: -0.048em;
+  line-height: 0.98;
+  text-wrap: balance;
+  text-shadow: 0 4px 28px rgba(0, 8, 18, 0.62), 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.landing-finale-copy > p:not(.landing-kicker) {
+  max-width: 590px;
+  margin: 25px 0 0;
+  color: #c8dbe5;
+  font-family: "Avenir Next", Avenir, "PingFang SC", "Microsoft YaHei", ui-sans-serif, sans-serif;
+  font-size: clamp(16px, 1.18vw, 20px);
+  font-weight: 500;
+  letter-spacing: -0.012em;
+  line-height: 1.65;
+  text-shadow: 0 3px 18px rgba(0, 8, 18, 0.68);
+}
+
+.landing-finale-copy .landing-primary-button {
+  min-height: 54px;
+  margin-top: 31px;
+  padding-inline: 28px;
+  border-color: rgba(166, 236, 255, 0.30);
+  box-shadow: 0 18px 48px rgba(0, 102, 159, 0.34), 0 0 0 1px rgba(172, 238, 255, 0.08);
+}
+
+.landing-finale-copy .landing-subscribe-note {
+  width: fit-content;
+  max-width: 590px;
+  border-color: rgba(142, 224, 247, 0.20);
+  background: rgba(7, 37, 55, 0.58);
+  color: #b9e9f8 !important;
+  box-shadow: 0 14px 36px rgba(0, 7, 16, 0.18);
+  backdrop-filter: blur(14px);
+}
+
+.landing-finale-copy > .landing-kicker,
+.landing-finale-copy > h2,
+.landing-finale-copy > p,
+.landing-finale-copy > .landing-primary-button {
+  opacity: 0;
+  transform: translate3d(0, 24px, 0);
+  transition: opacity 620ms ease, transform 780ms cubic-bezier(0.2, 0.75, 0.2, 1);
+}
+
+.landing-finale--visible .landing-finale-copy > .landing-kicker,
+.landing-finale--visible .landing-finale-copy > h2,
+.landing-finale--visible .landing-finale-copy > p,
+.landing-finale--visible .landing-finale-copy > .landing-primary-button {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+}
+
+.landing-finale--visible .landing-finale-copy > h2 { transition-delay: 80ms; }
+.landing-finale--visible .landing-finale-copy > p { transition-delay: 160ms; }
+.landing-finale--visible .landing-finale-copy > .landing-primary-button { transition-delay: 240ms; }
+
+.landing-shell[data-lang="zh"] .landing-finale-copy h2 {
+  max-width: 700px;
+  font-size: clamp(54px, 4.9vw, 82px);
+  letter-spacing: -0.055em;
+  line-height: 1.04;
+}
+
+.landing-shell[data-lang="nl"] .landing-finale-copy h2 {
+  max-width: 780px;
+  font-size: clamp(48px, 4.35vw, 74px);
+  letter-spacing: -0.042em;
+}
+
+.landing-shell[data-lang="fr"] .landing-finale-copy h2 {
+  max-width: 820px;
+  font-size: clamp(45px, 4.05vw, 69px);
+  letter-spacing: -0.036em;
+  line-height: 1.01;
 }
 
 .landing-subscribe-note {
@@ -2458,6 +2681,154 @@ body.landing-dialog-open .landing-tracker-scene-glints i {
   color: #1d6e8c !important;
   font-size: 15px !important;
   font-weight: 720;
+}
+
+@media (max-width: 900px) {
+  .landing-finale {
+    min-height: max(100svh, 760px);
+    align-items: end;
+    padding: 120px 24px 70px;
+  }
+
+  .landing-finale-picture {
+    transform-origin: 72% 52%;
+  }
+
+  .landing-finale-image {
+    object-position: 68% center;
+  }
+
+  .landing-finale-scrim {
+    background:
+      linear-gradient(180deg, rgba(2, 13, 25, 0.14) 0%, rgba(2, 15, 28, 0.16) 38%, rgba(2, 13, 25, 0.84) 100%),
+      linear-gradient(90deg, rgba(2, 15, 28, 0.34), transparent 78%);
+  }
+
+  .landing-finale-copy {
+    width: min(100%, 680px);
+    margin-inline: auto;
+  }
+
+  .landing-finale-copy::before {
+    inset: -56px -36px -48px;
+    width: auto;
+    border-radius: 42%;
+    background: radial-gradient(ellipse at 50% 58%, rgba(2, 15, 29, 0.68), transparent 76%);
+  }
+
+  .landing-finale-copy h2,
+  .landing-shell[data-lang="zh"] .landing-finale-copy h2 {
+    max-width: 680px;
+    font-size: clamp(48px, 8.2vw, 72px);
+  }
+
+  .landing-shell[data-lang="nl"] .landing-finale-copy h2 {
+    font-size: clamp(43px, 7.4vw, 64px);
+  }
+
+  .landing-shell[data-lang="fr"] .landing-finale-copy h2 {
+    font-size: clamp(40px, 6.9vw, 59px);
+  }
+}
+
+@media (max-width: 560px) {
+  .landing-finale {
+    min-height: max(100svh, 780px);
+    padding: 110px 18px 48px;
+  }
+
+  .landing-finale-picture {
+    inset: -2%;
+    transform-origin: 79% 48%;
+  }
+
+  .landing-finale-image {
+    object-position: 76% center;
+  }
+
+  .landing-finale-window-glow {
+    opacity: 0.66;
+  }
+
+  .landing-finale-river-glints {
+    right: 24%;
+    bottom: 26%;
+    left: 4%;
+  }
+
+  .landing-finale-copy .landing-kicker {
+    margin-bottom: 12px;
+    font-size: 9px;
+    letter-spacing: 0.17em;
+  }
+
+  .landing-finale-copy h2,
+  .landing-shell[data-lang="zh"] .landing-finale-copy h2 {
+    font-size: clamp(42px, 12.3vw, 56px);
+    line-height: 1.02;
+  }
+
+  .landing-shell[data-lang="nl"] .landing-finale-copy h2,
+  .landing-shell[data-lang="fr"] .landing-finale-copy h2 {
+    font-size: clamp(36px, 10.6vw, 48px);
+    line-height: 1.02;
+  }
+
+  .landing-finale-copy > p:not(.landing-kicker) {
+    margin-top: 17px;
+    font-size: 15px;
+    line-height: 1.54;
+  }
+
+  .landing-finale-copy .landing-primary-button {
+    width: auto;
+    min-height: 50px;
+    margin-top: 23px;
+  }
+
+  .landing-finale-copy .landing-subscribe-note {
+    font-size: 13px !important;
+  }
+}
+
+@media (max-height: 640px) and (orientation: landscape) {
+  .landing-finale {
+    min-height: 100svh;
+    align-items: center;
+    padding: 84px 28px 34px;
+  }
+
+  .landing-finale-copy .landing-kicker {
+    margin-bottom: 8px;
+    font-size: 8px;
+  }
+
+  .landing-finale-copy h2,
+  .landing-shell[data-lang="zh"] .landing-finale-copy h2,
+  .landing-shell[data-lang="nl"] .landing-finale-copy h2,
+  .landing-shell[data-lang="fr"] .landing-finale-copy h2 {
+    max-width: 640px;
+    font-size: clamp(32px, 5vw, 46px);
+    line-height: 0.98;
+  }
+
+  .landing-finale-copy > p:not(.landing-kicker) {
+    max-width: 520px;
+    margin-top: 12px;
+    font-size: 12px;
+    line-height: 1.42;
+  }
+
+  .landing-finale-copy .landing-primary-button {
+    min-height: 38px;
+    margin-top: 14px;
+    padding: 7px 18px;
+  }
+
+  .landing-finale-copy .landing-subscribe-note {
+    padding: 8px 11px;
+    font-size: 10px !important;
+  }
 }
 
 .landing-login-backdrop {
@@ -4560,7 +4931,10 @@ h1 {
   .landing-tracker-scene-image,
   .landing-tracker-scene-phone-focus,
   .landing-tracker-scene-laptop-focus,
-  .landing-tracker-scene-glints i {
+  .landing-tracker-scene-glints i,
+  .landing-finale-image,
+  .landing-finale-window-glow,
+  .landing-finale-river-glints i {
     animation: none;
   }
   .landing-hero-refraction { display: none; }
@@ -4573,8 +4947,20 @@ h1 {
   .landing-tracker-scene-window-light,
   .landing-tracker-scene-phone-focus,
   .landing-tracker-scene-laptop-focus,
-  .landing-tracker-scene-glints {
+  .landing-tracker-scene-glints,
+  .landing-finale-picture,
+  .landing-finale-window-glow,
+  .landing-finale-river-glints {
     transform: none;
+  }
+
+  .landing-finale-copy > .landing-kicker,
+  .landing-finale-copy > h2,
+  .landing-finale-copy > p,
+  .landing-finale-copy > .landing-primary-button {
+    opacity: 1;
+    transform: none;
+    transition: none;
   }
 
   .landing-product-story-step .landing-kicker,
