@@ -23,10 +23,10 @@
 - Container App：`airco-tracking-web`
 - Azure resource group：`airco-tracker-rg`
 - Backend repository：`https://github.com/ProgrammerAsahi/airco-tracking`
-- 已部署 frontend commit/image：`aircotrackertdzvfmmi.azurecr.io/airco-tracking-web:d103255318a228bfa533fbaec7249131aae7e9ef`
+- 已部署 frontend commit/image：`aircotrackertdzvfmmi.azurecr.io/airco-tracking-web:31a36b74f9c0d1f5ec9f0d6c9d5f56324f1dcf1c`
 - 协调部署的 backend commit/image：`e4194c25cce82f650eb96d72b37f10bdd6d067a7`
-- Ready revision：`airco-tracking-web--0000051`；provisioning state 为 `Succeeded`；revision health 为 `Healthy`；流量为 100%
-- 成功的 deployment workflow runs：frontend `29268807477`、backend `29167702065`
+- Ready revision：`airco-tracking-web--0000052`；provisioning state 为 `Provisioned`；revision health 为 `Healthy`；流量为 100%
+- 成功的 deployment workflow runs：frontend `29348988779`、backend `29167702065`
 - Deployment workflow：`.github/workflows/deploy.yml`；纯 Markdown/docs push 不部署
 
 两个自定义 Web hostname 和现有 managed-certificate 名称都已写入 `infra/app.bicep`。不要删除这些 `customDomains`；否则 application Bicep 部署会清空绑定。
@@ -35,7 +35,7 @@
 
 ### Browser UI 和 routing
 
-- `/` 是公开热浪主题门户。四段 sticky-scroll 叙事依次从塞纳河畔热浪进入闷热的巴黎老宅、PortaSplit 降温，再进入基于真实法语库存界面的邮件提醒/实时雷达场景。第四屏包含分阶段邮件和库存数据显隐、与前三屏一致的衬线/无衬线字体、四语响应式文案、reduced-motion fallback 和优化后的高分辨率背景。已经登录并订阅的用户会进入凉爽的 Ready 体验，不会再次看到拉新门户。
+- `/` 是公开热浪主题门户。五段 sticky-scroll 叙事依次从塞纳河畔热浪进入闷热的巴黎老宅、PortaSplit 降温、基于真实法语库存界面的邮件提醒/实时雷达，再以窗外视角看到已经凉爽的公寓和蓝调塞纳河夜景收束。第四屏包含分阶段邮件和库存数据显隐；第五屏加入克制的鼠标/滚动视差、暖色窗光、河面微光、按语言调整的暗色背景字体、订阅 CTA 和优化后的 1672×941 背景。所有场景均包含四语响应式文案和 reduced-motion fallback。已经登录并订阅的用户会进入凉爽的 Ready 体验，不会再次看到拉新门户。
 - 邮箱验证码登录已经实现。首次注册用户需要设置昵称；Google、Apple、Microsoft 按钮仍是明确的 placeholder，不会启动 OAuth。
 - `/profile` 支持修改昵称和已验证邮箱、语言偏好、配送国家、登出、管理订阅，以及在没有有效权益时注销账户。
 - `/subscribe` 提供四种 Stripe test-mode 方案：周/月 × Inventory Alerts（`basic`）或 Realtime Radar（`priority`）。当前方案按钮不可点击；升级立即生效，符合条件的降级在当前账期结束时执行。
@@ -93,10 +93,12 @@
 
 门户第四屏还在 1440×900、1024×768、390×844 和 844×390 下完成了中文、荷兰语、英语、法语本地视觉检查。生产复核确认邮件提醒/实时库存分阶段过渡、法语和中文文案、优化后的 1672×941 背景、五张库存数据卡、订阅 CTA、匿名库存保护和浏览器 console 均符合预期。
 
-本次前后端协调 release 已部署并验证：
+门户第五屏在 1440×900 下完成了全部四种语言的本地视觉检查，并在 390×844 与 844×390 下重点复核了中英文。生产环境的 1440×900 和 390×844 复核确认最终标题/CTA、1672×941 优化场景资源、无横向溢出、浏览器 console 干净、资源 immutable 缓存和匿名库存保护均符合预期。
 
-- Frontend workflow `29268807477` 部署 commit `d103255`，backend workflow `29167702065` 部署 commit `e4194c2`；两者完整 test、build 和 deployment checks 均通过。
-- 生产运行 ready web revision `airco-tracking-web--0000051`，provisioning state 为 `Succeeded`，revision health 为 `Healthy`，流量为 100%。
+当前生产 release 已部署并验证：
+
+- Frontend workflow `29348988779` 部署 commit `31a36b7`；backend workflow `29167702065` 继续运行 commit `e4194c2`。两者完整 test、build 和 deployment checks 均通过。
+- 生产运行 ready web revision `airco-tracking-web--0000052`，provisioning state 为 `Provisioned`，revision health 为 `Healthy`，流量为 100%。
 - `https://airco-tracker.eu/health` 和 `www` health 均返回 200；匿名 `/api/inventory` 返回 401。
 - 生产 i18n Table 在 `web` 和 `email` 两个 scopes 中共有 56 个 translation entries。自动契约确认每个 key 都有四个非空的 `zh`/`nl`/`en`/`fr` 值，且前后端 web maps 一致。
 - 真实法语 OTP 通过自定义 ACS sender 到达已授权 Outlook inbox；法语提醒流水线 canary 通过 Service Bus 到达已授权 Gmail inbox，最终状态为 `delivered`。

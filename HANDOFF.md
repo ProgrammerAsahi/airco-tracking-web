@@ -23,10 +23,10 @@ The deployed coordinated frontend/backend release adds a stable user UUID and a 
 - Container App: `airco-tracking-web`
 - Azure resource group: `airco-tracker-rg`
 - Backend repository: `https://github.com/ProgrammerAsahi/airco-tracking`
-- Deployed frontend commit/image: `aircotrackertdzvfmmi.azurecr.io/airco-tracking-web:d103255318a228bfa533fbaec7249131aae7e9ef`
+- Deployed frontend commit/image: `aircotrackertdzvfmmi.azurecr.io/airco-tracking-web:31a36b74f9c0d1f5ec9f0d6c9d5f56324f1dcf1c`
 - Coordinated backend commit/image: `e4194c25cce82f650eb96d72b37f10bdd6d067a7`
-- Ready revision: `airco-tracking-web--0000051`; provisioning state `Succeeded`; revision health `Healthy`; traffic 100%
-- Successful deployment workflow runs: frontend `29268807477`, backend `29167702065`
+- Ready revision: `airco-tracking-web--0000052`; provisioning state `Provisioned`; revision health `Healthy`; traffic 100%
+- Successful deployment workflow runs: frontend `29348988779`, backend `29167702065`
 - Deployment workflow: `.github/workflows/deploy.yml`; Markdown/docs-only pushes do not deploy
 
 Both custom web hostnames and their existing managed-certificate names are declared in `infra/app.bicep`. Do not remove those `customDomains` entries: an application Bicep deployment would otherwise clear the bindings.
@@ -35,7 +35,7 @@ Both custom web hostnames and their existing managed-certificate names are decla
 
 ### Browser UI and routing
 
-- `/` is the public heatwave-themed landing portal. Its four-part sticky-scroll narrative moves from the Seine heatwave to a stifling Paris apartment, PortaSplit cooling, and a final notification/live-radar scene built from the real French inventory UI. The fourth scene uses staged email and stock-data reveals, matching serif/sans typography, four-language responsive copy, reduced-motion fallbacks, and an optimized high-resolution background. Logged-in subscribers are directed to the cool Ready experience instead of being shown the acquisition portal again.
+- `/` is the public heatwave-themed landing portal. Its five-part sticky-scroll narrative moves from the Seine heatwave to a stifling Paris apartment, PortaSplit cooling, a notification/live-radar scene built from the real French inventory UI, and a blue-hour Seine finale viewed from outside the now-cool apartment. The fourth scene stages email and stock-data reveals. The fifth scene adds restrained pointer/scroll parallax, warm window light, river glints, dark-background typography tuned per language, a subscription CTA, and an optimized 1672×941 background. All scenes share responsive four-language copy and reduced-motion fallbacks. Logged-in subscribers are directed to the cool Ready experience instead of being shown the acquisition portal again.
 - Email-code login is implemented. First-time users choose a nickname; Google, Apple, and Microsoft buttons remain explicit placeholders and do not start OAuth.
 - `/profile` supports nickname and verified-email changes, language preference, delivery country, logout, subscription management, and account deletion when no active entitlement remains.
 - `/subscribe` offers four Stripe test-mode plans: weekly/monthly × Inventory Alerts (`basic`) or Realtime Radar (`priority`). The current plan is disabled; upgrades are immediate and eligible downgrades are scheduled for period end.
@@ -93,10 +93,12 @@ The four-language release is deployed. It passed 71/71 frontend tests, app/serve
 
 The fourth landing scene additionally passed local visual QA at 1440×900, 1024×768, 390×844, and 844×390 across Chinese, Dutch, English, and French. Production rechecks confirmed the staged email/live-stock transition, French and Chinese copy, optimized 1672×941 background, five stock data cards, subscription CTA, protected anonymous inventory behavior, and a clean browser console.
 
-The coordinated frontend/backend release is deployed and verified:
+The fifth blue-hour landing scene passed local visual QA across all four languages at 1440×900, plus focused Chinese/English checks at 390×844 and 844×390. Production rechecks at 1440×900 and 390×844 confirmed the final headline/CTA layout, the 1672×941 optimized scene asset, no horizontal overflow, a clean browser console, immutable asset caching, and preserved anonymous inventory protection.
 
-- Frontend workflow `29268807477` deployed commit `d103255`; backend workflow `29167702065` deployed commit `e4194c2` after their complete test, build, and deployment checks passed.
-- Production runs ready web revision `airco-tracking-web--0000051` with provisioning state `Succeeded`, revision health `Healthy`, and 100% traffic.
+The current production release is deployed and verified:
+
+- Frontend workflow `29348988779` deployed commit `31a36b7`; backend workflow `29167702065` remains on commit `e4194c2`. Their complete test, build, and deployment checks passed.
+- Production runs ready web revision `airco-tracking-web--0000052` with provisioning state `Provisioned`, revision health `Healthy`, and 100% traffic.
 - `https://airco-tracker.eu/health` and the `www` health endpoint return 200; anonymous `/api/inventory` returns 401.
 - Production i18n Table contains 56 translation entries across the `web` and `email` scopes. Automated contracts confirm every key has exactly four non-empty `zh`/`nl`/`en`/`fr` values and that the frontend/backend web maps match.
 - A real French OTP sent through the custom ACS sender reached an authorized Outlook inbox. A French alert-pipeline canary traversed the Service Bus pipeline to an authorized Gmail inbox and reached final status `delivered`.
