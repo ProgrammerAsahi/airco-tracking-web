@@ -5,7 +5,7 @@
   <a href="./HANDOFF.md"><img alt="English" src="https://img.shields.io/badge/HANDOFF-English-0969da"></a>
 </p>
 
-最后更新：2026-07-13（Europe/Amsterdam）
+最后更新：2026-07-14（Europe/Amsterdam）
 
 当前状态、验证证据、blocker 或下一步变化时，必须同时更新本文件和 `HANDOFF.md`。不要记录 secrets、邮箱地址、access tokens、支付数据或不必要的个人信息。
 
@@ -23,10 +23,10 @@
 - Container App：`airco-tracking-web`
 - Azure resource group：`airco-tracker-rg`
 - Backend repository：`https://github.com/ProgrammerAsahi/airco-tracking`
-- 已部署 frontend commit/image：`aircotrackertdzvfmmi.azurecr.io/airco-tracking-web:31a36b74f9c0d1f5ec9f0d6c9d5f56324f1dcf1c`
+- 已部署 frontend commit/image：`aircotrackertdzvfmmi.azurecr.io/airco-tracking-web:db98ce83f7f46517a75fa9977d4985dc25d5eee1`
 - 协调部署的 backend commit/image：`e4194c25cce82f650eb96d72b37f10bdd6d067a7`
-- Ready revision：`airco-tracking-web--0000052`；provisioning state 为 `Provisioned`；revision health 为 `Healthy`；流量为 100%
-- 成功的 deployment workflow runs：frontend `29348988779`、backend `29167702065`
+- Ready revision：`airco-tracking-web--0000053`；provisioning state 为 `Provisioned`；revision health 为 `Healthy`；流量为 100%
+- 成功的 deployment workflow runs：frontend `29367033016`、backend `29167702065`
 - Deployment workflow：`.github/workflows/deploy.yml`；纯 Markdown/docs push 不部署
 
 两个自定义 Web hostname 和现有 managed-certificate 名称都已写入 `infra/app.bicep`。不要删除这些 `customDomains`；否则 application Bicep 部署会清空绑定。
@@ -50,6 +50,7 @@
 - Canonical `users` partition 使用 `id:<uuid>` profile row，以及 `email:<base64url>`、`stripe:<base64url>` index rows。验证码和 profile mutations 由 ETag/CAS 保护；单调递增的 `profileRevision`/`sourceRevision` 会拒绝旧写入。已验证邮箱变更保留 UUID，并以 transaction 替换邮箱索引。
 - Stripe 使用托管 Checkout 和 Customer Portal；卡号永远不会接触 Airco Tracker server。只有通过 signature 校验的 webhook 才能写订阅状态。
 - 登录用户从 Checkout 返回时，`/api/billing/sync-checkout-status` 可以修复延迟 webhook。方案变更根据真实 Stripe Price 解析，不信任过期 metadata。
+- 预览支付时期遗留的 `/api/auth/subscription/preview-payment` 和 `/api/auth/subscription/cancel` 路由已移除。订阅赋权与取消现在都必须通过 Stripe billing service；生产验证要求两个退役路径均以 404 fail closed。
 - 取消订阅后，权益保留到已付款周期结束；仍有有效订阅权益时不能注销账户。
 
 ### 国际化契约
@@ -95,11 +96,14 @@
 
 门户第五屏在 1440×900 下完成了全部四种语言的本地视觉检查，并在 390×844 与 844×390 下重点复核了中英文。生产环境的 1440×900 和 390×844 复核确认最终标题/CTA、1672×941 优化场景资源、无横向溢出、浏览器 console 干净、资源 immutable 缓存和匿名库存保护均符合预期。
 
+订阅绕过安全修复通过 71/71 tests、app/server typecheck、production build、shell validation、`git diff --check`，以及本地和自定义域名生产 smoke tests。两个退役 auth subscription 路径均返回 404。一次不输出个人资料的生产存量审计发现当前有两个 test-mode 有效权益；两者均有匹配的 Stripe Customer 和 Subscription、归属一致、状态为 active/trialing，且 Stripe 账期结束时间仍在未来。没有发现缺少 Stripe identifiers 的有效权益。
+
 当前生产 release 已部署并验证：
 
-- Frontend workflow `29348988779` 部署 commit `31a36b7`；backend workflow `29167702065` 继续运行 commit `e4194c2`。两者完整 test、build 和 deployment checks 均通过。
-- 生产运行 ready web revision `airco-tracking-web--0000052`，provisioning state 为 `Provisioned`，revision health 为 `Healthy`，流量为 100%。
+- Frontend workflow `29367033016` 部署安全修复 commit `db98ce8`；backend workflow `29167702065` 继续运行 commit `e4194c2`。两者完整 test、build 和 deployment checks 均通过。
+- 生产运行 ready web revision `airco-tracking-web--0000053`，provisioning state 为 `Provisioned`，revision health 为 `Healthy`，流量为 100%。
 - `https://airco-tracker.eu/health` 和 `www` health 均返回 200；匿名 `/api/inventory` 返回 401。
+- 生产环境对退役的 `/api/auth/subscription/preview-payment` 和 `/api/auth/subscription/cancel` 发送 POST 均返回 404。
 - 生产 i18n Table 在 `web` 和 `email` 两个 scopes 中共有 56 个 translation entries。自动契约确认每个 key 都有四个非空的 `zh`/`nl`/`en`/`fr` 值，且前后端 web maps 一致。
 - 真实法语 OTP 通过自定义 ACS sender 到达已授权 Outlook inbox；法语提醒流水线 canary 通过 Service Bus 到达已授权 Gmail inbox，最终状态为 `delivered`。
 - 语言偏好测试覆盖 Profile 持久化和 `alertrecipients` 同步；测试结束后账户已恢复为 `zh`。Canary 完成后 Service Bus active、scheduled 和 dead-letter 均为零，临时 operator Table 权限也已撤销。

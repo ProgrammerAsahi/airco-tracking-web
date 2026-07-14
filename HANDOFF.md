@@ -5,7 +5,7 @@
   <a href="./HANDOFF.md"><img alt="English" src="https://img.shields.io/badge/HANDOFF-English-0969da"></a>
 </p>
 
-Last updated: 2026-07-13 (Europe/Amsterdam)
+Last updated: 2026-07-14 (Europe/Amsterdam)
 
 Update this English file and `HANDOFF.zh.md` together whenever current status, verification evidence, blockers, or next steps change. Do not record secrets, email addresses, access tokens, payment data, or unnecessary personal information.
 
@@ -23,10 +23,10 @@ The deployed coordinated frontend/backend release adds a stable user UUID and a 
 - Container App: `airco-tracking-web`
 - Azure resource group: `airco-tracker-rg`
 - Backend repository: `https://github.com/ProgrammerAsahi/airco-tracking`
-- Deployed frontend commit/image: `aircotrackertdzvfmmi.azurecr.io/airco-tracking-web:31a36b74f9c0d1f5ec9f0d6c9d5f56324f1dcf1c`
+- Deployed frontend commit/image: `aircotrackertdzvfmmi.azurecr.io/airco-tracking-web:db98ce83f7f46517a75fa9977d4985dc25d5eee1`
 - Coordinated backend commit/image: `e4194c25cce82f650eb96d72b37f10bdd6d067a7`
-- Ready revision: `airco-tracking-web--0000052`; provisioning state `Provisioned`; revision health `Healthy`; traffic 100%
-- Successful deployment workflow runs: frontend `29348988779`, backend `29167702065`
+- Ready revision: `airco-tracking-web--0000053`; provisioning state `Provisioned`; revision health `Healthy`; traffic 100%
+- Successful deployment workflow runs: frontend `29367033016`, backend `29167702065`
 - Deployment workflow: `.github/workflows/deploy.yml`; Markdown/docs-only pushes do not deploy
 
 Both custom web hostnames and their existing managed-certificate names are declared in `infra/app.bicep`. Do not remove those `customDomains` entries: an application Bicep deployment would otherwise clear the bindings.
@@ -50,6 +50,7 @@ Both custom web hostnames and their existing managed-certificate names are decla
 - The canonical `users` partition uses an `id:<uuid>` profile row plus `email:<base64url>` and `stripe:<base64url>` index rows. ETag/CAS protects codes and profile mutations; monotonic `profileRevision`/`sourceRevision` values reject stale writes. Verified email changes preserve the UUID and transactionally replace the email index.
 - Stripe uses hosted Checkout and Customer Portal; card numbers never touch the Airco Tracker server. Webhooks are signature-verified before subscription state is written.
 - `/api/billing/sync-checkout-status` repairs a delayed Checkout webhook after the authenticated user returns. Plan changes are resolved from the actual Stripe Price rather than stale metadata.
+- The legacy preview-era `/api/auth/subscription/preview-payment` and `/api/auth/subscription/cancel` routes have been removed. Subscription grants and cancellation now remain behind the Stripe billing service; production verification requires both retired paths to fail closed with 404.
 - Subscription cancellation preserves entitlement through the paid period. Account deletion is rejected while an active subscription still grants benefits.
 
 ### Internationalisation contract
@@ -95,11 +96,14 @@ The fourth landing scene additionally passed local visual QA at 1440×900, 1024�
 
 The fifth blue-hour landing scene passed local visual QA across all four languages at 1440×900, plus focused Chinese/English checks at 390×844 and 844×390. Production rechecks at 1440×900 and 390×844 confirmed the final headline/CTA layout, the 1672×941 optimized scene asset, no horizontal overflow, a clean browser console, immutable asset caching, and preserved anonymous inventory protection.
 
+The subscription-bypass security hotfix passed 71/71 tests, app/server typecheck, production build, shell validation, `git diff --check`, and local plus custom-domain production smoke tests. Both retired auth subscription paths return 404. A privacy-preserving production audit found two current test-mode active entitlements; both have matching Stripe Customer and Subscription records, matching ownership, active/trialing status, and a future Stripe period end. No active entitlement missing Stripe identifiers was found.
+
 The current production release is deployed and verified:
 
-- Frontend workflow `29348988779` deployed commit `31a36b7`; backend workflow `29167702065` remains on commit `e4194c2`. Their complete test, build, and deployment checks passed.
-- Production runs ready web revision `airco-tracking-web--0000052` with provisioning state `Provisioned`, revision health `Healthy`, and 100% traffic.
+- Frontend workflow `29367033016` deployed security hotfix commit `db98ce8`; backend workflow `29167702065` remains on commit `e4194c2`. Their complete test, build, and deployment checks passed.
+- Production runs ready web revision `airco-tracking-web--0000053` with provisioning state `Provisioned`, revision health `Healthy`, and 100% traffic.
 - `https://airco-tracker.eu/health` and the `www` health endpoint return 200; anonymous `/api/inventory` returns 401.
+- POST requests to the retired `/api/auth/subscription/preview-payment` and `/api/auth/subscription/cancel` endpoints return 404 in production.
 - Production i18n Table contains 56 translation entries across the `web` and `email` scopes. Automated contracts confirm every key has exactly four non-empty `zh`/`nl`/`en`/`fr` values and that the frontend/backend web maps match.
 - A real French OTP sent through the custom ACS sender reached an authorized Outlook inbox. A French alert-pipeline canary traversed the Service Bus pipeline to an authorized Gmail inbox and reached final status `delivered`.
 - The language-preference test exercised Profile persistence and `alertrecipients` synchronization; the test account was restored to `zh` afterwards. Service Bus active, scheduled, and dead-letter counts were all zero after the canary, and the temporary operator Table permission was removed.
