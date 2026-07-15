@@ -178,13 +178,15 @@ function StoreCard({ siteKey, inventory, onSelect, presaleView, t }: { siteKey: 
 }
 
 function ProductCard({ product, t, lang }: { product: InventoryProduct; t: Translator; lang: Lang }) {
+  const affiliate = isAffiliateProduct(product);
   return (
     <a
       className="product-card"
       href={productExternalUrl(product)}
       target="_blank"
-      rel={product.affiliate_url ? "sponsored noopener noreferrer" : "noopener noreferrer"}
+      rel={affiliate ? "sponsored noopener noreferrer" : "noopener noreferrer"}
     >
+      {affiliate && <div className="product-affiliate-badge">{t("affiliate_link_badge")}</div>}
       <div className="product-card-name">{product.name}</div>
       <div className="product-card-specs">
         <span className="product-price">{formatPrice(product.price_eur, t, lang)}</span>
@@ -202,6 +204,16 @@ function ProductCard({ product, t, lang }: { product: InventoryProduct; t: Trans
       </div>
     </a>
   );
+}
+
+function isAffiliateProduct(product: InventoryProduct): boolean {
+  if (product.affiliate_url) return true;
+  try {
+    const hostname = new URL(productExternalUrl(product)).hostname.toLowerCase();
+    return hostname === "awin1.com" || hostname.endsWith(".awin1.com");
+  } catch {
+    return false;
+  }
 }
 
 function RetailerDetail({ siteKey, inventory, initialTab, onBack, t, lang }: { siteKey: string; inventory: SiteInventory; initialTab: InventoryTab; onBack: () => void; t: Translator; lang: Lang }) {
@@ -235,6 +247,7 @@ function RetailerDetail({ siteKey, inventory, initialTab, onBack, t, lang }: { s
 
   const displayed = activeTab === "immediate" ? immediate : presale;
   const detailCount = activeTab === "immediate" ? immediate.length : presale.length;
+  const hasAffiliateLinks = displayed.some(isAffiliateProduct);
 
   return (
     <div className={`detail-overlay brand-theme ${brand.themeClass}`}>
@@ -277,6 +290,14 @@ function RetailerDetail({ siteKey, inventory, initialTab, onBack, t, lang }: { s
           <ProductCard key={product.url} product={product} t={t} lang={lang} />
         ))}
       </div>
+      {hasAffiliateLinks && (
+        <div className="affiliate-notice">
+          <span>{t("affiliate_disclosure")}</span>{" "}
+          <a href={`/affiliate-disclosure.html?lang=${lang}`} target="_blank" rel="noopener noreferrer">
+            {t("affiliate_disclosure_cta")} ↗
+          </a>
+        </div>
+      )}
       <div className="detail-footer">
         <span>{t("detail_footer_disclaimer")}</span>
         <a href={brand.url} target="_blank" rel="noopener noreferrer">{t("detail_visit_store", { name: brand.name })} ↗</a>

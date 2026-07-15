@@ -12,6 +12,7 @@ const brands: Record<string, Omit<BrandDefinition, "name">> = {
   Praxis: { shortMark: "P", url: "https://www.praxis.nl", themeClass: "brand-theme--praxis" },
   "Alternate.nl": { shortMark: "A", url: "https://www.alternate.nl", themeClass: "brand-theme--alternate" },
   Trotec: { shortMark: "T", url: "https://nl.trotec.com", themeClass: "brand-theme--trotec" },
+  "Trotec France": { shortMark: "T", url: "https://fr.trotec.com", themeClass: "brand-theme--trotec" },
   Klarstein: { shortMark: "K", url: "https://www.klarstein.nl", themeClass: "brand-theme--klarstein" },
   FlinQ: { shortMark: "FQ", url: "https://www.flinqproducts.nl", themeClass: "brand-theme--flinq" },
   "Action Webshop": { shortMark: "A", url: "https://shop.action.com/nl-nl", themeClass: "brand-theme--action" },

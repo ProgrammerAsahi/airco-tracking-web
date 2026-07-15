@@ -57,7 +57,7 @@ Both custom web hostnames and their existing managed-certificate names are decla
 
 - Application-owned browser text, dialogs, errors, accessibility labels, metadata, dates, prices, verification emails, Stripe Checkout, and the Billing Portal support Chinese, Dutch, English, and French.
 - `test-fixtures/i18n.local.json` is the complete browser fallback schema. Azure Table values are optional non-empty overrides; a missing new language safely falls back to the bundled value during mixed-version rollout.
-- The backend `airco_tracker/i18n_local.json` `web` scope is the production seed source and must remain value-for-value equivalent as a JSON map. The current contract contains 38 browser keys, each with exactly four non-empty languages.
+- The backend `airco_tracker/i18n_local.json` `web` scope is the production seed source and must remain value-for-value equivalent as a JSON map. The current contract contains 41 browser keys, each with exactly four non-empty languages.
 - Retailer/product names and retailer-supplied delivery wording remain source evidence and are not machine-translated.
 
 ## Alert-recipient projection contract

@@ -57,7 +57,7 @@
 
 - 应用自有的网页文字、弹窗、错误、无障碍标签、metadata、日期、价格、验证码邮件、Stripe Checkout 和 Billing Portal 均支持中文、荷兰语、英语和法语。
 - `test-fixtures/i18n.local.json` 是完整的浏览器 fallback schema。Azure Table 只提供非空 override；混合版本发布时，即使新语言尚未写入 Table，也会安全回退到镜像内置值。
-- 后端 `airco_tracker/i18n_local.json` 的 `web` scope 是生产播种源，必须和前端 JSON map 按值完全等价。当前契约包含 38 个浏览器 key，每个 key 都有四个非空语言值。
+- 后端 `airco_tracker/i18n_local.json` 的 `web` scope 是生产播种源，必须和前端 JSON map 按值完全等价。当前契约包含 41 个浏览器 key，每个 key 都有四个非空语言值。
 - 商家名、商品名和商家原始配送说明作为来源证据保留原文，不做可能改变事实含义的机器翻译。
 
 ## 邮件订阅者投影契约

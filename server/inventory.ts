@@ -26,6 +26,7 @@ const REGION_DELIVERY_TOKENS = new Set(["eu", "eea", "nordics", "benelux", "dach
 
 function isHttpsUrl(value: unknown): value is string {
   if (typeof value !== "string" || value.length === 0) return false;
+  if (/\p{Cc}/u.test(value)) return false;
   try {
     const url = new URL(value);
     return url.protocol === "https:"
