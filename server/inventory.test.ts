@@ -155,6 +155,16 @@ test("rejects a non-HTTPS affiliate URL", () => {
   assert.throws(() => parseInventory(JSON.stringify(withBadAffiliateUrl)), /Invalid inventory site/);
 });
 
+test("rejects credentials embedded in an affiliate URL", () => {
+  const withBadAffiliateUrl = structuredClone(validSnapshot);
+  Reflect.set(
+    withBadAffiliateUrl.sites["nl:Shop"].products[0],
+    "affiliate_url",
+    "https://user:password@affiliate.test/click?product=airco",
+  );
+  assert.throws(() => parseInventory(JSON.stringify(withBadAffiliateUrl)), /Invalid inventory site/);
+});
+
 test("rejects a product with a non-integer btu", () => {
   const withBadProduct = structuredClone(validSnapshot);
   const badProduct = { ...validProduct, btu: 9000.5 };

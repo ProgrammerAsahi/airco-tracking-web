@@ -183,7 +183,7 @@ function ProductCard({ product, t, lang }: { product: InventoryProduct; t: Trans
       className="product-card"
       href={productExternalUrl(product)}
       target="_blank"
-      rel="sponsored noopener noreferrer"
+      rel={product.affiliate_url ? "sponsored noopener noreferrer" : "noopener noreferrer"}
     >
       <div className="product-card-name">{product.name}</div>
       <div className="product-card-specs">
