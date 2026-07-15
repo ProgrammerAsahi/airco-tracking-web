@@ -7,6 +7,8 @@
 
 Ice-blue TypeScript/React dashboard for the [Airco Tracker](https://github.com/ProgrammerAsahi/airco-tracking) live inventory snapshot.
 
+The inventory contract may include an optional HTTPS `affiliate_url`. Product cards prefer that purchase destination and mark it as sponsored, while the stable merchant `url` remains the product identity, React key, and inventory-state key so affiliate-link changes cannot create false stock transitions. Missing or unsafe affiliate URLs are rejected server-side or fall back to the canonical URL. The generic four-language disclosure is served at `/affiliate-disclosure.html`.
+
 **Live:** [airco-tracker.eu](https://airco-tracker.eu/)
 
 The homepage (`/`) is a public heatwave-themed landing portal with a four-part scroll narrative: the Seine during a heatwave, a stifling old Paris apartment, PortaSplit cooling, and finally email alerts plus the live stock radar. Inventory dashboards live under `/deliver-to/<country>` and show current available and presale counts for retailers that can deliver to the selected destination country, with product drill-down, prices, BTU values, delivery text, and direct product links. Delivery destination is part of the URL (`/deliver-to/nl`, `/deliver-to/fr`); interface language stays independent through `?lang=fr` and the language switcher. Chinese, Dutch, English, and French can be switched without reloading. Production uses a same-origin TypeScript API and Managed Identity; no Storage Key, SAS token, or secret reaches the browser.

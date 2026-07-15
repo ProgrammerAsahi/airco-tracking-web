@@ -34,6 +34,10 @@ function isHttpsUrl(value: unknown): value is string {
   }
 }
 
+function isOptionalHttpsUrl(value: unknown): value is string | undefined {
+  return value === undefined || isHttpsUrl(value);
+}
+
 function isOptionalNonEmptyString(value: unknown): value is string | undefined {
   return value === undefined || (typeof value === "string" && value.length > 0);
 }
@@ -65,6 +69,7 @@ function isValidProduct(value: unknown): value is InventoryProduct {
     && isOptionalNonEmptyString(value.site_id)
     && typeof value.name === "string" && value.name.length > 0
     && isHttpsUrl(value.url)
+    && isOptionalHttpsUrl(value.affiliate_url)
     && value.available === true
     && (value.price_eur === null || (typeof value.price_eur === "number" && Number.isFinite(value.price_eur) && value.price_eur >= 0))
     && isNullableString(value.delivery)

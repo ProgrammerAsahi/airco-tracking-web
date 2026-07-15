@@ -11,6 +11,8 @@
 
 首页 (`/`) 是公开的热浪主题门户页，通过四段滚动叙事依次呈现塞纳河畔热浪、闷热的巴黎老宅、PortaSplit 降温，以及邮件提醒与实时库存雷达。库存页面位于 `/deliver-to/<country>`，会根据目标配送国家展示当前可配送零售商的现货和预售数量，并提供商品详情、价格、BTU、配送文本和商品直达链接。配送国家是 URL 状态（例如 `/deliver-to/nl`、`/deliver-to/fr`）；界面语言通过 `?lang=fr` 和语言切换器单独控制。中文、荷兰语、英语和法语可在不刷新页面的情况下切换。生产环境使用同源 TypeScript API 和 Managed Identity；Storage Key、SAS token 或任何秘密值都不会进入浏览器。
 
+库存契约可以提供可选的 HTTPS `affiliate_url`。商品卡会优先打开该购买链接，并标记为 sponsored；稳定的商家 `url` 仍用于商品身份、React key 和库存状态，不会因联盟链接变化产生虚假上下架。缺少或不安全的联盟 URL 会被服务端拒绝或回退到 canonical URL。通用的四语披露位于 `/affiliate-disclosure.html`。
+
 ## 架构
 
 ```text

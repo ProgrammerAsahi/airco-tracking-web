@@ -14,6 +14,7 @@ import { AircoLogoMark } from "./AircoLogoMark";
 import { UnsubscribePage } from "./UnsubscribePage";
 import { hasRealtimeStockAccess } from "../shared/auth";
 import { canonicalDeliveryPath, destinationCountryFromPath, visibleSiteEntries } from "../shared/delivery";
+import { productExternalUrl } from "../shared/inventory";
 import "./styles.css";
 
 const inventoryUrl = import.meta.env.VITE_INVENTORY_URL ?? "/api/inventory";
@@ -180,9 +181,9 @@ function ProductCard({ product, t, lang }: { product: InventoryProduct; t: Trans
   return (
     <a
       className="product-card"
-      href={product.url}
+      href={productExternalUrl(product)}
       target="_blank"
-      rel="noopener noreferrer"
+      rel="sponsored noopener noreferrer"
     >
       <div className="product-card-name">{product.name}</div>
       <div className="product-card-specs">

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { productExternalUrl } from "../shared/inventory.js";
 import { parseInventory } from "./inventory.js";
 
 const validProduct = {
@@ -122,6 +123,36 @@ test("accepts valid products in the products array", () => {
   const snapshot = parseInventory(JSON.stringify(withProducts));
   assert.equal(snapshot.sites["nl:Shop"].products.length, 2);
   assert.equal(snapshot.sites["nl:Shop"].products[0].btu, 9000);
+});
+
+test("accepts an optional HTTPS affiliate URL without replacing the canonical URL", () => {
+  const withAffiliateUrl = structuredClone(validSnapshot);
+  const canonicalUrl = withAffiliateUrl.sites["nl:Shop"].products[0].url;
+  Reflect.set(
+    withAffiliateUrl.sites["nl:Shop"].products[0],
+    "affiliate_url",
+    "https://affiliate.test/click?product=airco",
+  );
+
+  const snapshot = parseInventory(JSON.stringify(withAffiliateUrl));
+  const product = snapshot.sites["nl:Shop"].products[0];
+  assert.equal(product.url, canonicalUrl);
+  assert.equal(product.affiliate_url, "https://affiliate.test/click?product=airco");
+  assert.equal(productExternalUrl(product), product.affiliate_url);
+});
+
+test("falls back to the canonical URL when no affiliate URL is present", () => {
+  assert.equal(productExternalUrl(validProduct), validProduct.url);
+});
+
+test("rejects a non-HTTPS affiliate URL", () => {
+  const withBadAffiliateUrl = structuredClone(validSnapshot);
+  Reflect.set(
+    withBadAffiliateUrl.sites["nl:Shop"].products[0],
+    "affiliate_url",
+    "http://affiliate.test/click?product=airco",
+  );
+  assert.throws(() => parseInventory(JSON.stringify(withBadAffiliateUrl)), /Invalid inventory site/);
 });
 
 test("rejects a product with a non-integer btu", () => {

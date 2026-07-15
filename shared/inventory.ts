@@ -13,12 +13,19 @@ export interface InventoryProduct {
   country?: string;
   site_id?: string;
   name: string;
+  /** Stable merchant URL used as the product's canonical identity. */
   url: string;
+  /** Optional affiliate destination; never use this as the product identity. */
+  affiliate_url?: string;
   available: boolean;
   price_eur: number | null;
   delivery: string | null;
   btu: number | null;
   presale: boolean;
+}
+
+export function productExternalUrl(product: Pick<InventoryProduct, "url" | "affiliate_url">): string {
+  return product.affiliate_url ?? product.url;
 }
 
 export interface SiteInventory {
