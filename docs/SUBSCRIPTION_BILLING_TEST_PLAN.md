@@ -5,7 +5,7 @@
   <a href="./SUBSCRIPTION_BILLING_TEST_PLAN.en.md"><img alt="English" src="https://img.shields.io/badge/TEST_PLAN-English-0969da"></a>
 </p>
 
-最后更新：2026-07-16
+最后更新：2026-07-17
 
 本文件跟踪门户、登录、一次性 Stripe 支付、90 天权益和实时库存访问控制的端到端测试。任何场景、状态或测试记录变化时，都必须同步更新中英文版本。
 
@@ -17,8 +17,10 @@
 
 - 站点：`https://airco-tracker.eu`
 - Stripe：Sandbox / test mode
-- Webhook：`https://airco-tracker.eu/api/billing/webhook`
+- Webhook：Stripe destination `airco-tracker-pass-webhook` → `https://airco-tracker.eu/api/billing/webhook`
+- Webhook 只订阅八个 events：`checkout.session.completed`、`checkout.session.async_payment_succeeded`、`charge.refunded`、`refund.created`、`refund.updated`、`refund.failed`、`charge.dispute.created`、`charge.dispute.closed`
 - 支付方式：第一阶段只启用信用卡；卡号由 Stripe Checkout 托管，Airco Tracker 不读取或保存完整卡号。
+- 当前仍是 Sandbox/test mode。切换真实收款前必须完成 VAT/税务、消费者撤回权、退款政策、条款/隐私文案和结账披露的合规确认。
 
 | 产品 | 权益 | 价格 | 有效期 | Stripe test Price ID |
 | --- | --- | ---: | ---: | --- |
@@ -71,7 +73,8 @@ Canonical 权益以 `tier`、`status`、`purchasedAt`、`expiresAt` 和最小化
 
 | 状态 | 场景 | 预期结果 | 记录 |
 | --- | --- | --- | --- |
-| ⬜ | 无效/缺失 Stripe signature | Webhook 返回 400，不写任何用户或权益数据 | 待测 |
+| ✅ | 无效/缺失 Stripe signature | Webhook 返回 400，不写任何用户或权益数据 | 2026-07-17 生产 smoke：未签名请求返回 400 |
+| ✅ | Webhook destination 事件白名单 | 只监听支付完成、退款 lifecycle 和争议 lifecycle 所需的八个 events | 2026-07-17 已核对 `airco-tracker-pass-webhook` 的准确事件集合 |
 | ⬜ | `checkout.session.completed` | 根据服务端 metadata 和实际 Price 绑定正确用户、tier、金额和 PaymentIntent | 待测 |
 | ⬜ | `checkout.session.async_payment_succeeded` | 延迟支付只在确认成功后赋权，重复事件保持幂等 | 待测 |
 | ⬜ | 重放同一事件/重复回跳同步 | receipt 只写一次，不延长 90 天，也不重复赋权 | 待测 |
@@ -99,30 +102,31 @@ Canonical 权益以 `tier`、`status`、`purchasedAt`、`expiresAt` 和最小化
 
 | 状态 | 场景 | 预期结果 | 记录 |
 | --- | --- | --- | --- |
-| ⬜ | 现有 test-mode 周/月订阅 | 上线迁移前设置为周期末取消，确认不会再次自动扣费 | 待执行 |
-| ⬜ | 旧四个 recurring Prices | 在 Stripe 中 archive，不能从新 UI/API 创建订阅 | 待执行 |
-| ⬜ | GitHub/Azure 配置 | 只保留三项一次性 Price variables；旧 weekly/monthly/Portal 配置已删除 | 待执行 |
+| ✅ | 现有 test-mode 周/月订阅 | 设置为周期末取消，确认不会再次自动扣费 | 三笔均已设置：两笔 2026-08-09、一笔 2026-08-08 到期 |
+| ✅ | 旧四个 recurring Prices | 在 Stripe 中 archive，不能从新 UI/API 创建订阅 | 2026-07-17 已 archive |
+| 🚧 | GitHub/Azure 配置 | Runtime 只使用三项一次性 Price variables；旧 weekly/monthly/Portal 配置最终删除 | Azure 只剩三项新变量，GitHub 三项新变量已存在；五项旧变量需账户持有人完成 GitHub sudo/2FA verification 后删除 |
 | ⬜ | 旧用户权益迁移 | 只保留原已付周期内的 legacy 权益；旧 subscription webhook 不覆盖新 Pass receipt | 待测 |
-| ⬜ | 退役 API | `/api/auth/subscription/preview-payment`、`/api/auth/subscription/cancel`、`/api/billing/cancel-subscription` 均返回 404 | 待部署验证 |
+| ✅ | 退役 API | `/api/auth/subscription/preview-payment`、`/api/auth/subscription/cancel`、`/api/billing/cancel-subscription` 均返回 404 | 2026-07-17 apex 生产 smoke 通过 |
 
 ## P2：发布前/生产 smoke
 
 | 状态 | 场景 | 预期结果 | 记录 |
 | --- | --- | --- | --- |
-| ⬜ | `/health` 和 `www` health | 返回 200 | 待新 release |
-| ⬜ | 匿名 `/api/inventory` | 返回 401 `not_authenticated` | 待新 release |
+| ✅ | `/health` 和 `www` health | 返回 200，并保留 strict CSP | 2026-07-17 apex + www 生产 smoke 通过 |
+| ✅ | 匿名 `/api/inventory` | 返回 401 `not_authenticated` | 2026-07-17 生产 smoke 通过 |
 | ⬜ | 两种产品与 upgrade 的金额/文案 | 中文、荷兰语、英语、法语均显示 €5/€10/€5 和 90 天，不出现周/月/续费/取消订阅 | 待视觉复核 |
-| ⬜ | GitHub Actions + Azure 环境 | 三个 Price ID 与 Stripe test mode 一致；没有 secret 出现在日志或前端 bundle | 待验证 |
+| 🚧 | GitHub Actions + Azure 环境 | 三个 Price ID 与 Stripe test mode 一致；没有 secret 出现在日志或前端 bundle；清理旧 variables | Azure 只保留三项新变量且部署成功；GitHub 旧五项等待账户持有人完成 sudo/2FA verification 后删除 |
+| ✅ | 自动化测试 baseline | Web server 与 backend targeted suites 全部通过 | 2026-07-17：113/113 server tests、62/62 backend target tests |
 | ⬜ | 生产 test-mode Alerts 购买 | 支付、回跳、Profile、Ready 和邮件投影均正确 | 待测 |
 | ⬜ | 生产 test-mode Radar 购买 | 支付、回跳、Profile、Ready 和库存权限均正确 | 待测 |
 | ⬜ | 生产 test-mode upgrade | €5、立即 Radar、原到期日不变 | 待测 |
-| ⬜ | 部署后自动验证 | `scripts/verify-deployment.mjs` 通过，包括三个旧接口 404 | 待新 release |
+| ✅ | 部署后自动验证 | `scripts/verify-deployment.mjs` 通过，包括 strict CSP、匿名 401 和三个旧接口 404 | Frontend workflow `29582313469`、backend `29567315723` 成功；revision `airco-tracking-web--0000057` Healthy/100% |
 
 ## 推荐执行顺序
 
-1. 完成 Stripe test Products/Prices、GitHub variables 和 Azure 配置切换；先停止旧订阅继续续费。
-2. 本地完成 typecheck、tests、build 和 receipt/refund/dispute 单元测试。
-3. 部署后先跑 health、匿名库存和三个退役接口 smoke。
-4. 使用全新测试账户依次购买 Alerts、upgrade 到 Radar，再测试退款/争议回退。
-5. 清空或到期该测试账户后，单独购买 Radar，验证 90 天权益和实时库存。
-6. 最后执行 3D Secure、失败卡、到期边界、乱序 webhook 与并发场景。
+1. 由账户持有人完成 GitHub sudo/2FA verification，删除五项废弃 variables；不要改动已经正确部署的三项新 variables。
+2. 使用全新测试账户依次购买 Alerts、upgrade 到 Radar，再测试退款/争议回退。
+3. 清空或到期该测试账户后，单独购买 Radar，验证 90 天权益和实时库存。
+4. 执行 3D Secure、失败卡、到期边界、乱序 webhook 与并发场景。
+5. 单独验证三笔 legacy subscription 到期时的 entitlement migration，确认不会被旧事件覆盖。
+6. 完成 VAT/税务、撤回权、退款、条款/隐私和 checkout disclosure 后，才能评估切换 Stripe live mode。

@@ -5,7 +5,7 @@
   <a href="./HANDOFF.md"><img alt="English" src="https://img.shields.io/badge/HANDOFF-English-0969da"></a>
 </p>
 
-最后更新：2026-07-16（Europe/Amsterdam）
+最后更新：2026-07-17（Europe/Amsterdam）
 
 当前状态、验证证据、blocker 或下一步变化时，必须同时更新本文件和 `HANDOFF.md`。不要记录 secrets、邮箱地址、access tokens、支付数据或不必要的个人信息。
 
@@ -13,7 +13,7 @@
 
 运行位于 `https://airco-tracker.eu/` 的公开 Airco Tracker 门户、登录账户体验、Stripe 一次性 Heatwave Pass 支付流程和按国家筛选的库存 dashboard。匿名用户可以查看门户和 Pass 价格；`/deliver-to/<country>` 下的实时库存只对持有有效 Heatwave Radar Pass（`radar`）的用户开放。
 
-当前 source branch 正在把原周/月订阅迁移为 €5 Heatwave Alerts Pass 和 €10 Heatwave Radar Pass；两者均一次性付费、有效 90 天且不自动续费。有效 Alerts Pass 可支付 €5 升级到 Radar，并保留原到期日。在新 release 部署并复测前，下方生产信息仍描述上一版已验证的 recurring billing 部署。
+原周/月订阅已在生产替换为 €5 Heatwave Alerts Pass 和 €10 Heatwave Radar Pass；两者均一次性付费、有效 90 天且不自动续费。有效 Alerts Pass 可支付 €5 升级到 Radar，并保留原到期日。自动部署和安全 smoke 已通过；真实 Sandbox 购买、升级、退款、争议和到期场景仍需按下方人工矩阵验证。
 
 协调后的前后端设计为每个用户提供稳定 UUID，并维护一个最小化、32 分片的 `alertrecipients` 投影，供后端 Azure Service Bus 提醒流水线使用。Recipient 增长后，库存 scanner 不会为了每条库存事件扫描 canonical `users` Table。
 
@@ -25,10 +25,10 @@
 - Container App：`airco-tracking-web`
 - Azure resource group：`airco-tracker-rg`
 - Backend repository：`https://github.com/ProgrammerAsahi/airco-tracking`
-- 已部署 frontend commit/image：`aircotrackertdzvfmmi.azurecr.io/airco-tracking-web:db98ce83f7f46517a75fa9977d4985dc25d5eee1`
-- 协调部署的 backend commit/image：`e4194c25cce82f650eb96d72b37f10bdd6d067a7`
-- Ready revision：`airco-tracking-web--0000053`；provisioning state 为 `Provisioned`；revision health 为 `Healthy`；流量为 100%
-- 成功的 deployment workflow runs：frontend `29367033016`、backend `29167702065`
+- 已部署 frontend commit/image：`aircotrackertdzvfmmi.azurecr.io/airco-tracking-web:f310690c89b3ed732ccfa9d8f4dec4c91ad7ad6f`
+- 协调部署的 backend commit/image：`6b26c2be27761aea65d8af7bafc574bf6d669b39`
+- Ready revision：`airco-tracking-web--0000057`；provisioning state 为 `Provisioned`；revision health 为 `Healthy`；流量为 100%
+- 成功的 deployment workflow runs：frontend `29582313469`、backend `29567315723`
 - Deployment workflow：`.github/workflows/deploy.yml`；纯 Markdown/docs push 不部署
 
 两个自定义 Web hostname 和现有 managed-certificate 名称都已写入 `infra/app.bicep`。不要删除这些 `customDomains`；否则 application Bicep 部署会清空绑定。
@@ -87,25 +87,29 @@
 - 生产现已在两个仓库使用验证完成的 customer-managed `airco-tracker.eu` ACS sender；Azure-managed domain 仍是明确的 fallback。
 - 用于播种和验证生产四语 rows 的临时 operator Table data 权限已撤销。Runtime 和 deploy identities 只保留各自受限的应用权限。
 - Stripe secrets 只能由 GitHub Actions 或明确配置的本地环境提供。缺少 Stripe 配置时，不要手工部署生产。
+- Azure 现在只暴露 `STRIPE_PRICE_ALERTS_PASS`、`STRIPE_PRICE_RADAR_PASS` 和 `STRIPE_PRICE_RADAR_UPGRADE`。GitHub 中对应的三个新 variables 已存在，但删除 `STRIPE_BILLING_PORTAL_CONFIGURATION_ID` 和四个旧 weekly/monthly Price variables 会触发 `Confirm access` / `Enter the verification code`；未完成 sudo/2FA 时页面显示 `Unable to delete variable`。需要账户持有人完成验证和清理，已部署 workflow 不会读取这些旧变量。
+- Stripe Sandbox 使用 `price_1TtoNS0XRx7WeBOsNN5xPzlf` 作为 Alerts、`price_1TtoCl0XRx7WeBOs3ATeEv0Y` 作为 Radar、`price_1TtoG10XRx7WeBOsvsvaarrD` 作为 upgrade；四个旧 recurring Prices 已 archive。
 
 ## 当前验证状态
 
-详细的 Pass/支付矩阵维护在 `docs/SUBSCRIPTION_BILLING_TEST_PLAN.md` 和 `.en.md`。上一版 recurring subscription release 已测试首次 Checkout、成功/失败测试卡、3D Secure 成功/失败、到期取消、升级/降级、库存 gating、Profile 修改、语言/国家/邮箱变更、持久化和账号注销规则。这些只属于历史证据；一次性 90 天 Pass flow 必须在部署后按照已重置的新矩阵重新测试。
+详细的 Pass/支付矩阵维护在 `docs/SUBSCRIPTION_BILLING_TEST_PLAN.md` 和 `.en.md`。上一版 recurring subscription 结果只作为历史证据保留。一次性 90 天 release 已部署，但真实 Sandbox Checkout、upgrade、退款、争议、精确到期和 legacy entitlement migration 场景在完整端到端执行前仍保持未勾选。
 
-四语 release 已部署，并通过 71/71 前端 tests、app/server typecheck、production build、production-mode deployment verification 和 `git diff --check`。法语 Landing、Subscribe、登录/昵称、Profile 和 Unsubscribe 状态已在生产的 1440×900 与 390×844 完成视觉检查，console 无 error 或 warning。Header 临时语言会在导航中保持，同时不会覆盖 Profile 已保存偏好；在 Profile 保存偏好会同时更新网页默认语言和提醒邮件语言。
+协调 release 已通过 113/113 web server tests 和 62/62 backend target tests，两个 deployment workflows 均成功。此前四语 Landing、Subscribe、登录/昵称、Profile 和 Unsubscribe 视觉证据仍有参考价值，但新的 €5/€10/€5 金额和 90 天 Pass 文案仍需重新完成生产视觉 QA。
 
 门户第四屏还在 1440×900、1024×768、390×844 和 844×390 下完成了中文、荷兰语、英语、法语本地视觉检查。生产复核确认邮件提醒/实时库存分阶段过渡、法语和中文文案、优化后的 1672×941 背景、五张库存数据卡、Pass CTA、匿名库存保护和浏览器 console 均符合预期。
 
 门户第五屏在 1440×900 下完成了全部四种语言的本地视觉检查，并在 390×844 与 844×390 下重点复核了中英文。生产环境的 1440×900 和 390×844 复核确认最终标题/CTA、1672×941 优化场景资源、无横向溢出、浏览器 console 干净、资源 immutable 缓存和匿名库存保护均符合预期。
 
-此前的订阅绕过安全修复通过 71/71 tests、app/server typecheck、production build、shell validation、`git diff --check`，以及本地和自定义域名生产 smoke tests。当前部署中两个退役 auth subscription 路径均返回 404。一次不输出个人资料的存量审计发现两个 test-mode legacy recurring 权益拥有匹配的 Stripe 归属和未来已付周期结束时间。Pass migration 发布前，必须把这些 Stripe subscriptions 设为周期末取消并 archive 四个 recurring Prices；新 release 还必须验证 `/api/billing/cancel-subscription` 返回 404。
+Stripe Sandbox destination `airco-tracker-pass-webhook` 继续指向 `https://airco-tracker.eu/api/billing/webhook`，并且只监听准确的八个 events：`checkout.session.completed`、`checkout.session.async_payment_succeeded`、`charge.refunded`、`refund.created`、`refund.updated`、`refund.failed`、`charge.dispute.created` 和 `charge.dispute.closed`。未签名 webhook 会以 400 fail closed。
+
+四个旧 recurring Prices 已 archive。三笔 legacy Sandbox subscriptions 已设为周期末取消：两笔在 2026-08-09 结束，一笔在 2026-08-08 结束；它们的 legacy entitlement migration 行为仍待人工验证。
 
 当前生产 release 已部署并验证：
 
-- Frontend workflow `29367033016` 部署安全修复 commit `db98ce8`；backend workflow `29167702065` 继续运行 commit `e4194c2`。两者完整 test、build 和 deployment checks 均通过。
-- 生产运行 ready web revision `airco-tracking-web--0000053`，provisioning state 为 `Provisioned`，revision health 为 `Healthy`，流量为 100%。
-- `https://airco-tracker.eu/health` 和 `www` health 均返回 200；匿名 `/api/inventory` 返回 401。
-- 当前生产环境对退役的 `/api/auth/subscription/preview-payment` 和 `/api/auth/subscription/cancel` 发送 POST 均返回 404；新 release 还会验证 `/api/billing/cancel-subscription` 返回 404。
+- Frontend workflow `29582313469` 部署 commit `f310690c89b3ed732ccfa9d8f4dec4c91ad7ad6f`；backend workflow `29567315723` 部署 commit `6b26c2be27761aea65d8af7bafc574bf6d669b39`。
+- 生产运行 ready web revision `airco-tracking-web--0000057`，provisioning state 为 `Provisioned`，revision health 为 `Healthy`，流量为 100%。
+- `https://airco-tracker.eu/health` 和 `www` health 均返回 200，并保持 strict CSP；匿名 `/api/inventory` 返回 401。
+- `/api/auth/subscription/preview-payment`、`/api/auth/subscription/cancel` 和 `/api/billing/cancel-subscription` 均返回 404；未签名 Stripe webhook 返回 400。
 - 生产 i18n Table 在 `web` 和 `email` 两个 scopes 中共有 56 个 translation entries。自动契约确认每个 key 都有四个非空的 `zh`/`nl`/`en`/`fr` 值，且前后端 web maps 一致。
 - 真实法语 OTP 通过自定义 ACS sender 到达已授权 Outlook inbox；法语提醒流水线 canary 通过 Service Bus 到达已授权 Gmail inbox，最终状态为 `delivered`。
 - 语言偏好测试覆盖 Profile 持久化和 `alertrecipients` 同步；测试结束后账户已恢复为 `zh`。Canary 完成后 Service Bus active、scheduled 和 dead-letter 均为零，临时 operator Table 权限也已撤销。
@@ -114,9 +118,11 @@
 
 1. Google、Apple、Microsoft 登录按钮只是 UI placeholder；当前只有邮箱验证码登录可用。
 2. Billing 仍处于 Stripe test mode，且先支持信用卡。iDEAL/Wero 或其它支付方式需要单独的产品和合规评估。
-3. 90 天 Pass migration 尚未完成生产验证。购买、升级、退款/争议、精确到期、延迟/重复 webhook 和 legacy subscription 退役场景仍列在 billing 测试文档中。
+3. 部署/安全 baseline 已完成生产验证，但真实 Sandbox 购买、升级、退款/争议、精确到期、延迟/重复 webhook 和 legacy entitlement migration 场景仍列在 billing 测试文档中。
 4. 生产已经使用验证完成的 customer-managed `airco-tracker.eu` ACS sender；更高 quota 申请仍处于 Open。在 Azure 批准前继续保持一 worker/13 秒限制并逐步 warm up 域名。
-5. 目前没有 committed Playwright 视觉/无障碍回归套件，也没有针对连续 frontend/API 故障的独立生产告警。
+5. 五个废弃 GitHub variables 仍存在，因为删除操作需要账户持有人完成 GitHub sudo/2FA verification；Azure 和已部署 workflow 只使用三个新的一次性 Price variables。
+6. 真实收款前仍必须完成面向消费者的合规工作，包括 VAT/税务处理、撤回权、退款政策、条款/隐私文案和结账所需披露。
+7. 目前没有 committed Playwright 视觉/无障碍回归套件，也没有针对连续 frontend/API 故障的独立生产告警。
 
 ## 恢复 checklist
 

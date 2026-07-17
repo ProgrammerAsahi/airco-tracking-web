@@ -5,7 +5,7 @@
   <a href="./HANDOFF.md"><img alt="English" src="https://img.shields.io/badge/HANDOFF-English-0969da"></a>
 </p>
 
-Last updated: 2026-07-16 (Europe/Amsterdam)
+Last updated: 2026-07-17 (Europe/Amsterdam)
 
 Update this English file and `HANDOFF.zh.md` together whenever current status, verification evidence, blockers, or next steps change. Do not record secrets, email addresses, access tokens, payment data, or unnecessary personal information.
 
@@ -13,7 +13,7 @@ Update this English file and `HANDOFF.zh.md` together whenever current status, v
 
 Operate the public Airco Tracker portal, authenticated account experience, one-time Stripe Heatwave Pass flow, and country-aware inventory dashboard at `https://airco-tracker.eu/`. Anonymous users can view the portal and Pass prices; inventory under `/deliver-to/<country>` requires an active Heatwave Radar Pass (`radar`) entitlement.
 
-The source branch is migrating the former weekly/monthly subscriptions to a €5 Heatwave Alerts Pass and €10 Heatwave Radar Pass, each valid for 90 days without automatic renewal. An active Alerts Pass can be upgraded to Radar for €5 while retaining its original expiry. The production release details below still describe the last verified recurring-billing deployment until the new release is deployed and re-tested.
+The former weekly/monthly subscriptions have been replaced in production by a €5 Heatwave Alerts Pass and €10 Heatwave Radar Pass, each valid for 90 days without automatic renewal. An active Alerts Pass can be upgraded to Radar for €5 while retaining its original expiry. Automated deployment and security smoke checks have passed; real Sandbox purchase, upgrade, refund, dispute, and expiry scenarios still require the manual matrix below.
 
 The coordinated frontend/backend design uses a stable user UUID and a minimal, 32-shard `alertrecipients` projection for the backend Azure Service Bus alert pipeline. Recipient growth does not make the inventory scanner enumerate the canonical `users` table for every stock event.
 
@@ -25,10 +25,10 @@ The coordinated frontend/backend design uses a stable user UUID and a minimal, 3
 - Container App: `airco-tracking-web`
 - Azure resource group: `airco-tracker-rg`
 - Backend repository: `https://github.com/ProgrammerAsahi/airco-tracking`
-- Deployed frontend commit/image: `aircotrackertdzvfmmi.azurecr.io/airco-tracking-web:db98ce83f7f46517a75fa9977d4985dc25d5eee1`
-- Coordinated backend commit/image: `e4194c25cce82f650eb96d72b37f10bdd6d067a7`
-- Ready revision: `airco-tracking-web--0000053`; provisioning state `Provisioned`; revision health `Healthy`; traffic 100%
-- Successful deployment workflow runs: frontend `29367033016`, backend `29167702065`
+- Deployed frontend commit/image: `aircotrackertdzvfmmi.azurecr.io/airco-tracking-web:f310690c89b3ed732ccfa9d8f4dec4c91ad7ad6f`
+- Coordinated backend commit/image: `6b26c2be27761aea65d8af7bafc574bf6d669b39`
+- Ready revision: `airco-tracking-web--0000057`; provisioning state `Provisioned`; revision health `Healthy`; traffic 100%
+- Successful deployment workflow runs: frontend `29582313469`, backend `29567315723`
 - Deployment workflow: `.github/workflows/deploy.yml`; Markdown/docs-only pushes do not deploy
 
 Both custom web hostnames and their existing managed-certificate names are declared in `infra/app.bicep`. Do not remove those `customDomains` entries: an application Bicep deployment would otherwise clear the bindings.
@@ -87,25 +87,29 @@ The backend daily reconciler repairs partial cross-table failures and legacy row
 - Production now uses the verified customer-managed `airco-tracker.eu` ACS sender in both repositories; the Azure-managed domain remains the explicit fallback.
 - The temporary operator Table-data permission used to seed and verify the four-language production rows has been revoked. Runtime and deploy identities retain only their scoped application permissions.
 - Stripe secrets are supplied only by GitHub Actions or an explicitly configured local environment. Do not run a manual production deployment with missing Stripe configuration.
+- Azure now exposes only `STRIPE_PRICE_ALERTS_PASS`, `STRIPE_PRICE_RADAR_PASS`, and `STRIPE_PRICE_RADAR_UPGRADE`. The matching three GitHub variables exist, but deleting `STRIPE_BILLING_PORTAL_CONFIGURATION_ID` and the four legacy weekly/monthly Price variables triggers GitHub `Confirm access` / `Enter the verification code`; before sudo/2FA completion the page reports `Unable to delete variable`. The account holder must complete that verification and cleanup; the deployed workflow does not consume the old variables.
+- Stripe Sandbox uses `price_1TtoNS0XRx7WeBOsNN5xPzlf` for Alerts, `price_1TtoCl0XRx7WeBOs3ATeEv0Y` for Radar, and `price_1TtoG10XRx7WeBOsvsvaarrD` for the upgrade. The four recurring Prices are archived.
 
 ## Current verification state
 
-The detailed Pass/payment matrix is maintained in `docs/SUBSCRIPTION_BILLING_TEST_PLAN.md` and `.en.md`. The previous recurring-subscription release covered initial Checkout, successful and failed cards, 3D Secure success/failure, cancellation at period end, upgrades/downgrades, inventory gating, profile changes, language/country/email changes, persistence, and account-deletion rules. Those results are historical evidence only: the one-time 90-day Pass flow must be re-tested against the reset matrix after deployment.
+The detailed Pass/payment matrix is maintained in `docs/SUBSCRIPTION_BILLING_TEST_PLAN.md` and `.en.md`. The previous recurring-subscription results remain historical evidence only. The one-time 90-day release is deployed, but real Sandbox Checkout, upgrade, refund, dispute, exact-expiry, and legacy-entitlement migration scenarios remain deliberately unchecked until they are exercised end to end.
 
-The four-language release is deployed. It passed 71/71 frontend tests, app/server typecheck, production build, production-mode deployment verification, and `git diff --check`. French Landing, Subscribe, Login/nickname, Profile, and Unsubscribe states passed production visual checks at 1440×900 and 390×844 with no console errors or warnings. Header language changes preserve navigation while leaving the saved Profile preference unchanged; saving the Profile preference updates both the web default and alert-email language.
+The coordinated release passed 113/113 web-server tests and 62/62 targeted backend tests. Both deployment workflows completed successfully. The earlier four-language Landing, Subscribe, Login/nickname, Profile, and Unsubscribe visual evidence remains useful, but the new €5/€10/€5 amounts and 90-day Pass copy still require fresh production visual QA.
 
 The fourth landing scene additionally passed local visual QA at 1440×900, 1024×768, 390×844, and 844×390 across Chinese, Dutch, English, and French. Production rechecks confirmed the staged email/live-stock transition, French and Chinese copy, optimized 1672×941 background, five stock data cards, Pass CTA, protected anonymous inventory behavior, and a clean browser console.
 
 The fifth blue-hour landing scene passed local visual QA across all four languages at 1440×900, plus focused Chinese/English checks at 390×844 and 844×390. Production rechecks at 1440×900 and 390×844 confirmed the final headline/CTA layout, the 1672×941 optimized scene asset, no horizontal overflow, a clean browser console, immutable asset caching, and preserved anonymous inventory protection.
 
-The earlier subscription-bypass security hotfix passed 71/71 tests, app/server typecheck, production build, shell validation, `git diff --check`, and local plus custom-domain production smoke tests. Both retired auth subscription paths return 404 in the currently deployed release. A privacy-preserving audit found two test-mode legacy recurring entitlements with matching Stripe ownership and a future paid-period end. Before the Pass migration is released, those Stripe subscriptions must be set to cancel at period end and the four recurring Prices must be archived; the new release must also prove `/api/billing/cancel-subscription` returns 404.
+Stripe Sandbox destination `airco-tracker-pass-webhook` still targets `https://airco-tracker.eu/api/billing/webhook` and listens to exactly eight events: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `charge.refunded`, `refund.created`, `refund.updated`, `refund.failed`, `charge.dispute.created`, and `charge.dispute.closed`. An unsigned webhook request fails closed with 400.
+
+All four legacy recurring Prices are archived. Three legacy Sandbox subscriptions are set to cancel at period end: two end on 2026-08-09 and one on 2026-08-08. Their legacy entitlement migration behavior is still pending manual verification.
 
 The current production release is deployed and verified:
 
-- Frontend workflow `29367033016` deployed security hotfix commit `db98ce8`; backend workflow `29167702065` remains on commit `e4194c2`. Their complete test, build, and deployment checks passed.
-- Production runs ready web revision `airco-tracking-web--0000053` with provisioning state `Provisioned`, revision health `Healthy`, and 100% traffic.
-- `https://airco-tracker.eu/health` and the `www` health endpoint return 200; anonymous `/api/inventory` returns 401.
-- POST requests to the retired `/api/auth/subscription/preview-payment` and `/api/auth/subscription/cancel` endpoints return 404 in the current production release. The new release additionally verifies `/api/billing/cancel-subscription` returns 404.
+- Frontend workflow `29582313469` deployed commit `f310690c89b3ed732ccfa9d8f4dec4c91ad7ad6f`; backend workflow `29567315723` deployed commit `6b26c2be27761aea65d8af7bafc574bf6d669b39`.
+- Production runs ready web revision `airco-tracking-web--0000057` with provisioning state `Provisioned`, revision health `Healthy`, and 100% traffic.
+- `https://airco-tracker.eu/health` and the `www` health endpoint return 200; both preserve the strict CSP, and anonymous `/api/inventory` returns 401.
+- POST requests to `/api/auth/subscription/preview-payment`, `/api/auth/subscription/cancel`, and `/api/billing/cancel-subscription` all return 404. An unsigned Stripe webhook request returns 400.
 - Production i18n Table contains 56 translation entries across the `web` and `email` scopes. Automated contracts confirm every key has exactly four non-empty `zh`/`nl`/`en`/`fr` values and that the frontend/backend web maps match.
 - A real French OTP sent through the custom ACS sender reached an authorized Outlook inbox. A French alert-pipeline canary traversed the Service Bus pipeline to an authorized Gmail inbox and reached final status `delivered`.
 - The language-preference test exercised Profile persistence and `alertrecipients` synchronization; the test account was restored to `zh` afterwards. Service Bus active, scheduled, and dead-letter counts were all zero after the canary, and the temporary operator Table permission was removed.
@@ -114,9 +118,11 @@ The current production release is deployed and verified:
 
 1. Google, Apple, and Microsoft login buttons are UI placeholders; only email-code login is functional.
 2. Billing remains in Stripe test mode and card-first. iDEAL/Wero or other payment methods require a separate product and compliance pass.
-3. The 90-day Pass migration is not production-verified yet. Purchase, upgrade, refund/dispute, exact-expiry, delayed/duplicate webhook, and legacy-subscription retirement scenarios remain open in the billing test plan.
+3. The deployment/security baseline is production-verified, but real Sandbox purchase, upgrade, refund/dispute, exact-expiry, delayed/duplicate webhook, and legacy-entitlement migration scenarios remain open in the billing test plan.
 4. Production uses the verified customer-managed `airco-tracker.eu` ACS sender. A higher-quota request remains open; keep the current one-worker/13-second limit and gradual domain warm-up until Azure approves it.
-5. There is no committed Playwright visual/accessibility regression suite or dedicated production alert for repeated frontend/API failures.
+5. The five obsolete GitHub variables still exist because deletion requires account-holder GitHub sudo/2FA verification; Azure and the deployed workflow use only the three new one-time Price variables.
+6. Consumer-facing compliance work for real payments—including VAT/tax treatment, withdrawal rights, refund policy, terms/privacy copy, and required checkout disclosures—must be completed before leaving Stripe test mode.
+7. There is no committed Playwright visual/accessibility regression suite or dedicated production alert for repeated frontend/API failures.
 
 ## Resume checklist
 

@@ -5,7 +5,7 @@
   <a href="./SUBSCRIPTION_BILLING_TEST_PLAN.en.md"><img alt="English" src="https://img.shields.io/badge/TEST_PLAN-English-0969da"></a>
 </p>
 
-Last updated: 2026-07-16
+Last updated: 2026-07-17
 
 This document tracks end-to-end tests for the portal, login, one-time Stripe payments, 90-day entitlements, and realtime-inventory access control. Update the Chinese and English versions together whenever a scenario, status, or test note changes.
 
@@ -17,8 +17,10 @@ Status: ✅ passed · ❌ failed · 🚧 partial/fix pending · ⬜ not tested �
 
 - Site: `https://airco-tracker.eu`
 - Stripe: Sandbox / test mode
-- Webhook: `https://airco-tracker.eu/api/billing/webhook`
+- Webhook: Stripe destination `airco-tracker-pass-webhook` → `https://airco-tracker.eu/api/billing/webhook`
+- The webhook subscribes to exactly eight events: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `charge.refunded`, `refund.created`, `refund.updated`, `refund.failed`, `charge.dispute.created`, and `charge.dispute.closed`
 - Payment method: phase one enables cards only. Stripe Checkout hosts card entry; Airco Tracker never reads or stores full card numbers.
+- This remains Sandbox/test mode. Before accepting real payments, complete the compliance decisions and disclosures for VAT/tax, consumer withdrawal rights, refunds, terms/privacy, and checkout.
 
 | Product | Entitlement | Price | Validity | Stripe test Price ID |
 | --- | --- | ---: | ---: | --- |
@@ -71,7 +73,8 @@ Canonical entitlement state is expressed through `tier`, `status`, `purchasedAt`
 
 | Status | Scenario | Expected result | Record |
 | --- | --- | --- | --- |
-| ⬜ | Missing/invalid Stripe signature | Webhook returns 400 and writes no user or entitlement data | Not tested |
+| ✅ | Missing/invalid Stripe signature | Webhook returns 400 and writes no user or entitlement data | 2026-07-17 production smoke: unsigned request returned 400 |
+| ✅ | Webhook destination event allowlist | Listen only to the eight payment-completion, refund-lifecycle, and dispute-lifecycle events required | Exact `airco-tracker-pass-webhook` event set verified on 2026-07-17 |
 | ⬜ | `checkout.session.completed` | Correct user, tier, amount, and PaymentIntent are resolved from server metadata and the actual Price | Not tested |
 | ⬜ | `checkout.session.async_payment_succeeded` | Delayed payment grants access only after success; duplicate delivery remains idempotent | Not tested |
 | ⬜ | Replay the event/repeat return sync | Receipt is written once and does not extend 90 days or duplicate entitlement | Not tested |
@@ -99,30 +102,31 @@ Canonical entitlement state is expressed through `tier`, `status`, `purchasedAt`
 
 | Status | Scenario | Expected result | Record |
 | --- | --- | --- | --- |
-| ⬜ | Existing test-mode weekly/monthly subscriptions | Set them to cancel at period end before rollout and prove no further automatic charge will occur | Pending |
-| ⬜ | Four old recurring Prices | Archive in Stripe and make them unreachable from the new UI/API | Pending |
-| ⬜ | GitHub/Azure configuration | Only three one-time Price variables remain; old weekly/monthly/Portal configuration is removed | Pending |
+| ✅ | Existing test-mode weekly/monthly subscriptions | Set them to cancel at period end and prove no further automatic charge will occur | All three scheduled: two end 2026-08-09 and one ends 2026-08-08 |
+| ✅ | Four old recurring Prices | Archive in Stripe and make them unreachable from the new UI/API | Archived on 2026-07-17 |
+| 🚧 | GitHub/Azure configuration | Runtime uses only three one-time Price variables and legacy weekly/monthly/Portal configuration is ultimately removed | Azure has only the three new variables and GitHub has the three new variables; the account holder must complete GitHub sudo/2FA verification before deleting five legacy variables |
 | ⬜ | Legacy user entitlement migration | Preserve only the previously paid legacy period; old subscription webhooks cannot overwrite new Pass receipts | Not tested |
-| ⬜ | Retired APIs | `/api/auth/subscription/preview-payment`, `/api/auth/subscription/cancel`, and `/api/billing/cancel-subscription` all return 404 | Pending deployment verification |
+| ✅ | Retired APIs | `/api/auth/subscription/preview-payment`, `/api/auth/subscription/cancel`, and `/api/billing/cancel-subscription` all return 404 | 2026-07-17 apex production smoke passed |
 
 ## P2: pre-release/production smoke
 
 | Status | Scenario | Expected result | Record |
 | --- | --- | --- | --- |
-| ⬜ | `/health` and `www` health | Return 200 | Pending new release |
-| ⬜ | Anonymous `/api/inventory` | Returns 401 `not_authenticated` | Pending new release |
+| ✅ | `/health` and `www` health | Return 200 and preserve the strict CSP | 2026-07-17 apex + www production smoke passed |
+| ✅ | Anonymous `/api/inventory` | Returns 401 `not_authenticated` | 2026-07-17 production smoke passed |
 | ⬜ | Amount/copy for both products and upgrade | Chinese, Dutch, English, and French show €5/€10/€5 and 90 days with no weekly/monthly/renewal/cancel-subscription copy | Pending visual QA |
-| ⬜ | GitHub Actions + Azure environment | Three Price IDs match Stripe test mode; no secret appears in logs or frontend bundle | Pending verification |
+| 🚧 | GitHub Actions + Azure environment | Three Price IDs match Stripe test mode; no secret appears in logs/frontend bundle; old variables are cleaned up | Azure retains only the three new variables and deployment passed; five old GitHub variables await account-holder sudo/2FA verification and deletion |
+| ✅ | Automated test baseline | Web-server and targeted backend suites all pass | 2026-07-17: 113/113 server tests and 62/62 backend target tests |
 | ⬜ | Production test-mode Alerts purchase | Payment, return, Profile, Ready, and alert projection are correct | Not tested |
 | ⬜ | Production test-mode Radar purchase | Payment, return, Profile, Ready, and inventory access are correct | Not tested |
 | ⬜ | Production test-mode upgrade | €5, immediate Radar, unchanged original expiry | Not tested |
-| ⬜ | Post-deploy automated verification | `scripts/verify-deployment.mjs` passes, including all three retired APIs returning 404 | Pending new release |
+| ✅ | Post-deploy automated verification | `scripts/verify-deployment.mjs` passes, including strict CSP, anonymous 401, and all three retired APIs returning 404 | Frontend workflow `29582313469` and backend `29567315723` passed; revision `airco-tracking-web--0000057` is Healthy/100% |
 
 ## Recommended execution order
 
-1. Switch Stripe test Products/Prices, GitHub variables, and Azure configuration; first stop legacy subscriptions from renewing.
-2. Run local typecheck, tests, build, and receipt/refund/dispute unit tests.
-3. After deployment, run health, anonymous-inventory, and all three retired-endpoint smoke checks.
-4. With a fresh test user, buy Alerts, upgrade to Radar, then test refund/dispute fallback.
-5. Clear or expire that test user, buy Radar directly, and verify the 90-day entitlement and realtime inventory.
-6. Finally test 3D Secure, declined cards, exact expiry, out-of-order webhooks, and concurrency.
+1. Have the account holder complete GitHub sudo/2FA verification and delete the five obsolete variables without changing the three correctly deployed new variables.
+2. With a fresh test user, buy Alerts, upgrade to Radar, then test refund/dispute fallback.
+3. Clear or expire that test user, buy Radar directly, and verify the 90-day entitlement and realtime inventory.
+4. Test 3D Secure, declined cards, exact expiry, out-of-order webhooks, and concurrency.
+5. Separately verify legacy-entitlement migration when the three old subscriptions expire and prove stale events cannot overwrite Pass receipts.
+6. Complete VAT/tax, withdrawal, refund, terms/privacy, and checkout-disclosure work before evaluating Stripe live mode.
