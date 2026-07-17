@@ -244,5 +244,29 @@
     "nl": "Heatwave-pass controleren…",
     "en": "Checking Heatwave Pass…",
     "fr": "Vérification du pass canicule…"
+  },
+  "legal_privacy_link": {
+    "zh": "隐私政策",
+    "nl": "Privacyverklaring",
+    "en": "Privacy policy",
+    "fr": "Politique de confidentialité"
+  },
+  "legal_terms_link": {
+    "zh": "用户协议",
+    "nl": "Servicevoorwaarden",
+    "en": "Terms of service",
+    "fr": "Conditions d’utilisation"
+  },
+  "legal_imprint_link": {
+    "zh": "网站信息",
+    "nl": "Colofon",
+    "en": "Imprint",
+    "fr": "Mentions légales"
+  },
+  "legal_affiliate_link": {
+    "zh": "推广联盟披露",
+    "nl": "Affiliateverklaring",
+    "en": "Affiliate disclosure",
+    "fr": "Information sur l’affiliation"
   }
 }

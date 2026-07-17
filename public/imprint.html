@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#edf8fc" />
+    <meta
+      name="description"
+      content="Operator identification for Airco Tracker."
+    />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>Imprint · Airco Tracker</title>
+    <style>
+      :root {
+        color: #09283d;
+        background: #edf8fc;
+        font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-synthesis: none;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        min-width: 320px;
+        min-height: 100vh;
+        margin: 0;
+        background:
+          radial-gradient(circle at 12% 10%, rgba(45, 212, 239, 0.2), transparent 28rem),
+          radial-gradient(circle at 92% 90%, rgba(14, 130, 186, 0.16), transparent 30rem),
+          linear-gradient(145deg, #f8fdff 0%, #eef8fb 52%, #e6f4f9 100%);
+      }
+
+      a {
+        color: inherit;
+      }
+
+      .page-shell {
+        width: min(100% - 32px, 920px);
+        margin: 0 auto;
+        padding: 24px 0 48px;
+      }
+
+      .site-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+        padding: 10px 12px 10px 10px;
+        border: 1px solid rgba(7, 59, 90, 0.1);
+        border-radius: 22px;
+        background: rgba(255, 255, 255, 0.82);
+        box-shadow: 0 14px 40px rgba(7, 59, 90, 0.08);
+        backdrop-filter: blur(14px);
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 11px;
+        text-decoration: none;
+        font-size: 1rem;
+        font-weight: 820;
+        letter-spacing: -0.02em;
+      }
+
+      .brand-mark {
+        display: grid;
+        width: 42px;
+        height: 42px;
+        place-items: center;
+        border-radius: 14px;
+        background: #f8fdff;
+        box-shadow: inset 0 0 0 1px rgba(7, 59, 90, 0.08);
+      }
+
+      .brand-mark svg {
+        width: 34px;
+        height: 34px;
+      }
+
+      .language-nav {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 5px;
+      }
+
+      .language-link {
+        min-width: 42px;
+        padding: 8px 10px;
+        border-radius: 10px;
+        color: #416173;
+        font-size: 0.78rem;
+        font-weight: 750;
+        letter-spacing: 0.04em;
+        text-align: center;
+        text-decoration: none;
+        text-transform: uppercase;
+        transition: background-color 150ms ease, color 150ms ease, transform 150ms ease;
+      }
+
+      .language-link:hover {
+        background: rgba(13, 111, 159, 0.08);
+        color: #075b8d;
+        transform: translateY(-1px);
+      }
+
+      .language-link[aria-current="page"] {
+        background: #073b5a;
+        color: white;
+      }
+
+      main {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 220px;
+        gap: 26px;
+        align-items: stretch;
+        margin-top: 46px;
+        padding: clamp(28px, 6vw, 60px);
+        border: 1px solid rgba(7, 59, 90, 0.1);
+        border-radius: 34px;
+        background: rgba(255, 255, 255, 0.9);
+        box-shadow: 0 24px 70px rgba(7, 59, 90, 0.12);
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0 0 18px;
+        color: #0d78ad;
+        font-size: 0.76rem;
+        font-weight: 820;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .eyebrow::before {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #22c55e;
+        box-shadow: 0 0 0 5px rgba(34, 197, 94, 0.12);
+        content: "";
+      }
+
+      h1 {
+        max-width: 620px;
+        margin: 0;
+        color: #073b5a;
+        font-family: ui-serif, "New York", "Iowan Old Style", Baskerville, Georgia, serif;
+        font-size: clamp(2.35rem, 6vw, 4.6rem);
+        font-weight: 650;
+        letter-spacing: -0.045em;
+        line-height: 0.98;
+      }
+
+      h2 {
+        margin: 34px 0 0;
+        color: #073b5a;
+        font-size: 1.12rem;
+        letter-spacing: -0.01em;
+      }
+
+      .lead {
+        max-width: 630px;
+        margin: 24px 0 0;
+        color: #183d53;
+        font-size: clamp(1.08rem, 2.2vw, 1.3rem);
+        font-weight: 650;
+        line-height: 1.55;
+      }
+
+      .draft-notice {
+        max-width: 630px;
+        margin: 18px 0 0;
+        padding: 12px 14px;
+        border: 1px dashed rgba(13, 120, 173, 0.45);
+        border-radius: 12px;
+        color: #075b8d;
+        background: rgba(165, 243, 252, 0.18);
+        font-size: 0.9rem;
+        font-weight: 650;
+        line-height: 1.55;
+      }
+
+      .details {
+        max-width: 630px;
+        margin: 14px 0 0;
+        color: #567080;
+        font-size: 0.98rem;
+        line-height: 1.7;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 30px;
+      }
+
+      .button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 50px;
+        padding: 0 20px;
+        border-radius: 15px;
+        font-weight: 780;
+        line-height: 1.2;
+        text-align: center;
+        text-decoration: none;
+        transition: box-shadow 150ms ease, transform 150ms ease;
+      }
+
+      .button:hover {
+        transform: translateY(-2px);
+      }
+
+      .button-primary {
+        color: white;
+        background: linear-gradient(135deg, #10293f 0%, #0e82ba 58%, #2dd4ef 100%);
+        box-shadow: 0 12px 26px rgba(14, 130, 186, 0.23);
+      }
+
+      .trust-card {
+        align-self: center;
+        padding: 24px;
+        border-radius: 24px;
+        color: white;
+        background: linear-gradient(155deg, #10293f 0%, #075b8d 100%);
+        box-shadow: 0 18px 34px rgba(7, 59, 90, 0.2);
+      }
+
+      .trust-icon {
+        display: grid;
+        width: 48px;
+        height: 48px;
+        margin-bottom: 22px;
+        place-items: center;
+        border-radius: 16px;
+        color: #073b5a;
+        background: #a5f3fc;
+        font-size: 1.45rem;
+        font-weight: 900;
+      }
+
+      .trust-title {
+        margin: 0;
+        font-size: 1.06rem;
+        line-height: 1.35;
+      }
+
+      .trust-text {
+        margin: 10px 0 0;
+        color: rgba(255, 255, 255, 0.72);
+        font-size: 0.85rem;
+        line-height: 1.55;
+      }
+
+      footer {
+        padding: 22px 8px 0;
+        color: #66808e;
+        font-size: 0.78rem;
+        line-height: 1.5;
+        text-align: center;
+      }
+
+      :focus-visible {
+        outline: 3px solid rgba(45, 212, 239, 0.7);
+        outline-offset: 3px;
+      }
+
+      @media (max-width: 720px) {
+        .page-shell {
+          width: min(100% - 20px, 920px);
+          padding-top: 10px;
+        }
+
+        .site-header {
+          align-items: flex-start;
+          border-radius: 18px;
+        }
+
+        .brand {
+          margin-top: 1px;
+        }
+
+        .brand-label {
+          display: none;
+        }
+
+        .language-nav {
+          max-width: 190px;
+        }
+
+        main {
+          grid-template-columns: 1fr;
+          margin-top: 20px;
+          padding: 30px 22px 22px;
+          border-radius: 25px;
+        }
+
+        .trust-card {
+          padding: 22px;
+        }
+
+        h1 {
+          font-size: clamp(2.2rem, 13vw, 3.6rem);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          scroll-behavior: auto !important;
+          transition: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="site-header">
+        <a class="brand" href="https://airco-tracker.eu/" aria-label="Airco Tracker home">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 64 64" role="img">
+              <rect x="10" y="20" width="44" height="24" rx="7" fill="#073B5A" />
+              <rect x="17" y="28" width="30" height="4" rx="2" fill="#F8FDFF" />
+              <path d="M20 38c2.5 4 2.5 7 0 10M32 38c2.5 4 2.5 7 0 10M44 38c2.5 4 2.5 7 0 10" fill="none" stroke="#2DD4EF" stroke-linecap="round" stroke-width="3" />
+              <circle cx="49" cy="19" r="7" fill="#22C55E" />
+              <path d="m45.8 19 2.1 2.1 4.1-4.3" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" />
+            </svg>
+          </span>
+          <span class="brand-label">Airco Tracker</span>
+        </a>
+
+        <nav class="language-nav" aria-label="Language">
+          <a class="language-link" data-lang-link="fr" href="?lang=fr" hreflang="fr">FR</a>
+          <a class="language-link" data-lang-link="en" href="?lang=en" hreflang="en" aria-current="page">EN</a>
+          <a class="language-link" data-lang-link="nl" href="?lang=nl" hreflang="nl">NL</a>
+          <a class="language-link" data-lang-link="zh" href="?lang=zh" hreflang="zh">中文</a>
+        </nav>
+      </header>
+
+      <main>
+        <section aria-labelledby="page-title">
+          <p class="eyebrow" data-copy="eyebrow">Imprint</p>
+          <h1 id="page-title" data-copy="title">Imprint</h1>
+          <p class="lead" data-copy="lead">
+            Legal identification of the operator of Airco Tracker.
+          </p>
+          <p class="draft-notice" data-copy="draftNotice">
+            Draft skeleton pending legal review. Every field marked [TODO: …] must be completed by the operator before this page is final.
+          </p>
+
+          <h2 data-copy="s1Title">1. Operator</h2>
+          <p class="details" data-copy="s1Body">
+            [TODO: operator legal name]
+          </p>
+
+          <h2 data-copy="s2Title">2. Address</h2>
+          <p class="details" data-copy="s2Body">
+            [TODO: registered address]
+          </p>
+
+          <h2 data-copy="s3Title">3. Contact</h2>
+          <p class="details" data-copy="s3Body">
+            Email: [TODO: contact email]
+          </p>
+
+          <h2 data-copy="s4Title">4. Registration</h2>
+          <p class="details" data-copy="s4Body">
+            KvK (Dutch Chamber of Commerce): [TODO: KvK number]. VAT identification number: [TODO: VAT number].
+          </p>
+
+          <h2 data-copy="s5Title">5. Responsible person</h2>
+          <p class="details" data-copy="s5Body">
+            [TODO: name of the person responsible for the content]
+          </p>
+
+          <div class="actions">
+            <a
+              class="button button-primary"
+              href="https://airco-tracker.eu/"
+              data-copy="homeCta"
+            >Back to Airco Tracker</a>
+          </div>
+        </section>
+
+        <aside class="trust-card" aria-label="Service note" data-copy-aria="summaryLabel">
+          <div class="trust-icon" aria-hidden="true">i</div>
+          <p class="trust-title" data-copy="summaryTitle">Independent monitoring</p>
+          <p class="trust-text" data-copy="summaryText">
+            Airco Tracker is an independent stock monitor and is not affiliated with the listed retailers.
+          </p>
+        </aside>
+      </main>
+
+      <footer data-copy="footer">Airco Tracker · Independent portable air-conditioner stock monitoring</footer>
+    </div>
+
+    <script src="/imprint.js" defer></script>
+  </body>
+</html>

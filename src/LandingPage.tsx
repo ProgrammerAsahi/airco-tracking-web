@@ -470,6 +470,7 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
 type LandingPageProps = {
   lang: Lang;
   setLang: (next: Lang) => void;
+  t: (key: string, params?: Record<string, string | number>) => string;
 };
 
 function useStoryStepObserver(stepCount: number) {
@@ -505,7 +506,7 @@ function useStoryStepObserver(stepCount: number) {
   return { activeStep, setStepRef };
 }
 
-export function LandingPage({ lang, setLang }: LandingPageProps) {
+export function LandingPage({ lang, setLang, t }: LandingPageProps) {
   const copy = LANDING_COPY[lang];
   const { activeStep, setStepRef } = useStoryStepObserver(2);
   const { activeStep: activeTrackerStep, setStepRef: setTrackerStepRef } = useStoryStepObserver(2);
@@ -858,6 +859,19 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
         </div>
       </section>
 
+      <footer className="page-footer">
+        <span>
+          <a href={`/privacy.html?lang=${lang}`} target="_blank" rel="noopener noreferrer">{t("legal_privacy_link")}</a>
+          {" · "}
+          <a href={`/terms.html?lang=${lang}`} target="_blank" rel="noopener noreferrer">{t("legal_terms_link")}</a>
+          {" · "}
+          <a href={`/imprint.html?lang=${lang}`} target="_blank" rel="noopener noreferrer">{t("legal_imprint_link")}</a>
+          {" · "}
+          <a href={`/affiliate-disclosure.html?lang=${lang}`} target="_blank" rel="noopener noreferrer">{t("legal_affiliate_link")}</a>
+        </span>
+        <span>{copy.productName}</span>
+      </footer>
+
       {loginOpen && (
         <div className="landing-login-backdrop" onMouseDown={closeLogin}>
           <section
@@ -925,6 +939,11 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
               <button type="button" disabled title={copy.socialComingSoon}><span aria-hidden="true">▦</span>{copy.loginWithMicrosoft}</button>
             </div>
             <p className="landing-login-fineprint">{copy.loginFinePrint}</p>
+            <p className="landing-login-fineprint">
+              <a href={`/terms.html?lang=${lang}`} target="_blank" rel="noopener noreferrer">{t("legal_terms_link")}</a>
+              {" · "}
+              <a href={`/privacy.html?lang=${lang}`} target="_blank" rel="noopener noreferrer">{t("legal_privacy_link")}</a>
+            </p>
             <p className="landing-login-preview">{copy.loginPreviewNotice}</p>
           </section>
         </div>

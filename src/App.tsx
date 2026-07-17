@@ -622,7 +622,7 @@ export default function App() {
   }
 
   if (isSubscribeRoute(pathname)) {
-    return <SubscriptionPage lang={lang} setLang={setLang} />;
+    return <SubscriptionPage lang={lang} setLang={setLang} t={t} />;
   }
 
   if (isReadyRoute(pathname)) {
@@ -633,5 +633,5 @@ export default function App() {
     return <UnsubscribePage lang={lang} setLang={setLang} />;
   }
 
-  return <LandingPage lang={lang} setLang={setLang} />;
+  return <LandingPage lang={lang} setLang={setLang} t={t} />;
 }

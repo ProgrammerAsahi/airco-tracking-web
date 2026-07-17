@@ -441,9 +441,10 @@ const SUBSCRIPTION_COPY: Record<Lang, SubscriptionCopy> = {
 type SubscriptionPageProps = {
   lang: Lang;
   setLang: (next: Lang) => void;
+  t: (key: string, params?: Record<string, string | number>) => string;
 };
 
-export function SubscriptionPage({ lang, setLang }: SubscriptionPageProps) {
+export function SubscriptionPage({ lang, setLang, t }: SubscriptionPageProps) {
   const copy = SUBSCRIPTION_COPY[lang];
   const [user, setUser] = useState<UserProfile | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<PaidSubscriptionPlan | null>(null);
@@ -784,6 +785,11 @@ export function SubscriptionPage({ lang, setLang }: SubscriptionPageProps) {
               <button type="button" disabled title={copy.socialComingSoon}><span aria-hidden="true">▦</span>{copy.loginWithMicrosoft}</button>
             </div>
             <p className="landing-login-fineprint">{copy.loginFinePrint}</p>
+            <p className="landing-login-fineprint">
+              <a href={`/terms.html?lang=${lang}`} target="_blank" rel="noopener noreferrer">{t("legal_terms_link")}</a>
+              {" · "}
+              <a href={`/privacy.html?lang=${lang}`} target="_blank" rel="noopener noreferrer">{t("legal_privacy_link")}</a>
+            </p>
             <p className="landing-login-preview">{copy.loginPreviewNotice}</p>
           </section>
         </div>
