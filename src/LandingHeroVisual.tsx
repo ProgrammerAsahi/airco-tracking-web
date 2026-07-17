@@ -36,6 +36,10 @@ export function LandingHeroVisual() {
       visual.style.setProperty("--hero-foreground-y", `${currentY * 11 - currentScroll * 24}px`);
       visual.style.setProperty("--hero-light-x", `${43 + currentX * 14}%`);
       visual.style.setProperty("--hero-light-y", `${28 + currentY * 10}%`);
+      // Warm wash that lets the hero dissolve into the apartment scene
+      // instead of a hard cut between the two photographs.
+      const exitWash = Math.min(1, Math.max(0, (currentScroll - 0.22) / 0.68));
+      visual.style.setProperty("--hero-exit-opacity", `${exitWash * exitWash * (3 - 2 * exitWash) * 0.92}`);
 
       const stillMoving = Math.abs(targetX - currentX) > 0.001
         || Math.abs(targetY - currentY) > 0.001
@@ -78,6 +82,7 @@ export function LandingHeroVisual() {
         "--hero-foreground-y",
         "--hero-light-x",
         "--hero-light-y",
+        "--hero-exit-opacity",
       ].forEach((property) => visual.style.removeProperty(property));
     };
 
@@ -155,6 +160,7 @@ export function LandingHeroVisual() {
       </div>
       <div className="landing-hero-scrim" />
       <div className="landing-hero-depth-frame" />
+      <div className="landing-hero-exit" />
     </div>
   );
 }

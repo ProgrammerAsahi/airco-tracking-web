@@ -33,15 +33,16 @@ type LandingCopy = {
   primaryCta: string;
   secondaryCta: string;
   scrollCue: string;
-  stepOneKicker: string;
-  stepOneTitle: string;
-  stepOneBody: string;
-  stepTwoKicker: string;
-  stepTwoTitle: string;
-  stepTwoBody: string;
-  stepThreeKicker: string;
-  stepThreeTitle: string;
-  stepThreeBody: string;
+  storyHeatKicker: string;
+  storyHeatTitle: string;
+  storyHeatBody: string;
+  storyAlertKicker: string;
+  storyAlertTitle: string;
+  storyAlertBody: string;
+  storyReliefKicker: string;
+  storyReliefTitle: string;
+  storyReliefBody: string;
+  roomTempLabel: string;
   stepFourAlertKicker: string;
   stepFourAlertTitle: string;
   stepFourAlertBody: string;
@@ -124,18 +125,19 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     primaryCta: "购买通行证",
     secondaryCta: "预览法国库存",
     scrollCue: "向下滚动，进入热浪现场",
-    stepOneKicker: "Paris · 38°C",
-    stepOneTitle: "太阳把城市烤成了烤箱。",
-    stepOneBody: "河面反着刺眼的白光，石墙滚烫，行人像被按下慢放键。最热的那几天，空调不只是舒适品，而是家里能不能睡着的分界线。",
-    stepTwoKicker: "巴黎老宅 · 室内 34°C",
-    stepTwoTitle: "窗户开着，<br />热气却散不出去。",
-    stepTwoBody: "风扇只能搅动闷热的空气，厚重的石墙到了夜里仍在释放白天积下的热。这样的热浪里，空调不再是奢侈品，而是能让人好好休息的必需品。",
-    stepThreeKicker: "现货提醒 · 实时雷达",
-    stepThreeTitle: "让现货先找到你。<br />让清凉随后到家。",
-    stepThreeBody: "Airco Tracker 持续追踪能配送到你所在国家的网站，并自动区分现货与预售。<br />空调一上架，我们就立即通知你。",
-    stepFourAlertKicker: "库存上架 · 邮件提醒",
-    stepFourAlertTitle: "不用守着刷新。<br />现货会主动来找你。",
-    stepFourAlertBody: "当能配送到你所在国家的便携空调重新上架，Airco Tracker 会立即发出邮件提醒。点开通知，就能直接查看商家和型号。",
+    storyHeatKicker: "巴黎老宅 · 室内 34°C",
+    storyHeatTitle: "窗户开着，<br />热气却散不出去。",
+    storyHeatBody: "风扇只能搅动闷热的空气，厚重的石墙到了夜里仍在释放白天积下的热。这样的热浪里，空调不再是奢侈品，而是能让人好好休息的必需品。",
+    storyAlertKicker: "库存提醒 · 抢先一步",
+    storyAlertTitle: "别人还在刷新，<br />你已经下单了。",
+    storyAlertBody: "那条「恢复现货」的邮件比所有人早到一步。点进去、下单、付款——两天后，这台便携空调就站到了窗边。",
+    storyReliefKicker: "空调到家 · 室内 24°C",
+    storyReliefTitle: "凉下来的，<br />不只是屋子。",
+    storyReliefBody: "冷气漫过地板的那一刻，紧绷了一天的肩膀松了下来。风扇退休了，窗还开着——但这一次，是因为夜里凉快。",
+    roomTempLabel: "室内温度",
+    stepFourAlertKicker: "这台空调的背后 · Airco Tracker",
+    stepFourAlertTitle: "不是运气。<br />是雷达。",
+    stepFourAlertBody: "46 家欧洲零售商、每 10 分钟一轮扫描、只推真正能配送到你所在国家的现货——预售和多周交期都不算数。你收到的那封邮件，就是别人还没看到的库存。",
     trackerAlertStatus: "刚刚收到",
     trackerAlertSubject: "1 台便携空调恢复库存",
     trackerOverviewLabel: "实时库存预览",
@@ -194,7 +196,7 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     logout: "登出",
     socialComingSoon: "即将接入",
     previewNl: "预览荷兰库存",
-    statSites: "45+ 网站",
+    statSites: "46 家网站",
     statCountries: "法国 / 荷兰",
     statRefresh: "约 10 分钟刷新",
   },
@@ -213,18 +215,19 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     primaryCta: "Koop een pas",
     secondaryCta: "Bekijk Frankrijk",
     scrollCue: "Scroll omlaag voor de hitte",
-    stepOneKicker: "Paris · 38°C",
-    stepOneTitle: "De stad voelt als een oven.",
-    stepOneBody: "Het rivierlicht is fel, de stenen houden warmte vast en iedereen beweegt trager. Op zulke dagen is een mobiele airco ineens geen luxe meer.",
-    stepTwoKicker: "Oud appartement in Parijs · 34 °C binnen",
-    stepTwoTitle: "Het raam staat open.<br />De hitte blijft hangen.",
-    stepTwoBody: "De ventilator verplaatst alleen de benauwde lucht, terwijl de oude stenen muren de warmte tot lang na zonsondergang blijven afgeven. Tijdens zo’n hittegolf is een airco geen luxe meer, maar essentieel om echt tot rust te komen.",
-    stepThreeKicker: "Voorraadmeldingen · live radar",
-    stepThreeTitle: "Laat voorraad jou vinden.<br />De verkoeling<br />volgt vanzelf.",
-    stepThreeBody: "Airco Tracker volgt winkels die in jouw land bezorgen en scheidt voorraad van pre-orders.<br />Zodra een airco beschikbaar is, laten we het je weten.",
-    stepFourAlertKicker: "Terug op voorraad · e-mailmelding",
-    stepFourAlertTitle: "Je hoeft niet te blijven vernieuwen.<br />De voorraad vindt jou.",
-    stepFourAlertBody: "Zodra een mobiele airco die in jouw land kan worden bezorgd weer beschikbaar is, stuurt Airco Tracker direct een e-mail. Via de melding ga je rechtstreeks naar de winkel en het juiste model.",
+    storyHeatKicker: "Oud appartement in Parijs · 34 °C binnen",
+    storyHeatTitle: "Het raam staat open.<br />De hitte blijft hangen.",
+    storyHeatBody: "De ventilator verplaatst alleen de benauwde lucht, terwijl de oude stenen muren de warmte tot lang na zonsondergang blijven afgeven. Tijdens zo’n hittegolf is een airco geen luxe meer, maar essentieel om echt tot rust te komen.",
+    storyAlertKicker: "Voorraadmelding · net iets sneller",
+    storyAlertTitle: "Anderen refreshten nog.<br />Jij had al besteld.",
+    storyAlertBody: "Die mail met ‘weer op voorraad’ kwam bij jou net wat eerder binnen. Aanklikken, bestellen, betalen — twee dagen later stond de mobiele airco al bij het raam.",
+    storyReliefKicker: "Airco thuis · 24 °C binnen",
+    storyReliefTitle: "Het wordt niet alleen<br />de kamer die afkoelt.",
+    storyReliefBody: "Toen de koele lucht over de vloer trok, zakte de spanning van je schouders. De ventilator is met pensioen, en het raam blijft open — nu juist omdat het ’s avonds lekker afkoelt.",
+    roomTempLabel: "Binnentemperatuur",
+    stepFourAlertKicker: "Achter die airco · Airco Tracker",
+    stepFourAlertTitle: "Geen geluk.<br />Wel radar.",
+    stepFourAlertBody: "46 Europese winkels, elke 10 minuten een scan, en alleen voorraad die echt naar jouw land kan worden bezorgd — pre-orders en lange levertijden tellen niet mee. Die ene mail was voorraad dat anderen nog niet hadden gezien.",
     trackerAlertStatus: "Zojuist ontvangen",
     trackerAlertSubject: "1 mobiele airco weer op voorraad",
     trackerOverviewLabel: "Voorbeeld van live voorraad",
@@ -283,7 +286,7 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     logout: "Uitloggen",
     socialComingSoon: "Binnenkort",
     previewNl: "Bekijk Nederland",
-    statSites: "45+ sites",
+    statSites: "46 sites",
     statCountries: "Frankrijk / Nederland",
     statRefresh: "± 10 min refresh",
   },
@@ -302,18 +305,19 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     primaryCta: "Buy a Pass",
     secondaryCta: "Preview France",
     scrollCue: "Scroll into the heatwave",
-    stepOneKicker: "Paris · 38°C",
-    stepOneTitle: "The city turns into an oven.",
-    stepOneBody: "The river throws back white light, stone walls keep the heat, and pedestrians slow to a crawl. On those days, a portable AC stops being a luxury.",
-    stepTwoKicker: "Old Paris apartment · 34°C indoors",
-    stepTwoTitle: "The window is open.<br />The heat won’t leave.",
-    stepTwoBody: "The fan only stirs the heavy air, while old stone walls keep releasing the day’s heat long after sunset. In a heatwave like this, air conditioning is no longer a luxury. It is what finally makes rest possible.",
-    stepThreeKicker: "Stock alerts · live radar",
-    stepThreeTitle: "Let stock find you.<br />Let cool air follow.",
-    stepThreeBody: "Airco Tracker monitors stores that deliver to your country and separates in-stock units from pre-orders.<br />The moment an AC becomes available, we let you know.",
-    stepFourAlertKicker: "Back in stock · email alert",
-    stepFourAlertTitle: "Stop refreshing.<br />Stock comes to you.",
-    stepFourAlertBody: "When a portable air conditioner that can be delivered to your country comes back in stock, Airco Tracker sends an email straight away. Open the alert to jump straight to the retailer and model.",
+    storyHeatKicker: "Old Paris apartment · 34°C indoors",
+    storyHeatTitle: "The window is open.<br />The heat won’t leave.",
+    storyHeatBody: "The fan only stirs the heavy air, while old stone walls keep releasing the day’s heat long after sunset. In a heatwave like this, air conditioning is no longer a luxury. It is what finally makes rest possible.",
+    storyAlertKicker: "Stock alert · one step ahead",
+    storyAlertTitle: "They were still refreshing.<br />You had already ordered.",
+    storyAlertBody: "That “back in stock” email reached you before everyone else. Open, order, pay — two days later the portable AC was humming by the window.",
+    storyReliefKicker: "AC delivered · 24°C indoors",
+    storyReliefTitle: "It isn’t only the room<br />that cools down.",
+    storyReliefBody: "As the cool air rolled across the floor, the day’s tension finally left your shoulders. The fan is retired, and the window stays open — this time because the evening is pleasant.",
+    roomTempLabel: "Indoor temperature",
+    stepFourAlertKicker: "Behind that AC · Airco Tracker",
+    stepFourAlertTitle: "Not luck.<br />Radar.",
+    stepFourAlertBody: "46 European retailers, a scan every 10 minutes, and only stock that can actually be delivered to your country — pre-orders and multi-week lead times don’t count. That email was stock nobody else had seen yet.",
     trackerAlertStatus: "Just received",
     trackerAlertSubject: "1 portable AC back in stock",
     trackerOverviewLabel: "Live stock preview",
@@ -372,7 +376,7 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     logout: "Log out",
     socialComingSoon: "Coming soon",
     previewNl: "Preview Netherlands",
-    statSites: "45+ sites",
+    statSites: "46 sites",
     statCountries: "France / Netherlands",
     statRefresh: "≈ 10 min refresh",
   },
@@ -391,18 +395,19 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     primaryCta: "Acheter un pass",
     secondaryCta: "Voir la France",
     scrollCue: "Faites défiler pour entrer dans la canicule",
-    stepOneKicker: "Paris · 38 °C",
-    stepOneTitle: "La ville se transforme en four.",
-    stepOneBody: "Le fleuve renvoie une lumière blanche, les murs de pierre gardent la chaleur et les passants avancent au ralenti. Ces jours-là, un climatiseur mobile n’est plus un luxe.",
-    stepTwoKicker: "Appartement ancien à Paris · 34 °C à l’intérieur",
-    stepTwoTitle: "La fenêtre est ouverte.<br />La chaleur, elle, reste.",
-    stepTwoBody: "Le ventilateur ne fait que brasser un air étouffant, tandis que les vieux murs restituent encore la chaleur bien après le coucher du soleil. Dans une telle canicule, la climatisation n’est plus un luxe : elle devient essentielle pour vraiment se reposer.",
-    stepThreeKicker: "Alertes de stock · radar en direct",
-    stepThreeTitle: "Laissez le stock<br />venir à vous.<br />La fraîcheur suivra.",
-    stepThreeBody: "Airco Tracker surveille les magasins qui livrent dans votre pays et distingue le stock des précommandes.<br />Dès qu’un climatiseur est disponible, nous vous prévenons.",
-    stepFourAlertKicker: "Retour en stock · alerte e-mail",
-    stepFourAlertTitle: "Plus besoin d’actualiser la page.<br />Le stock vient à vous.",
-    stepFourAlertBody: "Dès qu’un climatiseur mobile livrable dans votre pays revient en stock, Airco Tracker vous prévient par e-mail. Ouvrez l’alerte pour retrouver aussitôt le magasin et le modèle.",
+    storyHeatKicker: "Appartement ancien à Paris · 34 °C à l’intérieur",
+    storyHeatTitle: "La fenêtre est ouverte.<br />La chaleur, elle, reste.",
+    storyHeatBody: "Le ventilateur ne fait que brasser un air étouffant, tandis que les vieux murs restituent encore la chaleur bien après le coucher du soleil. Dans une telle canicule, la climatisation n’est plus un luxe : elle devient essentielle pour vraiment se reposer.",
+    storyAlertKicker: "Alerte stock · un temps d’avance",
+    storyAlertTitle: "Les autres rafraîchissaient encore.<br />Vous aviez déjà commandé.",
+    storyAlertBody: "Cet e-mail « de retour en stock » est arrivé chez vous avant tout le monde. Ouvrir, commander, payer — deux jours plus tard, le climatiseur mobile soufflait déjà près de la fenêtre.",
+    storyReliefKicker: "Clim livrée · 24 °C à l’intérieur",
+    storyReliefTitle: "Ce n’est pas seulement<br />la pièce qui se rafraîchit.",
+    storyReliefBody: "Quand l’air frais a glissé sur le parquet, la tension de la journée a quitté vos épaules. Le ventilateur est à la retraite, et la fenêtre reste ouverte — cette fois parce que la soirée est douce.",
+    roomTempLabel: "Température intérieure",
+    stepFourAlertKicker: "Derrière cette clim · Airco Tracker",
+    stepFourAlertTitle: "Pas de chance.<br />Un radar.",
+    stepFourAlertBody: "46 enseignes européennes, un balayage toutes les 10 minutes, et uniquement du stock réellement livrable dans votre pays — précommandes et longs délais exclus. Cet e-mail, c’était du stock que personne d’autre n’avait encore vu.",
     trackerAlertStatus: "Reçue à l’instant",
     trackerAlertSubject: "1 climatiseur mobile de nouveau en stock",
     trackerOverviewLabel: "Aperçu du stock en temps réel",
@@ -461,7 +466,7 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     logout: "Se déconnecter",
     socialComingSoon: "Bientôt disponible",
     previewNl: "Voir les Pays-Bas",
-    statSites: "Plus de 45 sites",
+    statSites: "46 sites",
     statCountries: "France / Pays-Bas",
     statRefresh: "Actualisation toutes les 10 min environ",
   },
@@ -508,7 +513,7 @@ function useStoryStepObserver(stepCount: number) {
 
 export function LandingPage({ lang, setLang, t }: LandingPageProps) {
   const copy = LANDING_COPY[lang];
-  const { activeStep, setStepRef } = useStoryStepObserver(2);
+  const { activeStep, setStepRef } = useStoryStepObserver(3);
   const { activeStep: activeTrackerStep, setStepRef: setTrackerStepRef } = useStoryStepObserver(2);
   const [coolingPreview, setCoolingPreview] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
@@ -751,21 +756,39 @@ export function LandingPage({ lang, setLang, t }: LandingPageProps) {
 
       <section id="heatwave" className="landing-story" aria-label={copy.navStory}>
         <div className="landing-stage" aria-hidden="true">
-          <LandingStoryVisual />
+          <LandingStoryVisual tempLabel={copy.roomTempLabel} />
+          <div className="landing-story-alert-chip">
+            <span className="landing-story-alert-chip-icon" aria-hidden="true">✦</span>
+            <div>
+              <span>{copy.trackerAlertStatus}</span>
+              <strong>{copy.trackerAlertSubject}</strong>
+              <small>Rue du Commerce · {copy.trackerPriceValue}</small>
+            </div>
+          </div>
+          <div className="landing-story-dots">
+            <i /><i /><i />
+          </div>
         </div>
         <div className="landing-story-copy">
           <article className="landing-story-step landing-story-step--room landing-story-step--right" data-step="0" ref={setStepRef(0)}>
             <div className="landing-story-card">
-              <p className="landing-kicker">{copy.stepTwoKicker}</p>
-              <h2>{renderLandingLines(copy.stepTwoTitle)}</h2>
-              <p>{copy.stepTwoBody}</p>
+              <p className="landing-kicker">{copy.storyHeatKicker}</p>
+              <h2>{renderLandingLines(copy.storyHeatTitle)}</h2>
+              <p>{copy.storyHeatBody}</p>
             </div>
           </article>
-          <article className="landing-story-step landing-story-step--solution landing-story-step--right" data-step="1" ref={setStepRef(1)}>
+          <article className="landing-story-step landing-story-step--alert landing-story-step--right" data-step="1" ref={setStepRef(1)}>
             <div className="landing-story-card">
-              <p className="landing-kicker">{copy.stepThreeKicker}</p>
-              <h2>{renderLandingLines(copy.stepThreeTitle)}</h2>
-              <p>{renderLandingLines(copy.stepThreeBody)}</p>
+              <p className="landing-kicker">{copy.storyAlertKicker}</p>
+              <h2>{renderLandingLines(copy.storyAlertTitle)}</h2>
+              <p>{copy.storyAlertBody}</p>
+            </div>
+          </article>
+          <article className="landing-story-step landing-story-step--solution landing-story-step--right" data-step="2" ref={setStepRef(2)}>
+            <div className="landing-story-card">
+              <p className="landing-kicker">{copy.storyReliefKicker}</p>
+              <h2>{renderLandingLines(copy.storyReliefTitle)}</h2>
+              <p>{renderLandingLines(copy.storyReliefBody)}</p>
               <button className="landing-primary-button" type="button" onClick={openLogin}>
                 {copy.primaryCta}
               </button>

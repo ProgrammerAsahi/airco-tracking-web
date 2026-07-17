@@ -1,7 +1,12 @@
 import { useEffect, useRef } from "react";
 
-export function LandingStoryVisual() {
+type LandingStoryVisualProps = {
+  tempLabel: string;
+};
+
+export function LandingStoryVisual({ tempLabel }: LandingStoryVisualProps) {
   const visualRef = useRef<HTMLDivElement | null>(null);
+  const tempValueRef = useRef<HTMLSpanElement | null>(null);
 
   useEffect(() => {
     const visual = visualRef.current;
@@ -45,7 +50,19 @@ export function LandingStoryVisual() {
         "--room-cooling-opacity",
         "--room-transition-mist-opacity",
         "--room-cool-wave-x",
+        "--room-temp-hue",
       ].forEach((property) => visual.style.removeProperty(property));
+    };
+
+    // The temperature badge mirrors the visual cool-down: 34 °C while the
+    // room is hot, easing to 24 °C as the cool layer takes over.
+    const renderTemp = (coolProgress: number) => {
+      const badge = tempValueRef.current;
+      if (!badge) return;
+      const temp = Math.round(34 - coolProgress * 10);
+      const text = `${temp}°C`;
+      if (badge.textContent !== text) badge.textContent = text;
+      visual.style.setProperty("--room-temp-hue", `${16 + coolProgress * 183}`);
     };
 
     const renderFrame = () => {
@@ -56,11 +73,14 @@ export function LandingStoryVisual() {
       currentY += (targetY - currentY) * 0.09;
       currentProgress += (targetProgress - currentProgress) * 0.1;
 
-      const coolLinear = Math.min(1, Math.max(0, (currentProgress - 0.34) / 0.56));
+      // Cooling spans the "snagged it" beat and completes as the relief
+      // beat settles in, so the room is fully cool for the emotional payoff.
+      const coolLinear = Math.min(1, Math.max(0, (currentProgress - 0.38) / 0.4));
       const coolProgress = coolLinear * coolLinear * (3 - 2 * coolLinear);
       const transitionMist = Math.sin(coolProgress * Math.PI) * 0.30;
       const revealOuter = coolProgress === 0 ? 0 : coolProgress * 150 + 10;
       const revealInner = Math.max(0, revealOuter - 32);
+      renderTemp(coolProgress);
 
       visual.style.setProperty("--room-image-x", `${currentX * -12}px`);
       visual.style.setProperty("--room-image-y", `${currentY * -7 - currentProgress * 15}px`);
@@ -100,6 +120,13 @@ export function LandingStoryVisual() {
       const rect = story.getBoundingClientRect();
       const distance = Math.max(rect.height - window.innerHeight, 1);
       targetProgress = Math.min(1, Math.max(0, -rect.top / distance));
+      if (!motionEnabled()) {
+        // Reduced motion skips the lerped frames, but the badge still
+        // tracks the section so the readout never lies.
+        const coolLinear = Math.min(1, Math.max(0, (targetProgress - 0.38) / 0.4));
+        renderTemp(coolLinear * coolLinear * (3 - 2 * coolLinear));
+        return;
+      }
       scheduleFrame();
     };
 
@@ -128,6 +155,7 @@ export function LandingStoryVisual() {
         currentY = 0;
         currentProgress = 0;
         clearMotionStyles();
+        if (tempValueRef.current) tempValueRef.current.textContent = "34°C";
         return;
       }
       if (!finePointer.matches) {
@@ -214,6 +242,10 @@ export function LandingStoryVisual() {
       <div className="landing-room-scene-scrim" />
       <div className="landing-room-scene-entry" />
       <div className="landing-room-scene-depth" />
+      <div className="landing-room-temp">
+        <span ref={tempValueRef} className="landing-room-temp-value">34°C</span>
+        <span className="landing-room-temp-label">{tempLabel}</span>
+      </div>
     </div>
   );
 }

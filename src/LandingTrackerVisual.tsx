@@ -14,6 +14,7 @@ const MOTION_PROPERTIES = [
   "--tracker-retailer-opacity",
   "--tracker-model-opacity",
   "--tracker-price-opacity",
+  "--tracker-entry-opacity",
 ] as const;
 
 function smoothStep(value: number): number {
@@ -73,6 +74,9 @@ export function LandingTrackerVisual() {
       story.style.setProperty("--tracker-retailer-opacity", `${smoothStep((progress - 0.64) / 0.10)}`);
       story.style.setProperty("--tracker-model-opacity", `${smoothStep((progress - 0.72) / 0.10)}`);
       story.style.setProperty("--tracker-price-opacity", `${smoothStep((progress - 0.80) / 0.10)}`);
+      // Cool wash carried over from the relieved apartment scene, fading
+      // out as the tracker section scrolls in.
+      story.style.setProperty("--tracker-entry-opacity", `${Math.max(0, 0.62 - progress * 2.6)}`);
 
       const stillMoving = Math.abs(targetX - currentX) > 0.001
         || Math.abs(targetY - currentY) > 0.001
@@ -180,6 +184,7 @@ export function LandingTrackerVisual() {
       <div className="landing-tracker-scene-glints"><i /><i /><i /></div>
       <div className="landing-tracker-scene-scrim" />
       <div className="landing-tracker-scene-depth" />
+      <div className="landing-tracker-scene-entry-wash" />
     </div>
   );
 }
