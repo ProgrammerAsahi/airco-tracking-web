@@ -25,10 +25,10 @@ The coordinated frontend/backend design uses a stable user UUID and a minimal, 3
 - Container App: `airco-tracking-web`
 - Azure resource group: `airco-tracker-rg`
 - Backend repository: `https://github.com/ProgrammerAsahi/airco-tracking`
-- Deployed frontend commit/image: `aircotrackertdzvfmmi.azurecr.io/airco-tracking-web:ceff82e63d88abde90b7b9e2164a42fb29294d5c`
+- Deployed frontend commit/image: `aircotrackertdzvfmmi.azurecr.io/airco-tracking-web:c2cbc792b875db6704191d0eaf12147cbc3d8ce5`
 - Coordinated backend commit/image: `e6d1f3a6d5c6ee782c4459b0eefe9ed7da3a86d9`
-- Ready revision: `airco-tracking-web--0000058`; provisioning state `Provisioned`; revision health `Healthy`; traffic 100%
-- Successful deployment workflow runs: frontend `29611600902`, backend `29611560636`
+- Ready revision: `airco-tracking-web--0000059`; provisioning state `Provisioned`; revision health `Healthy`; traffic 100%
+- Successful deployment workflow runs: frontend `29616679434`, backend `29611560636`
 - Deployment workflow: `.github/workflows/deploy.yml`; Markdown/docs-only pushes do not deploy
 
 Both custom web hostnames and their existing managed-certificate names are declared in `infra/app.bicep`. Do not remove those `customDomains` entries: an application Bicep deployment would otherwise clear the bindings.
@@ -37,7 +37,7 @@ Both custom web hostnames and their existing managed-certificate names are decla
 
 ### Browser UI and routing
 
-- `/` is the public heatwave-themed landing portal. Its five-part sticky-scroll narrative moves from the Seine heatwave to a stifling Paris apartment, PortaSplit cooling, a notification/live-radar scene built from the real French inventory UI, and a blue-hour Seine finale viewed from outside the now-cool apartment. The fourth scene stages email and stock-data reveals. The fifth scene adds restrained pointer/scroll parallax, warm window light, river glints, dark-background typography tuned per language, a Pass CTA, and an optimized 1672×941 background. All scenes share responsive four-language copy and reduced-motion fallbacks. Logged-in users with an active Pass are directed to the cool Ready experience instead of being shown the acquisition portal again.
+- `/` is the public heatwave-themed landing portal. Its sticky-scroll narrative now plays as three explicit story beats between the Seine heatwave hero and the blue-hour finale: the sweltering Paris apartment, the "snagged it" beat where a stock-alert notification chip appears in the scene while the cool-layer reveal begins, and the relief beat where the cooled room is fully revealed as the emotional payoff with the Pass CTA. A live temperature badge counts down 34→24 °C alongside the cool-layer reveal (text via `textContent`, hue via a custom property, both CSP-safe), three beat dots mark the narrative position, and warm/cool entry/exit washes dissolve the cuts between hero, room, and tracker scenes. The tracker scene copy now credits the radar instead of luck ("Not luck. Radar."), and the scene stages email and stock-data reveals from the real French inventory UI. The finale keeps restrained pointer/scroll parallax, warm window light, river glints, dark-background typography tuned per language, a Pass CTA, and an optimized 1672×941 background. All scenes share responsive four-language copy and reduced-motion fallbacks. Logged-in users with an active Pass are directed to the cool Ready experience instead of being shown the acquisition portal again.
 - Email-code login is implemented. First-time users choose a nickname; Google, Apple, and Microsoft buttons remain explicit placeholders and do not start OAuth.
 - `/profile` supports nickname and verified-email changes, language preference, delivery country, logout, Pass status/expiry, Alerts-to-Radar upgrade, and account deletion when no active entitlement remains.
 - `/subscribe` offers two Stripe test-mode products: Heatwave Alerts Pass (`alerts`, €5) and Heatwave Radar Pass (`radar`, €10), each valid for 90 days. The active Pass is disabled in the UI; active Alerts users receive a dedicated €5 Radar upgrade that takes effect immediately and preserves the original expiry.
@@ -107,9 +107,10 @@ All four legacy recurring Prices are archived. Three legacy Sandbox subscription
 
 The current production release is deployed and verified:
 
-- Frontend workflow `29611600902` deployed commit `ceff82e63d88abde90b7b9e2164a42fb29294d5c` after approval through the new `production` environment gate; backend workflow `29611560636` deployed commit `e6d1f3a6d5c6ee782c4459b0eefe9ed7da3a86d9`.
-- Production runs ready web revision `airco-tracking-web--0000058` with provisioning state `Provisioned`, revision health `Healthy`, and 100% traffic.
-- `/`, `/privacy.html`, `/terms.html`, `/imprint.html`, `/health`, the `www` host, and `/deliver-to/nl` all return 200; anonymous `/api/inventory` still returns 401; the strict CSP is intact; and the four new `legal_*` i18n keys are served in the embedded payload.
+- Frontend workflow `29616679434` deployed commit `c2cbc792b875db6704191d0eaf12147cbc3d8ce5` after approval through the `production` environment gate; backend workflow `29611560636` deployed commit `e6d1f3a6d5c6ee782c4459b0eefe9ed7da3a86d9`.
+- Production runs ready web revision `airco-tracking-web--0000059` with provisioning state `Provisioned`, revision health `Healthy`, and 100% traffic.
+- `/`, `/privacy.html`, `/terms.html`, `/imprint.html`, `/health`, the `www` host, and `/deliver-to/nl` all return 200; anonymous `/api/inventory` still returns 401; the strict CSP is intact; and the four `legal_*` i18n keys are served in the embedded payload.
+- The three-beat landing story is live: the served bundle contains the temperature badge, alert chip, beat dots, hero exit wash, tracker entry wash, and the new four-language story/attribution copy. Local checks before release: 113/113 tests, typecheck, build, and a production-mode smoke run.
 - Production i18n Table was reseeded to 64 entries across the `web` and `email` scopes before release; automated contracts confirm every key has exactly four non-empty `zh`/`nl`/`en`/`fr` values and that the frontend/backend web maps match.
 
 ## Known limitations and next work
@@ -120,7 +121,7 @@ The current production release is deployed and verified:
 4. Production uses the verified customer-managed `airco-tracker.eu` ACS sender. A higher-quota request remains open; keep the current one-worker/13-second limit and gradual domain warm-up until Azure approves it. The first real OTP login email under the new `aircontrack-acs-email-sender` role still needs a one-time confirmation.
 5. The four-language legal skeletons (`/privacy.html`, `/terms.html`, `/imprint.html`) ship with visible `[TODO]` placeholders for operator identity, VAT treatment, refund policy, and governing law; the copy must be filled and legally reviewed before real payments. VAT/OSS and withdrawal-right details remain prerequisites for leaving Stripe test mode.
 6. There is no committed Playwright visual/accessibility regression suite or dedicated production alert for repeated frontend/API failures.
-7. Browser visual QA of the new landing-footer and login-consent legal links is recommended.
+7. Browser visual QA of the new landing-footer and login-consent legal links is recommended. The rebuilt three-beat landing story (temperature badge, alert chip, beat dots, scene washes, new four-language copy) likewise needs fresh desktop and narrow-viewport visual QA.
 
 ## Resume checklist
 
