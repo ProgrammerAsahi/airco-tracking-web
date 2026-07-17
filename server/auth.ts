@@ -8,23 +8,20 @@ import {
 import { EmailClient, type EmailMessage } from "@azure/communication-email";
 import { DefaultAzureCredential } from "@azure/identity";
 import {
-  isSubscriptionPlan,
   isDeliveryCountry,
+  entitlementIsActive,
+  isEntitlementStatus,
+  isEntitlementTier,
   isLanguagePreference,
-  isPaidSubscriptionPlan,
   isPaymentMethod,
-  isSubscriptionStatus,
   isValidEmail,
   hasEmailAlertAccess,
   normalizeEmail,
-  SUBSCRIPTION_PLAN_DETAILS,
-  subscriptionIsActive,
   validateNickname,
   type DeliveryCountry,
-  type PaidSubscriptionPlan,
+  type EntitlementStatus,
+  type EntitlementTier,
   type PaymentMethod,
-  type SubscriptionPlan,
-  type SubscriptionStatus,
   type UserProfile,
 } from "../shared/auth.js";
 import type { Lang } from "../shared/i18n.js";
@@ -46,6 +43,7 @@ type StoredAuthCodeRecord = AuthCodeRecord & {
 
 type SessionRecord = {
   sessionHash: string;
+  userId: string | null;
   email: string;
   expiresAt: string;
   createdAt: string;
@@ -66,7 +64,7 @@ type AuthStore = {
   getSession(sessionHash: string): Promise<SessionRecord | null>;
   upsertSession(record: SessionRecord): Promise<void>;
   deleteSession(sessionHash: string): Promise<void>;
-  deleteSessionsForEmail(email: string): Promise<void>;
+  deleteSessionsForUser(userId: string, email: string): Promise<void>;
   updateSessionsEmail(oldEmail: string, newEmail: string): Promise<void>;
 };
 
@@ -114,6 +112,8 @@ export type StoredUserProfile = UserProfile & {
   userId: string;
   profileRevision: number;
   emailAlertsTokenVersion: number;
+  stripeCustomerId: string | null;
+  passReceipts: PassReceipt[];
 };
 
 export type RequestCodeResult = {
@@ -122,18 +122,30 @@ export type RequestCodeResult = {
   devCode?: string;
 };
 
-type PaymentDisplayDetails = {
+export type PassReceiptKind = "legacy" | "purchase" | "upgrade";
+export type PassReceiptStatus = "active" | "refunded" | "revoked";
+
+export type PassReceipt = {
+  id: string;
+  kind: PassReceiptKind;
+  tier: Exclude<EntitlementTier, "none">;
+  baseReceiptId: string | null;
+  purchasedAt: string;
+  expiresAt: string;
+  status: PassReceiptStatus;
   paymentBrand: string | null;
   paymentLast4: string | null;
 };
 
-export type StripeSubscriptionSnapshot = {
+export type StripePassPurchase = {
+  userId: string;
   stripeCustomerId: string;
-  stripeSubscriptionId: string | null;
-  plan: PaidSubscriptionPlan | null;
-  status: SubscriptionStatus;
-  currentPeriodEnd: string | null;
-  cancelAtPeriodEnd: boolean;
+  stripePaymentIntentId: string;
+  kind: Exclude<PassReceiptKind, "legacy">;
+  baseReceiptId: string | null;
+  tier: Exclude<EntitlementTier, "none">;
+  expiresAt: string;
+  purchasedAt: string;
   paymentBrand: string | null;
   paymentLast4: string | null;
 };
@@ -146,14 +158,15 @@ const DEFAULT_RESEND_SECONDS = 60;
 const DEFAULT_MAX_ATTEMPTS = 5;
 const DEFAULT_SESSION_TTL_SECONDS = 30 * 24 * 60 * 60;
 const DEFAULT_COOKIE_NAME = "airco_session";
+const MINIMUM_REPURCHASE_REMAINING_MILLISECONDS = 60 * 60 * 1000;
 const ALERT_RECIPIENT_SHARD_COUNT = 32;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const USER_ROW_PREFIX = "id:";
 const EMAIL_INDEX_PREFIX = "email:";
 const STRIPE_INDEX_PREFIX = "stripe:";
 
-export const AUTH_SUBSCRIPTION_PLAN_DEFAULT: SubscriptionPlan = "none";
-export const AUTH_SUBSCRIPTION_STATUS_DEFAULT: SubscriptionStatus = "none";
+export const AUTH_ENTITLEMENT_TIER_DEFAULT: EntitlementTier = "none";
+export const AUTH_ENTITLEMENT_STATUS_DEFAULT: EntitlementStatus = "none";
 export const AUTH_LANGUAGE_DEFAULT: Lang = "zh";
 export const AUTH_DELIVERY_COUNTRY_DEFAULT: DeliveryCountry = "fr";
 
@@ -338,9 +351,13 @@ export type AlertRecipientEntity = {
   email: string;
   language: Lang;
   deliveryCountry: DeliveryCountry;
-  subscriptionPlan: SubscriptionPlan;
-  status: SubscriptionStatus;
-  currentPeriodEnd: string;
+  entitlementTier: EntitlementTier;
+  entitlementStatus: EntitlementStatus;
+  entitlementExpiresAt: string;
+  /** Legacy projection columns, accepted only for an in-place schema migration. */
+  subscriptionPlan?: string;
+  status?: string;
+  currentPeriodEnd?: string;
   enabled: boolean;
   unsubscribeTokenVersion: number;
   updatedAt: string;
@@ -354,9 +371,9 @@ export function alertRecipientEntity(user: StoredUserProfile, now = Date.now()):
     email: normalizeEmail(user.email),
     language: user.languagePreference,
     deliveryCountry: user.deliveryCountry,
-    subscriptionPlan: user.subscriptionPlan,
-    status: user.subscriptionStatus,
-    currentPeriodEnd: user.subscriptionCurrentPeriodEnd ?? "",
+    entitlementTier: user.entitlementTier,
+    entitlementStatus: user.entitlementStatus,
+    entitlementExpiresAt: user.entitlementExpiresAt ?? "",
     enabled: hasEmailAlertAccess(user, now),
     unsubscribeTokenVersion: user.emailAlertsTokenVersion,
     updatedAt: user.updatedAt,
@@ -400,9 +417,9 @@ export class AlertRecipientProjectionStore {
       email: "",
       language: AUTH_LANGUAGE_DEFAULT,
       deliveryCountry: AUTH_DELIVERY_COUNTRY_DEFAULT,
-      subscriptionPlan: "none",
-      status: "none",
-      currentPeriodEnd: "",
+      entitlementTier: "none",
+      entitlementStatus: "none",
+      entitlementExpiresAt: "",
       enabled: false,
       unsubscribeTokenVersion: 1,
       updatedAt: nowIso(),
@@ -433,6 +450,16 @@ export class AlertRecipientProjectionStore {
       if (currentRevision > desired.sourceRevision) return;
       if (currentRevision === desired.sourceRevision) {
         if (sameAlertRecipientPayload(current, desired)) return;
+        if (legacyAlertRecipientPayloadMatches(current, desired)) {
+          if (!current.etag) throw new Error("Alert recipient projection is missing its ETag");
+          try {
+            await this.table.updateEntity(desired, current.etag);
+            return;
+          } catch (error) {
+            if (isPreconditionError(error)) continue;
+            throw error;
+          }
+        }
         throw new Error("Alert recipient projection has conflicting payloads at one revision");
       }
       if (!current.etag) throw new Error("Alert recipient projection is missing its ETag");
@@ -459,6 +486,29 @@ export class AlertRecipientProjectionStore {
   }
 }
 
+function legacyAlertRecipientPayloadMatches(
+  current: AlertRecipientEntity,
+  desired: AlertRecipientEntity,
+): boolean {
+  if (typeof current.subscriptionPlan !== "string" || typeof current.currentPeriodEnd !== "string") {
+    return false;
+  }
+  const legacyTier = legacyEntitlementTier(current.subscriptionPlan);
+  const legacyStatus = current.status === "active" || current.status === "canceled" ? "active" : "none";
+  return current.partitionKey === desired.partitionKey
+    && current.rowKey === desired.rowKey
+    && current.email === desired.email
+    && current.language === desired.language
+    && current.deliveryCountry === desired.deliveryCountry
+    && legacyTier === desired.entitlementTier
+    && legacyStatus === desired.entitlementStatus
+    && current.currentPeriodEnd === desired.entitlementExpiresAt
+    && Boolean(current.enabled) === Boolean(desired.enabled)
+    && normalizeProfileRevision(current.unsubscribeTokenVersion) === desired.unsubscribeTokenVersion
+    && current.updatedAt === desired.updatedAt
+    && normalizeProfileRevision(current.sourceRevision, 0) === desired.sourceRevision;
+}
+
 function sameAlertRecipientPayload(
   left: AlertRecipientEntity,
   right: AlertRecipientEntity,
@@ -468,9 +518,9 @@ function sameAlertRecipientPayload(
     && left.email === right.email
     && left.language === right.language
     && left.deliveryCountry === right.deliveryCountry
-    && left.subscriptionPlan === right.subscriptionPlan
-    && left.status === right.status
-    && left.currentPeriodEnd === right.currentPeriodEnd
+    && left.entitlementTier === right.entitlementTier
+    && left.entitlementStatus === right.entitlementStatus
+    && left.entitlementExpiresAt === right.entitlementExpiresAt
     && Boolean(left.enabled) === Boolean(right.enabled)
     // A legacy projection has no token version; version 1 is its compatible
     // default until the next canonical profile mutation rewrites the row.
@@ -761,7 +811,14 @@ export class TableAuthStore implements AuthStore {
         if (isConflictError(error)) throw new AuthHttpError(409, "stripe_customer_taken");
         throw error;
       }
-      await this.recipients.upsert(desired);
+      const sideEffects = await Promise.allSettled([
+        this.recipients.upsert(desired),
+        ...(oldStripeIndex ? [this.cleanupInactiveIndex(String(oldStripeIndex.rowKey))] : []),
+      ]);
+      if (sideEffects[0]?.status === "rejected") throw sideEffects[0].reason;
+      if (sideEffects.some((result, index) => index > 0 && result.status === "rejected")) {
+        console.error("post_commit_stripe_index_cleanup_deferred");
+      }
       return desired;
     }
     throw new AuthHttpError(409, "profile_conflict");
@@ -818,8 +875,8 @@ export class TableAuthStore implements AuthStore {
       const activeEntity = await this.activeEntityByUserId(userId);
       if (!activeEntity) return;
       const current = userFromEntity(activeEntity);
-      if (subscriptionIsActive(settleSubscription(current))) {
-        throw new AuthHttpError(409, "active_subscription");
+      if (entitlementIsActive(settleEntitlement(current))) {
+        throw new AuthHttpError(409, "active_entitlement");
       }
       const emailIndex = await this.indexEntity(emailIndexRowKey(current.email));
       const stripeIndex = current.stripeCustomerId
@@ -842,13 +899,15 @@ export class TableAuthStore implements AuthStore {
         throw error;
       }
 
-      if (options.deleteProjection !== false) await this.recipients.suppress(userId, deletionRevision);
-      await Promise.all([
+      const sideEffects = await Promise.allSettled([
+        ...(options.deleteProjection !== false ? [this.recipients.suppress(userId, deletionRevision)] : []),
         this.cleanupDeletedCanonical(userId),
         ...(emailIndex ? [this.cleanupInactiveIndex(String(emailIndex.rowKey))] : []),
-        // Keep the non-PII Stripe tombstone so delayed signed webhooks remain O(1)
-        // and cannot accidentally bind the retired customer ID to another user.
+        ...(stripeIndex ? [this.cleanupInactiveIndex(String(stripeIndex.rowKey))] : []),
       ]);
+      for (const result of sideEffects) {
+        if (result.status === "rejected") console.error("post_commit_account_deletion_repair_deferred");
+      }
       return;
     }
     throw new AuthHttpError(409, "profile_conflict");
@@ -910,13 +969,13 @@ export class TableAuthStore implements AuthStore {
     }
   }
 
-  async deleteSessionsForEmail(email: string): Promise<void> {
+  async deleteSessionsForUser(userId: string, email: string): Promise<void> {
     const normalized = normalizeEmail(email);
     const entities = this.sessions.listEntities<SessionEntity>({
       queryOptions: { filter: `PartitionKey eq '${SESSION_PARTITION}'` },
     });
     for await (const entity of entities) {
-      if (normalizeEmail(entity.email) !== normalized) continue;
+      if (entity.userId !== userId && normalizeEmail(entity.email) !== normalized) continue;
       await this.deleteSession(String(entity.sessionHash));
     }
   }
@@ -932,6 +991,7 @@ export class TableAuthStore implements AuthStore {
       try {
         await this.sessions.updateEntity(sessionToEntity({
           sessionHash: String(entity.sessionHash),
+          userId: typeof entity.userId === "string" ? entity.userId : null,
           email: newNormalized,
           expiresAt: String(entity.expiresAt),
           createdAt: String(entity.createdAt),
@@ -1022,8 +1082,8 @@ class MemoryAuthStore implements AuthStore {
     const current = options.userId
       ? [...this.users.values()].find((user) => user.userId === options.userId)
       : this.users.get(email);
-    if (current && subscriptionIsActive(settleSubscription(current))) {
-      throw new AuthHttpError(409, "active_subscription");
+    if (current && entitlementIsActive(settleEntitlement(current))) {
+      throw new AuthHttpError(409, "active_entitlement");
     }
     this.users.delete(email);
     if (options.userId) {
@@ -1071,10 +1131,10 @@ class MemoryAuthStore implements AuthStore {
     this.sessions.delete(hash);
   }
 
-  async deleteSessionsForEmail(email: string): Promise<void> {
+  async deleteSessionsForUser(userId: string, email: string): Promise<void> {
     const normalized = normalizeEmail(email);
     for (const [hash, session] of this.sessions) {
-      if (normalizeEmail(session.email) === normalized) this.sessions.delete(hash);
+      if (session.userId === userId || normalizeEmail(session.email) === normalized) this.sessions.delete(hash);
     }
   }
 
@@ -1099,6 +1159,12 @@ type UserEntity = {
   nickname?: string;
   emailAlertsEnabled?: boolean;
   emailAlertsTokenVersion?: number;
+  entitlementTier?: string;
+  entitlementStatus?: string;
+  entitlementExpiresAt?: string;
+  entitlementPurchasedAt?: string;
+  passReceiptsJson?: string;
+  // Legacy recurring-subscription columns are read during migration only.
   subscriptionPlan?: string;
   subscriptionStatus?: string;
   subscriptionCurrentPeriodEnd?: string;
@@ -1128,7 +1194,7 @@ type UserIndexEntity = {
 };
 
 type CodeEntity = AuthCodeRecord;
-type SessionEntity = SessionRecord;
+type SessionEntity = Omit<SessionRecord, "userId"> & { userId?: string };
 
 function userToEntity(user: StoredUserProfile): UserEntity & { partitionKey: string; rowKey: string } {
   return {
@@ -1142,17 +1208,15 @@ function userToEntity(user: StoredUserProfile): UserEntity & { partitionKey: str
     nickname: user.nickname ?? "",
     emailAlertsEnabled: user.emailAlertsEnabled,
     emailAlertsTokenVersion: user.emailAlertsTokenVersion,
-    subscriptionPlan: user.subscriptionPlan,
-    subscriptionStatus: user.subscriptionStatus,
-    subscriptionCurrentPeriodEnd: user.subscriptionCurrentPeriodEnd ?? "",
-    subscriptionCancelAtPeriodEnd: user.subscriptionCancelAtPeriodEnd,
-    pendingSubscriptionPlan: user.pendingSubscriptionPlan ?? "",
-    pendingSubscriptionEffectiveAt: user.pendingSubscriptionEffectiveAt ?? "",
+    entitlementTier: user.entitlementTier,
+    entitlementStatus: user.entitlementStatus,
+    entitlementExpiresAt: user.entitlementExpiresAt ?? "",
+    entitlementPurchasedAt: user.entitlementPurchasedAt ?? "",
+    passReceiptsJson: JSON.stringify(user.passReceipts),
     paymentMethod: user.paymentMethod ?? "",
     paymentBrand: user.paymentBrand ?? "",
     paymentLast4: user.paymentLast4 ?? "",
     stripeCustomerId: user.stripeCustomerId ?? "",
-    stripeSubscriptionId: user.stripeSubscriptionId ?? "",
     languagePreference: user.languagePreference,
     deliveryCountry: user.deliveryCountry,
     createdAt: user.createdAt,
@@ -1239,10 +1303,101 @@ function deletedProfileEntity(
   };
 }
 
+function nonEmptyString(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function parsePassReceipts(value: unknown): PassReceipt[] {
+  if (typeof value !== "string" || !value.trim()) return [];
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    return corruptPassReceiptLedger();
+  }
+  if (!Array.isArray(parsed)) return corruptPassReceiptLedger();
+  const receipts: PassReceipt[] = [];
+  const seen = new Set<string>();
+  for (const candidate of parsed) {
+    if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) {
+      return corruptPassReceiptLedger();
+    }
+    const record = candidate as Record<string, unknown>;
+    const id = sanitizeReceiptId(record.id);
+    const kind = record.kind;
+    const tier = record.tier;
+    const status = record.status;
+    const purchasedAt = nonEmptyString(record.purchasedAt);
+    const expiresAt = nonEmptyString(record.expiresAt);
+    const baseReceiptId = sanitizeReceiptId(record.baseReceiptId) || null;
+    if (
+      !id
+      || seen.has(id)
+      || (kind !== "legacy" && kind !== "purchase" && kind !== "upgrade")
+      || (tier !== "alerts" && tier !== "radar")
+      || (status !== "active" && status !== "refunded" && status !== "revoked")
+      || !purchasedAt
+      || !expiresAt
+      || !Number.isFinite(Date.parse(purchasedAt))
+      || !Number.isFinite(Date.parse(expiresAt))
+      || Date.parse(expiresAt) <= Date.parse(purchasedAt)
+      || (kind === "upgrade" ? !baseReceiptId : Boolean(baseReceiptId))
+    ) return corruptPassReceiptLedger();
+    seen.add(id);
+    receipts.push({
+      id,
+      kind,
+      tier,
+      status,
+      purchasedAt: new Date(Date.parse(purchasedAt)).toISOString(),
+      expiresAt: new Date(Date.parse(expiresAt)).toISOString(),
+      baseReceiptId,
+      paymentBrand: nonEmptyString(record.paymentBrand),
+      paymentLast4: typeof record.paymentLast4 === "string" && /^\d{4}$/.test(record.paymentLast4)
+        ? record.paymentLast4
+        : null,
+    });
+  }
+  return receipts;
+}
+
+function corruptPassReceiptLedger(): never {
+  // Never fall back to the cached entitlement columns when the financial
+  // receipt ledger is present but unreadable. Throwing makes inventory access
+  // fail closed and causes Stripe to retry a webhook until operators repair
+  // the canonical row, without logging user or payment identifiers.
+  console.error("pass_receipt_ledger_corrupt");
+  throw new Error("Pass receipt ledger is corrupt");
+}
+
+function legacyEntitlementTier(value: unknown): EntitlementTier {
+  if (value === "weekly_basic" || value === "monthly_basic" || value === "heatwave_alerts") return "alerts";
+  if (value === "weekly_priority" || value === "monthly_priority" || value === "heatwave_radar") return "radar";
+  return AUTH_ENTITLEMENT_TIER_DEFAULT;
+}
+
+function legacyEntitlementStatus(
+  tier: EntitlementTier,
+  legacyStatus: unknown,
+  expiresAt: string | null,
+  now = Date.now(),
+): EntitlementStatus {
+  if (tier === "none") return AUTH_ENTITLEMENT_STATUS_DEFAULT;
+  const expiry = expiresAt ? Date.parse(expiresAt) : NaN;
+  if ((legacyStatus === "active" || legacyStatus === "canceled") && Number.isFinite(expiry) && expiry > now) {
+    return "active";
+  }
+  return "expired";
+}
+
 function userFromEntity(entity: TableEntityResult<UserEntity>): StoredUserProfile {
-  const subscriptionPlan = isSubscriptionPlan(entity.subscriptionPlan) ? entity.subscriptionPlan : AUTH_SUBSCRIPTION_PLAN_DEFAULT;
-  const subscriptionStatus = isSubscriptionStatus(entity.subscriptionStatus) ? entity.subscriptionStatus : AUTH_SUBSCRIPTION_STATUS_DEFAULT;
-  const pendingSubscriptionPlan = isPaidSubscriptionPlan(entity.pendingSubscriptionPlan) ? entity.pendingSubscriptionPlan : null;
+  const legacyTier = legacyEntitlementTier(entity.subscriptionPlan);
+  const entitlementTier = isEntitlementTier(entity.entitlementTier) ? entity.entitlementTier : legacyTier;
+  const legacyExpiresAt = nonEmptyString(entity.subscriptionCurrentPeriodEnd);
+  const entitlementExpiresAt = nonEmptyString(entity.entitlementExpiresAt) ?? legacyExpiresAt;
+  const entitlementStatus = isEntitlementStatus(entity.entitlementStatus)
+    ? entity.entitlementStatus
+    : legacyEntitlementStatus(entitlementTier, entity.subscriptionStatus, entitlementExpiresAt);
   const paymentMethod = isPaymentMethod(entity.paymentMethod) ? entity.paymentMethod : null;
   const languagePreference = isLanguagePreference(entity.languagePreference) ? entity.languagePreference : AUTH_LANGUAGE_DEFAULT;
   const deliveryCountry = isDeliveryCountry(entity.deliveryCountry) ? entity.deliveryCountry : AUTH_DELIVERY_COUNTRY_DEFAULT;
@@ -1253,21 +1408,16 @@ function userFromEntity(entity: TableEntityResult<UserEntity>): StoredUserProfil
     nickname: typeof entity.nickname === "string" && entity.nickname.trim() ? entity.nickname.trim() : null,
     emailAlertsEnabled: entity.emailAlertsEnabled !== false,
     emailAlertsTokenVersion: normalizeProfileRevision(entity.emailAlertsTokenVersion),
-    subscriptionPlan,
-    subscriptionStatus,
-    subscriptionCurrentPeriodEnd: typeof entity.subscriptionCurrentPeriodEnd === "string" && entity.subscriptionCurrentPeriodEnd.trim()
-      ? entity.subscriptionCurrentPeriodEnd.trim()
-      : null,
-    subscriptionCancelAtPeriodEnd: Boolean(entity.subscriptionCancelAtPeriodEnd),
-    pendingSubscriptionPlan,
-    pendingSubscriptionEffectiveAt: typeof entity.pendingSubscriptionEffectiveAt === "string" && entity.pendingSubscriptionEffectiveAt.trim()
-      ? entity.pendingSubscriptionEffectiveAt.trim()
-      : null,
+    entitlementTier,
+    entitlementStatus,
+    entitlementExpiresAt,
+    entitlementPurchasedAt: nonEmptyString(entity.entitlementPurchasedAt)
+      ?? (entitlementTier === "none" ? null : nonEmptyString(entity.createdAt)),
+    passReceipts: parsePassReceipts(entity.passReceiptsJson),
     paymentMethod,
     paymentBrand: typeof entity.paymentBrand === "string" && entity.paymentBrand.trim() ? entity.paymentBrand.trim() : null,
     paymentLast4: typeof entity.paymentLast4 === "string" && /^\d{4}$/.test(entity.paymentLast4) ? entity.paymentLast4 : null,
     stripeCustomerId: typeof entity.stripeCustomerId === "string" && entity.stripeCustomerId.trim() ? entity.stripeCustomerId.trim() : null,
-    stripeSubscriptionId: typeof entity.stripeSubscriptionId === "string" && entity.stripeSubscriptionId.trim() ? entity.stripeSubscriptionId.trim() : null,
     languagePreference,
     deliveryCountry,
     createdAt: String(entity.createdAt),
@@ -1281,17 +1431,15 @@ function sameStoredUserData(left: StoredUserProfile, right: StoredUserProfile): 
     && left.nickname === right.nickname
     && left.emailAlertsEnabled === right.emailAlertsEnabled
     && left.emailAlertsTokenVersion === right.emailAlertsTokenVersion
-    && left.subscriptionPlan === right.subscriptionPlan
-    && left.subscriptionStatus === right.subscriptionStatus
-    && left.subscriptionCurrentPeriodEnd === right.subscriptionCurrentPeriodEnd
-    && left.subscriptionCancelAtPeriodEnd === right.subscriptionCancelAtPeriodEnd
-    && left.pendingSubscriptionPlan === right.pendingSubscriptionPlan
-    && left.pendingSubscriptionEffectiveAt === right.pendingSubscriptionEffectiveAt
+    && left.entitlementTier === right.entitlementTier
+    && left.entitlementStatus === right.entitlementStatus
+    && left.entitlementExpiresAt === right.entitlementExpiresAt
+    && left.entitlementPurchasedAt === right.entitlementPurchasedAt
     && left.paymentMethod === right.paymentMethod
     && left.paymentBrand === right.paymentBrand
     && left.paymentLast4 === right.paymentLast4
     && left.stripeCustomerId === right.stripeCustomerId
-    && left.stripeSubscriptionId === right.stripeSubscriptionId
+    && JSON.stringify(left.passReceipts) === JSON.stringify(right.passReceipts)
     && left.languagePreference === right.languagePreference
     && left.deliveryCountry === right.deliveryCountry
     && left.createdAt === right.createdAt;
@@ -1321,13 +1469,21 @@ function sessionToEntity(record: SessionRecord): SessionEntity & { partitionKey:
   return {
     partitionKey: SESSION_PARTITION,
     rowKey: record.sessionHash,
-    ...record,
+    sessionHash: record.sessionHash,
+    ...(record.userId ? { userId: record.userId } : {}),
+    email: record.email,
+    expiresAt: record.expiresAt,
+    createdAt: record.createdAt,
+    lastSeenAt: record.lastSeenAt,
   };
 }
 
 function sessionFromEntity(entity: TableEntityResult<SessionEntity>): SessionRecord {
   return {
     sessionHash: String(entity.sessionHash),
+    userId: typeof entity.userId === "string" && UUID_PATTERN.test(entity.userId)
+      ? entity.userId.toLowerCase()
+      : null,
     email: normalizeEmail(entity.email),
     expiresAt: String(entity.expiresAt),
     createdAt: String(entity.createdAt),
@@ -1489,17 +1645,15 @@ export class AuthService {
       nickname: null,
       emailAlertsEnabled: true,
       emailAlertsTokenVersion: 1,
-      subscriptionPlan: AUTH_SUBSCRIPTION_PLAN_DEFAULT,
-      subscriptionStatus: AUTH_SUBSCRIPTION_STATUS_DEFAULT,
-      subscriptionCurrentPeriodEnd: null,
-      subscriptionCancelAtPeriodEnd: false,
-      pendingSubscriptionPlan: null,
-      pendingSubscriptionEffectiveAt: null,
+      entitlementTier: AUTH_ENTITLEMENT_TIER_DEFAULT,
+      entitlementStatus: AUTH_ENTITLEMENT_STATUS_DEFAULT,
+      entitlementExpiresAt: null,
+      entitlementPurchasedAt: null,
       paymentMethod: null,
       paymentBrand: null,
       paymentLast4: null,
       stripeCustomerId: null,
-      stripeSubscriptionId: null,
+      passReceipts: [],
       languagePreference: isLanguagePreference(lang) ? lang : AUTH_LANGUAGE_DEFAULT,
       deliveryCountry: AUTH_DELIVERY_COUNTRY_DEFAULT,
       createdAt: timestamp,
@@ -1510,6 +1664,7 @@ export class AuthService {
     const sessionToken = randomSessionToken();
     const session: SessionRecord = {
       sessionHash: sessionHash(sessionToken),
+      userId: user.userId,
       email,
       expiresAt: nowIso(Date.now() + this.sessionTtlSeconds * 1000),
       createdAt: timestamp,
@@ -1584,19 +1739,26 @@ export class AuthService {
       if (session) await this.store.deleteSession(hash);
       return null;
     }
-    const user = await this.store.getUser(session.email);
+    // Sessions created before immutable UUID binding are deliberately
+    // invalidated once. Re-associating them by mutable email could log an old
+    // cookie into a different account after an address change and re-use.
+    if (!session.userId) {
+      await this.store.deleteSession(hash);
+      return null;
+    }
+    const user = await this.store.getUserById(session.userId);
     if (!user) {
       await this.store.deleteSession(hash);
       return null;
     }
-    const settled = settleSubscription(user);
+    const settled = settleEntitlement(user);
     const current = settled !== user
       ? await this.store.mutateUser(user.userId, (fresh) => {
-          const next = settleSubscription(fresh);
+          const next = settleEntitlement(fresh);
           return next === fresh ? fresh : { ...next, profileRevision: fresh.profileRevision + 1 };
         })
       : user;
-    await this.store.upsertSession({ ...session, lastSeenAt: nowIso() });
+    await this.store.upsertSession({ ...session, email: user.email, lastSeenAt: nowIso() });
     return current;
   }
 
@@ -1640,93 +1802,148 @@ export class AuthService {
     return this.store.getUserByStripeCustomerId(normalizedCustomerId);
   }
 
-  async applyStripeSubscriptionSnapshot(snapshot: StripeSubscriptionSnapshot): Promise<StoredUserProfile | null> {
-    const user = await this.findUserByStripeCustomerId(snapshot.stripeCustomerId);
+  async applyStripePassPurchase(purchase: StripePassPurchase): Promise<StoredUserProfile | null> {
+    const user = await this.findUserByStripeCustomerId(purchase.stripeCustomerId);
     if (!user) return null;
 
-    const stripeCustomerId = sanitizeStripeId(snapshot.stripeCustomerId);
-    const stripeSubscriptionId = snapshot.stripeSubscriptionId ? sanitizeStripeId(snapshot.stripeSubscriptionId) : null;
-    return this.store.mutateUser(user.userId, (current) => {
-      const timestamp = nowIso();
-      const hasActiveEntitlement = Boolean(
-        snapshot.plan
-        && (snapshot.status === "active" || snapshot.status === "canceled")
-        && snapshot.currentPeriodEnd
-        && Date.parse(snapshot.currentPeriodEnd) > Date.now(),
-      );
-      const preservePendingSubscription = Boolean(
-        hasActiveEntitlement
-        && current.pendingSubscriptionPlan
-        && current.pendingSubscriptionEffectiveAt
-        && snapshot.plan === current.subscriptionPlan
-        && snapshot.currentPeriodEnd
-        && Date.parse(current.pendingSubscriptionEffectiveAt) === Date.parse(snapshot.currentPeriodEnd),
-      );
-      return hasActiveEntitlement && snapshot.plan
-        ? reviseProfile(current, {
-            subscriptionPlan: snapshot.plan,
-            subscriptionStatus: snapshot.cancelAtPeriodEnd ? "canceled" : "active",
-            subscriptionCurrentPeriodEnd: snapshot.currentPeriodEnd,
-            subscriptionCancelAtPeriodEnd: snapshot.cancelAtPeriodEnd,
-            pendingSubscriptionPlan: preservePendingSubscription ? current.pendingSubscriptionPlan : null,
-            pendingSubscriptionEffectiveAt: preservePendingSubscription ? current.pendingSubscriptionEffectiveAt : null,
-            paymentMethod: "card",
-            paymentBrand: snapshot.paymentBrand,
-            paymentLast4: snapshot.paymentLast4,
-            stripeCustomerId,
-            stripeSubscriptionId,
-          }, timestamp)
-        : reviseProfile(current, {
-            subscriptionPlan: "none",
-            subscriptionStatus: "none",
-            subscriptionCurrentPeriodEnd: null,
-            subscriptionCancelAtPeriodEnd: false,
-            pendingSubscriptionPlan: null,
-            pendingSubscriptionEffectiveAt: null,
-            stripeCustomerId,
-            stripeSubscriptionId,
-          }, timestamp);
-    });
-  }
-
-  async schedulePendingSubscriptionChange(request: IncomingMessage, plan: PaidSubscriptionPlan, effectiveAt: string): Promise<StoredUserProfile> {
-    const user = await this.requireUser(request);
-    if (!subscriptionIsActive(user)) throw new AuthHttpError(400, "no_active_subscription");
-    return this.store.mutateUser(user.userId, (current) => {
-      if (!subscriptionIsActive(current)) throw new AuthHttpError(400, "no_active_subscription");
-      return reviseProfile(current, {
-        pendingSubscriptionPlan: plan,
-        pendingSubscriptionEffectiveAt: effectiveAt,
-        subscriptionCancelAtPeriodEnd: false,
-      });
-    });
-  }
-
-  async cancelSubscription(request: IncomingMessage): Promise<StoredUserProfile> {
-    const user = await this.requireUser(request);
-    if (!isPaidSubscriptionPlan(user.subscriptionPlan) || !user.subscriptionCurrentPeriodEnd) {
-      throw new AuthHttpError(400, "no_active_subscription");
+    const stripeCustomerId = sanitizeStripeId(purchase.stripeCustomerId);
+    const stripePaymentIntentId = sanitizeStripeId(purchase.stripePaymentIntentId);
+    const baseReceiptId = sanitizeReceiptId(purchase.baseReceiptId) || null;
+    if (
+      !stripeCustomerId
+      || !stripePaymentIntentId
+      || purchase.userId !== user.userId
+      || (purchase.kind === "upgrade" && !baseReceiptId)
+    ) {
+      throw new AuthHttpError(400, "invalid_stripe_pass_purchase");
     }
     return this.store.mutateUser(user.userId, (current) => {
-      if (!isPaidSubscriptionPlan(current.subscriptionPlan) || !current.subscriptionCurrentPeriodEnd) {
-        throw new AuthHttpError(400, "no_active_subscription");
+      if (current.passReceipts.some((receipt) => receipt.id === stripePaymentIntentId)) {
+        const recomputed = recomputePassEntitlement(current);
+        return sameStoredUserData(current, recomputed)
+          ? current
+          : { ...recomputed, profileRevision: current.profileRevision + 1, updatedAt: nowIso() };
       }
-      return reviseProfile(current, {
-        subscriptionStatus: "canceled",
-        subscriptionCancelAtPeriodEnd: true,
-        pendingSubscriptionPlan: null,
-        pendingSubscriptionEffectiveAt: null,
+      const expiresAt = Date.parse(purchase.expiresAt);
+      const purchasedAt = Date.parse(purchase.purchasedAt);
+      if (
+        !Number.isFinite(expiresAt)
+        || !Number.isFinite(purchasedAt)
+        || expiresAt <= purchasedAt
+        || expiresAt <= Date.now()
+      ) {
+        throw new AuthHttpError(400, "invalid_pass_expiration");
+      }
+      const receipts = seedLegacyPassReceipt(current);
+      if (purchase.kind === "purchase") {
+        const existingRoot = activePassRoot({ ...current, passReceipts: receipts }, purchasedAt);
+        if (
+          existingRoot
+          && Date.parse(existingRoot.expiresAt) - purchasedAt > MINIMUM_REPURCHASE_REMAINING_MILLISECONDS
+        ) {
+          // A second Checkout can have been opened before the first payment's
+          // webhook committed. First committed root wins; the billing layer
+          // refunds this later settlement instead of charging twice for one
+          // entitlement window.
+          throw new AuthHttpError(409, "pass_already_active_after_payment");
+        }
+      }
+      if (purchase.kind === "upgrade") {
+        const base = receipts.find((receipt) => receipt.id === baseReceiptId);
+        if (!base || base.status !== "active" || base.tier !== "alerts" || Date.parse(base.expiresAt) <= purchasedAt) {
+          throw new AuthHttpError(409, "pass_upgrade_base_unavailable");
+        }
+        if (receipts.some((receipt) => (
+          receipt.kind === "upgrade"
+          && receipt.baseReceiptId === baseReceiptId
+          && receipt.status === "active"
+        ))) {
+          // Multiple Checkout Sessions can settle concurrently. One paid
+          // upgrade per base receipt is sufficient; the billing layer refunds
+          // every later settlement.
+          throw new AuthHttpError(409, "pass_upgrade_already_applied");
+        }
+      }
+      receipts.push({
+        id: stripePaymentIntentId,
+        kind: purchase.kind,
+        tier: purchase.tier,
+        baseReceiptId,
+        purchasedAt: new Date(purchasedAt).toISOString(),
+        expiresAt: new Date(expiresAt).toISOString(),
+        status: "active",
+        paymentBrand: purchase.paymentBrand,
+        paymentLast4: purchase.paymentLast4,
       });
+      return recomputePassEntitlement(reviseProfile(current, {
+        stripeCustomerId,
+        passReceipts: receipts,
+      }));
     });
+  }
+
+  async revokeStripePassEntitlement(
+    stripeCustomerId: string,
+    stripePaymentIntentId: string,
+    status: Extract<EntitlementStatus, "refunded" | "revoked">,
+  ): Promise<StoredUserProfile | null> {
+    const user = await this.findUserByStripeCustomerId(stripeCustomerId);
+    if (!user) return null;
+    const paymentIntentId = sanitizeStripeId(stripePaymentIntentId);
+    if (!paymentIntentId) throw new AuthHttpError(400, "invalid_stripe_payment_intent");
+    return this.store.mutateUser(user.userId, (current) => {
+      const receiptIndex = current.passReceipts.findIndex((receipt) => receipt.id === paymentIntentId);
+      if (receiptIndex < 0 || current.passReceipts[receiptIndex]!.status === status) return current;
+      const passReceipts = current.passReceipts.map((receipt, index) => (
+        index === receiptIndex ? { ...receipt, status } : receipt
+      ));
+      return recomputePassEntitlement(reviseProfile(current, { passReceipts }));
+    });
+  }
+
+  async restoreStripePassEntitlement(
+    stripeCustomerId: string,
+    stripePaymentIntentId: string,
+  ): Promise<StoredUserProfile | null> {
+    const user = await this.findUserByStripeCustomerId(stripeCustomerId);
+    if (!user) return null;
+    const paymentIntentId = sanitizeStripeId(stripePaymentIntentId);
+    if (!paymentIntentId) throw new AuthHttpError(400, "invalid_stripe_payment_intent");
+    return this.store.mutateUser(user.userId, (current) => {
+      const receiptIndex = current.passReceipts.findIndex((receipt) => receipt.id === paymentIntentId);
+      if (receiptIndex < 0 || current.passReceipts[receiptIndex]!.status !== "revoked") return current;
+      const passReceipts = current.passReceipts.map((receipt, index) => (
+        index === receiptIndex ? { ...receipt, status: "active" as const } : receipt
+      ));
+      return recomputePassEntitlement(reviseProfile(current, { passReceipts }));
+    });
+  }
+
+  async linkedActiveUpgradePaymentIntentIds(
+    stripeCustomerId: string,
+    baseStripePaymentIntentId: string,
+  ): Promise<string[]> {
+    const user = await this.findUserByStripeCustomerId(stripeCustomerId);
+    if (!user) return [];
+    const baseReceiptId = sanitizeStripeId(baseStripePaymentIntentId);
+    if (!baseReceiptId) throw new AuthHttpError(400, "invalid_stripe_payment_intent");
+    return user.passReceipts
+      .filter((receipt) => (
+        receipt.kind === "upgrade"
+        && receipt.baseReceiptId === baseReceiptId
+        && receipt.status === "active"
+      ))
+      .map((receipt) => sanitizeStripeId(receipt.id))
+      .filter((receiptId): receiptId is string => Boolean(receiptId));
   }
 
   async deleteAccount(request: IncomingMessage): Promise<void> {
     const user = await this.requireUser(request);
-    const settled = settleSubscription(user);
-    if (subscriptionIsActive(settled)) throw new AuthHttpError(409, "active_subscription");
+    const settled = settleEntitlement(user);
+    if (entitlementIsActive(settled)) throw new AuthHttpError(409, "active_entitlement");
     await this.store.deleteUser(user.email, { userId: user.userId });
     await this.store.deleteCode(user.email);
-    await this.store.deleteSessionsForEmail(user.email);
+    await this.store.deleteSessionsForUser(user.userId, user.email);
   }
 
   async updatePreferences(request: IncomingMessage, values: { languagePreference?: unknown; deliveryCountry?: unknown }): Promise<StoredUserProfile> {
@@ -1829,54 +2046,121 @@ function reviseProfile(
   };
 }
 
-function activateSubscription(
-  user: StoredUserProfile,
-  plan: PaidSubscriptionPlan,
-  startsAt = Date.now(),
-  paymentMethod: PaymentMethod | null = user.paymentMethod,
-  paymentDetails: PaymentDisplayDetails = { paymentBrand: user.paymentBrand, paymentLast4: user.paymentLast4 },
-): StoredUserProfile {
-  const details = SUBSCRIPTION_PLAN_DETAILS[plan];
-  return reviseProfile(user, {
-    subscriptionPlan: plan,
-    subscriptionStatus: "active",
-    subscriptionCurrentPeriodEnd: nowIso(startsAt + details.intervalDays * 24 * 60 * 60 * 1000),
-    subscriptionCancelAtPeriodEnd: false,
-    pendingSubscriptionPlan: null,
-    pendingSubscriptionEffectiveAt: null,
-    paymentMethod,
-    paymentBrand: paymentDetails.paymentBrand,
-    paymentLast4: paymentDetails.paymentLast4,
-  });
-}
-
-function settleSubscription(user: StoredUserProfile, now = Date.now()): StoredUserProfile {
-  const periodEnd = user.subscriptionCurrentPeriodEnd ? Date.parse(user.subscriptionCurrentPeriodEnd) : NaN;
-  if (Number.isFinite(periodEnd) && periodEnd <= now) {
-    if (user.pendingSubscriptionPlan) {
-      return {
-        ...activateSubscription(user, user.pendingSubscriptionPlan, Math.max(now, periodEnd)),
-        profileRevision: user.profileRevision,
-      };
-    }
-    if (user.subscriptionPlan !== "none" || user.subscriptionStatus !== "none") {
-      return {
-        ...user,
-        subscriptionPlan: "none",
-        subscriptionStatus: "none",
-        subscriptionCurrentPeriodEnd: null,
-        subscriptionCancelAtPeriodEnd: false,
-        pendingSubscriptionPlan: null,
-        pendingSubscriptionEffectiveAt: null,
-        updatedAt: nowIso(now),
-      };
-    }
+function settleEntitlement(user: StoredUserProfile, now = Date.now()): StoredUserProfile {
+  if (user.passReceipts.length > 0) return recomputePassEntitlement(user, now);
+  const expiresAt = user.entitlementExpiresAt ? Date.parse(user.entitlementExpiresAt) : NaN;
+  if (
+    user.entitlementStatus === "active"
+    && Number.isFinite(expiresAt)
+    && expiresAt <= now
+  ) {
+    return { ...user, entitlementStatus: "expired", updatedAt: nowIso(now) };
   }
   return user;
 }
 
+function seedLegacyPassReceipt(user: StoredUserProfile): PassReceipt[] {
+  if (user.passReceipts.length > 0 || !entitlementIsActive(user)) return [...user.passReceipts];
+  if (user.entitlementTier !== "alerts" && user.entitlementTier !== "radar") return [];
+  const expiresAt = user.entitlementExpiresAt;
+  if (!expiresAt) return [];
+  return [{
+    id: `legacy:${user.userId}:${Date.parse(expiresAt)}`,
+    kind: "legacy",
+    tier: user.entitlementTier,
+    baseReceiptId: null,
+    purchasedAt: user.entitlementPurchasedAt ?? user.createdAt,
+    expiresAt,
+    status: "active",
+    paymentBrand: user.paymentBrand,
+    paymentLast4: user.paymentLast4,
+  }];
+}
+
+function activePassRoot(user: StoredUserProfile, now = Date.now()): PassReceipt | null {
+  return user.passReceipts
+    .filter((receipt) => (
+      receipt.kind !== "upgrade"
+      && receipt.status === "active"
+      && Date.parse(receipt.expiresAt) > now
+    ))
+    .sort((left, right) => {
+      const tierDifference = Number(right.tier === "radar") - Number(left.tier === "radar");
+      if (tierDifference !== 0) return tierDifference;
+      const expiryDifference = Date.parse(right.expiresAt) - Date.parse(left.expiresAt);
+      if (expiryDifference !== 0) return expiryDifference;
+      return Date.parse(right.purchasedAt) - Date.parse(left.purchasedAt);
+    })[0] ?? null;
+}
+
+export function activePassBaseReceiptId(user: StoredUserProfile, now = Date.now()): string | null {
+  const seeded = user.passReceipts.length > 0 ? user : { ...user, passReceipts: seedLegacyPassReceipt(user) };
+  return activePassRoot(seeded, now)?.id ?? null;
+}
+
+function recomputePassEntitlement(user: StoredUserProfile, now = Date.now()): StoredUserProfile {
+  const root = activePassRoot(user, now);
+  if (!root) {
+    const latest = [...user.passReceipts].sort(
+      (left, right) => Date.parse(right.purchasedAt) - Date.parse(left.purchasedAt),
+    )[0];
+    const latestRoot = user.passReceipts
+      .filter((receipt) => receipt.kind !== "upgrade")
+      .sort((left, right) => Date.parse(right.purchasedAt) - Date.parse(left.purchasedAt))[0];
+    const next: StoredUserProfile = {
+      ...user,
+      entitlementTier: "none",
+      entitlementStatus: latestRoot?.status === "refunded" || latestRoot?.status === "revoked"
+        ? latestRoot.status
+        : "expired",
+      entitlementExpiresAt: null,
+      entitlementPurchasedAt: latest?.purchasedAt ?? user.entitlementPurchasedAt,
+      paymentMethod: null,
+      paymentBrand: null,
+      paymentLast4: null,
+    };
+    return sameEntitlementSnapshot(user, next) ? user : next;
+  }
+  const upgrade = user.passReceipts
+    .filter((receipt) => (
+      receipt.kind === "upgrade"
+      && receipt.baseReceiptId === root.id
+      && receipt.status === "active"
+      && Date.parse(receipt.expiresAt) > now
+    ))
+    .sort((left, right) => Date.parse(right.purchasedAt) - Date.parse(left.purchasedAt))[0] ?? null;
+  const paymentReceipt = upgrade ?? root;
+  const next: StoredUserProfile = {
+    ...user,
+    entitlementTier: root.tier === "radar" || upgrade ? "radar" : "alerts",
+    entitlementStatus: "active",
+    entitlementExpiresAt: root.expiresAt,
+    entitlementPurchasedAt: paymentReceipt.purchasedAt,
+    paymentMethod: paymentReceipt.paymentLast4 ? "card" : null,
+    paymentBrand: paymentReceipt.paymentBrand,
+    paymentLast4: paymentReceipt.paymentLast4,
+  };
+  return sameEntitlementSnapshot(user, next) ? user : next;
+}
+
+function sameEntitlementSnapshot(left: StoredUserProfile, right: StoredUserProfile): boolean {
+  return left.entitlementTier === right.entitlementTier
+    && left.entitlementStatus === right.entitlementStatus
+    && left.entitlementExpiresAt === right.entitlementExpiresAt
+    && left.entitlementPurchasedAt === right.entitlementPurchasedAt
+    && left.paymentMethod === right.paymentMethod
+    && left.paymentBrand === right.paymentBrand
+    && left.paymentLast4 === right.paymentLast4;
+}
+
 function sanitizeStripeId(value: unknown): string {
   return typeof value === "string" && /^[A-Za-z0-9_]+$/.test(value.trim()) ? value.trim() : "";
+}
+
+function sanitizeReceiptId(value: unknown): string {
+  return typeof value === "string" && /^[A-Za-z0-9:_-]{1,160}$/.test(value.trim())
+    ? value.trim()
+    : "";
 }
 
 function normalizeAndValidateEmail(value: unknown): string {

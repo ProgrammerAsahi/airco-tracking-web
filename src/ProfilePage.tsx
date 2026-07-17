@@ -2,15 +2,13 @@ import { useEffect, useState } from "react";
 import {
   SUPPORTED_DELIVERY_COUNTRIES,
   SUPPORTED_LANGUAGE_PREFERENCES,
+  entitlementIsActive,
   userInitials,
-  subscriptionIsActive,
-  isPaidSubscriptionPlan,
   type DeliveryCountry,
   type PaidSubscriptionPlan,
 } from "../shared/auth";
 import {
   AuthApiError,
-  cancelSubscription as cancelSubscriptionRequest,
   deleteAccount,
   getCurrentUser,
   logout,
@@ -60,14 +58,9 @@ type ProfileCopy = {
   devCodeNotice: string;
   subscriptionPlan: string;
   subscriptionActiveUntil: string;
-  subscriptionCancelScheduled: string;
   subscriptionExpired: string;
-  cancelSubscription: string;
-  cancelingSubscription: string;
-  subscriptionCancelError: string;
   changeSubscription: string;
   subscribeNow: string;
-  pendingSubscription: string;
   currentSubscription: string;
   paymentMethod: string;
   noPaymentMethod: string;
@@ -85,12 +78,9 @@ type ProfileCopy = {
   change: string;
   none: string;
   logout: string;
-  paidPlansTitle: string;
   paidPlansBody: string;
-  weeklyBasic: string;
-  weeklyPriority: string;
-  monthlyBasic: string;
-  monthlyPriority: string;
+  alertsPass: string;
+  radarPass: string;
   languageModalTitle: string;
   languageModalBody: string;
   countryModalTitle: string;
@@ -109,10 +99,10 @@ type ProfileCopy = {
 const PROFILE_COPY: Record<Lang, ProfileCopy> = {
   zh: {
     productName: "Airco Tracker",
-    pageDescription: "管理你的 Airco Tracker 账号、提醒、订阅、语言和配送国家。",
+    pageDescription: "管理你的 Airco Tracker 账号、提醒、热浪通行证、语言和配送国家。",
     backHome: "返回首页",
     title: "个人资料",
-    subtitle: "这里目前只保存最少的信息：邮箱、昵称、订阅档位、语言偏好和配送国家。",
+    subtitle: "这里目前只保存最少的信息：邮箱、昵称、通行证权益、语言偏好和配送国家。",
     loading: "正在读取账号信息…",
     notLoggedIn: "你还没有登录。",
     loginFromHome: "回到首页登录",
@@ -140,39 +130,31 @@ const PROFILE_COPY: Record<Lang, ProfileCopy> = {
     emailSave: "保存邮箱",
     emailError: "邮箱暂时无法更改，请检查验证码或稍后再试。",
     devCodeNotice: "本地开发验证码：{code}",
-    subscriptionPlan: "订阅方案",
-    subscriptionActiveUntil: "权益有效至",
-    subscriptionCancelScheduled: "已取消，权益会保留到本周期结束。",
-    subscriptionExpired: "订阅已过期",
-    cancelSubscription: "取消订阅",
-    cancelingSubscription: "取消中…",
-    subscriptionCancelError: "订阅暂时无法取消，请稍后再试。",
-    changeSubscription: "更改订阅方案",
-    subscribeNow: "即刻订阅",
-    pendingSubscription: "将在 {date} 切换为 {plan}",
-    currentSubscription: "当前订阅",
+    subscriptionPlan: "热浪通行证",
+    subscriptionActiveUntil: "通行证有效至",
+    subscriptionExpired: "暂无有效通行证",
+    changeSubscription: "升级到 Radar Pass",
+    subscribeNow: "购买热浪通行证",
+    currentSubscription: "当前通行证",
     paymentMethod: "支付方式",
     noPaymentMethod: "暂无支付方式",
     cardPayment: "{brand} · 尾号 {last4}",
     idealPayment: "iDEAL · {bank}",
     deleteAccount: "注销账户",
-    deleteAccountBlocked: "订阅仍在有效期内，暂时不能注销账户。",
+    deleteAccountBlocked: "通行证仍在有效期内，暂时不能注销账户。",
     deleteAccountTitle: "确认注销账户？",
     deleteAccountBody: "注销后会删除你的邮箱、昵称、偏好和登录会话。这个操作不能撤销。",
     deleteAccountConfirm: "确认注销",
     deletingAccount: "注销中…",
-    deleteAccountError: "账户暂时无法注销，请确认订阅已到期后再试。",
+    deleteAccountError: "账户暂时无法注销，请确认通行证已到期后再试。",
     languagePreference: "语言偏好",
     country: "国家",
     change: "更改",
-    none: "尚未订阅",
+    none: "暂无通行证",
     logout: "登出",
-    paidPlansTitle: "订阅方案",
-    paidPlansBody: "登录并选择一个订阅方案后，方案和支付方式会显示在这里。",
-    weeklyBasic: "周订阅 · 库存提醒",
-    weeklyPriority: "周订阅 · 实时雷达",
-    monthlyBasic: "月订阅 · 库存提醒",
-    monthlyPriority: "月订阅 · 实时雷达",
+    paidPlansBody: "购买通行证后，其类型、到期日和支付方式会显示在这里。",
+    alertsPass: "Heatwave Alerts Pass",
+    radarPass: "Heatwave Radar Pass",
     languageModalTitle: "选择语言偏好",
     languageModalBody: "这会保存到你的账号里，并立即切换当前页面语言。",
     countryModalTitle: "选择配送国家",
@@ -189,10 +171,10 @@ const PROFILE_COPY: Record<Lang, ProfileCopy> = {
   },
   nl: {
     productName: "Airco Tracker",
-    pageDescription: "Beheer je Airco Tracker-account, meldingen, abonnement, taal en bezorgland.",
+    pageDescription: "Beheer je Airco Tracker-account, meldingen, Heatwave-pass, taal en bezorgland.",
     backHome: "Terug naar home",
     title: "Profiel",
-    subtitle: "We bewaren nu alleen het minimum: e-mail, bijnaam, abonnement, taalvoorkeur en bezorgland.",
+    subtitle: "We bewaren nu alleen het minimum: e-mail, bijnaam, passrechten, taalvoorkeur en bezorgland.",
     loading: "Accountgegevens laden…",
     notLoggedIn: "Je bent nog niet ingelogd.",
     loginFromHome: "Log in vanaf home",
@@ -220,39 +202,31 @@ const PROFILE_COPY: Record<Lang, ProfileCopy> = {
     emailSave: "E-mail opslaan",
     emailError: "We konden je e-mail niet wijzigen. Controleer de code of probeer het later opnieuw.",
     devCodeNotice: "Lokale ontwikkelcode: {code}",
-    subscriptionPlan: "Abonnement",
-    subscriptionActiveUntil: "Toegang geldig tot",
-    subscriptionCancelScheduled: "Opgezegd; toegang blijft tot het einde van deze periode.",
-    subscriptionExpired: "Abonnement verlopen",
-    cancelSubscription: "Abonnement opzeggen",
-    cancelingSubscription: "Opzeggen…",
-    subscriptionCancelError: "We konden je abonnement niet opzeggen. Probeer het later opnieuw.",
-    changeSubscription: "Abonnement wijzigen",
-    subscribeNow: "Nu abonneren",
-    pendingSubscription: "Wordt op {date} gewijzigd naar {plan}",
-    currentSubscription: "Huidig abonnement",
+    subscriptionPlan: "Heatwave-pass",
+    subscriptionActiveUntil: "Pass geldig tot",
+    subscriptionExpired: "Geen actieve pass",
+    changeSubscription: "Upgraden naar Radar Pass",
+    subscribeNow: "Heatwave-pass kopen",
+    currentSubscription: "Huidige pass",
     paymentMethod: "Betaalmethode",
     noPaymentMethod: "Geen betaalmethode",
     cardPayment: "{brand} · eindigt op {last4}",
     idealPayment: "iDEAL · {bank}",
     deleteAccount: "Account verwijderen",
-    deleteAccountBlocked: "Je abonnement is nog actief; je kunt je account nog niet verwijderen.",
+    deleteAccountBlocked: "Je pass is nog actief; je kunt je account nog niet verwijderen.",
     deleteAccountTitle: "Account verwijderen?",
     deleteAccountBody: "We verwijderen je e-mail, bijnaam, voorkeuren en sessies. Dit kan niet ongedaan worden gemaakt.",
     deleteAccountConfirm: "Verwijderen",
     deletingAccount: "Verwijderen…",
-    deleteAccountError: "We konden je account niet verwijderen. Controleer of je abonnement is verlopen.",
+    deleteAccountError: "We konden je account niet verwijderen. Controleer of je Heatwave-pass is verlopen.",
     languagePreference: "Taalvoorkeur",
     country: "Land",
     change: "Wijzigen",
-    none: "Nog geen abonnement",
+    none: "Geen Heatwave-pass",
     logout: "Uitloggen",
-    paidPlansTitle: "Abonnementen",
-    paidPlansBody: "Nadat je bent ingelogd en een abonnement hebt gekozen, verschijnen het plan en de betaalmethode hier.",
-    weeklyBasic: "Week · voorraadmeldingen",
-    weeklyPriority: "Week · realtime radar",
-    monthlyBasic: "Maand · voorraadmeldingen",
-    monthlyPriority: "Maand · realtime radar",
+    paidPlansBody: "Na aankoop verschijnen het type pass, de einddatum en de betaalmethode hier.",
+    alertsPass: "Heatwave Alerts Pass",
+    radarPass: "Heatwave Radar Pass",
     languageModalTitle: "Kies je taalvoorkeur",
     languageModalBody: "We slaan dit op in je account en wisselen de huidige pagina meteen om.",
     countryModalTitle: "Kies bezorgland",
@@ -269,10 +243,10 @@ const PROFILE_COPY: Record<Lang, ProfileCopy> = {
   },
   en: {
     productName: "Airco Tracker",
-    pageDescription: "Manage your Airco Tracker account, alerts, subscription, language and delivery country.",
+    pageDescription: "Manage your Airco Tracker account, alerts, Heatwave Pass, language and delivery country.",
     backHome: "Back home",
     title: "Profile",
-    subtitle: "For now we only store the minimum: email, nickname, subscription plan, language preference and delivery country.",
+    subtitle: "For now we only store the minimum: email, nickname, pass entitlement, language preference and delivery country.",
     loading: "Loading account…",
     notLoggedIn: "You are not logged in yet.",
     loginFromHome: "Log in from home",
@@ -300,39 +274,31 @@ const PROFILE_COPY: Record<Lang, ProfileCopy> = {
     emailSave: "Save email",
     emailError: "We could not change your email. Check the code or try again later.",
     devCodeNotice: "Local development code: {code}",
-    subscriptionPlan: "Subscription plan",
-    subscriptionActiveUntil: "Access active until",
-    subscriptionCancelScheduled: "Canceled; access remains through the current period.",
-    subscriptionExpired: "Subscription expired",
-    cancelSubscription: "Cancel subscription",
-    cancelingSubscription: "Canceling…",
-    subscriptionCancelError: "We could not cancel your subscription. Please try again later.",
-    changeSubscription: "Change subscription",
-    subscribeNow: "Subscribe now",
-    pendingSubscription: "Will switch to {plan} on {date}",
-    currentSubscription: "Current subscription",
+    subscriptionPlan: "Heatwave pass",
+    subscriptionActiveUntil: "Pass valid until",
+    subscriptionExpired: "No active pass",
+    changeSubscription: "Upgrade to Radar Pass",
+    subscribeNow: "Buy a Heatwave Pass",
+    currentSubscription: "Current pass",
     paymentMethod: "Payment method",
     noPaymentMethod: "No payment method yet",
     cardPayment: "{brand} · ending {last4}",
     idealPayment: "iDEAL · {bank}",
     deleteAccount: "Delete account",
-    deleteAccountBlocked: "Your subscription is still active, so the account cannot be deleted yet.",
+    deleteAccountBlocked: "Your pass is still active, so the account cannot be deleted yet.",
     deleteAccountTitle: "Delete account?",
     deleteAccountBody: "We will delete your email, nickname, preferences and sessions. This cannot be undone.",
     deleteAccountConfirm: "Delete account",
     deletingAccount: "Deleting…",
-    deleteAccountError: "We could not delete your account. Please make sure your subscription has expired.",
+    deleteAccountError: "We could not delete your account. Please make sure your Heatwave Pass has expired.",
     languagePreference: "Language preference",
     country: "Country",
     change: "Change",
-    none: "Not subscribed yet",
+    none: "No Heatwave Pass",
     logout: "Log out",
-    paidPlansTitle: "Subscription plans",
-    paidPlansBody: "After signing in and choosing a subscription, its plan and payment method will appear here.",
-    weeklyBasic: "Weekly · stock alerts",
-    weeklyPriority: "Weekly · realtime radar",
-    monthlyBasic: "Monthly · stock alerts",
-    monthlyPriority: "Monthly · realtime radar",
+    paidPlansBody: "After purchase, the pass type, expiry date and payment method appear here.",
+    alertsPass: "Heatwave Alerts Pass",
+    radarPass: "Heatwave Radar Pass",
     languageModalTitle: "Choose language preference",
     languageModalBody: "We save this to your account and switch the current page immediately.",
     countryModalTitle: "Choose delivery country",
@@ -349,10 +315,10 @@ const PROFILE_COPY: Record<Lang, ProfileCopy> = {
   },
   fr: {
     productName: "Airco Tracker",
-    pageDescription: "Gérez votre compte Airco Tracker, vos alertes, votre abonnement, votre langue et votre pays de livraison.",
+    pageDescription: "Gérez votre compte Airco Tracker, vos alertes, votre pass canicule, votre langue et votre pays de livraison.",
     backHome: "Retour à l’accueil",
     title: "Profil",
-    subtitle: "Nous conservons uniquement le strict minimum : e-mail, pseudonyme, abonnement, langue préférée et pays de livraison.",
+    subtitle: "Nous conservons uniquement le strict minimum : e-mail, pseudonyme, droits du pass, langue préférée et pays de livraison.",
     loading: "Chargement du compte…",
     notLoggedIn: "Vous n’êtes pas encore connecté.",
     loginFromHome: "Se connecter depuis l’accueil",
@@ -380,39 +346,31 @@ const PROFILE_COPY: Record<Lang, ProfileCopy> = {
     emailSave: "Enregistrer l’e-mail",
     emailError: "Votre adresse e-mail n’a pas pu être modifiée. Vérifiez le code ou réessayez plus tard.",
     devCodeNotice: "Code de développement local : {code}",
-    subscriptionPlan: "Formule d’abonnement",
-    subscriptionActiveUntil: "Accès actif jusqu’au",
-    subscriptionCancelScheduled: "Résilié ; l’accès reste actif jusqu’à la fin de la période en cours.",
-    subscriptionExpired: "Abonnement expiré",
-    cancelSubscription: "Résilier l’abonnement",
-    cancelingSubscription: "Résiliation…",
-    subscriptionCancelError: "Votre abonnement n’a pas pu être résilié. Réessayez plus tard.",
-    changeSubscription: "Modifier l’abonnement",
-    subscribeNow: "S’abonner maintenant",
-    pendingSubscription: "Passage à {plan} le {date}",
-    currentSubscription: "Abonnement actuel",
+    subscriptionPlan: "Pass canicule",
+    subscriptionActiveUntil: "Pass valable jusqu’au",
+    subscriptionExpired: "Aucun pass actif",
+    changeSubscription: "Passer au Radar Pass",
+    subscribeNow: "Acheter un pass canicule",
+    currentSubscription: "Pass actuel",
     paymentMethod: "Moyen de paiement",
     noPaymentMethod: "Aucun moyen de paiement",
     cardPayment: "{brand} · se terminant par {last4}",
     idealPayment: "iDEAL · {bank}",
     deleteAccount: "Supprimer le compte",
-    deleteAccountBlocked: "Votre abonnement est encore actif ; le compte ne peut pas encore être supprimé.",
+    deleteAccountBlocked: "Votre pass est encore actif ; le compte ne peut pas encore être supprimé.",
     deleteAccountTitle: "Supprimer le compte ?",
     deleteAccountBody: "Nous supprimerons votre e-mail, votre pseudonyme, vos préférences et vos sessions. Cette action est irréversible.",
     deleteAccountConfirm: "Supprimer le compte",
     deletingAccount: "Suppression…",
-    deleteAccountError: "Votre compte n’a pas pu être supprimé. Vérifiez que votre abonnement a expiré.",
+    deleteAccountError: "Votre compte n’a pas pu être supprimé. Vérifiez que votre pass canicule a expiré.",
     languagePreference: "Langue préférée",
     country: "Pays",
     change: "Modifier",
-    none: "Pas encore abonné",
+    none: "Aucun pass canicule",
     logout: "Se déconnecter",
-    paidPlansTitle: "Formules d’abonnement",
-    paidPlansBody: "Après connexion et souscription, votre formule et votre moyen de paiement apparaîtront ici.",
-    weeklyBasic: "Hebdomadaire · alertes de stock",
-    weeklyPriority: "Hebdomadaire · radar en temps réel",
-    monthlyBasic: "Mensuel · alertes de stock",
-    monthlyPriority: "Mensuel · radar en temps réel",
+    paidPlansBody: "Après l’achat, le type de pass, sa date d’expiration et le moyen de paiement apparaîtront ici.",
+    alertsPass: "Heatwave Alerts Pass",
+    radarPass: "Heatwave Radar Pass",
     languageModalTitle: "Choisir la langue préférée",
     languageModalBody: "Nous enregistrons ce choix dans votre compte et changeons immédiatement la langue de cette page.",
     countryModalTitle: "Choisir le pays de livraison",
@@ -430,10 +388,8 @@ const PROFILE_COPY: Record<Lang, ProfileCopy> = {
 };
 
 const PLAN_LABEL_KEYS: Record<PaidSubscriptionPlan, keyof ProfileCopy> = {
-  weekly_basic: "weeklyBasic",
-  weekly_priority: "weeklyPriority",
-  monthly_basic: "monthlyBasic",
-  monthly_priority: "monthlyPriority",
+  alerts: "alertsPass",
+  radar: "radarPass",
 };
 
 const LANGUAGE_OPTIONS: Record<Lang, { flag: string; label: string }> = {
@@ -473,8 +429,6 @@ export function ProfilePage({ lang, setLang }: ProfilePageProps) {
   const [pendingCountry, setPendingCountry] = useState<DeliveryCountry | null>(null);
   const [savingPreference, setSavingPreference] = useState(false);
   const [preferenceError, setPreferenceError] = useState("");
-  const [cancelingSubscription, setCancelingSubscription] = useState(false);
-  const [subscriptionError, setSubscriptionError] = useState("");
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [deleteError, setDeleteError] = useState("");
@@ -658,20 +612,6 @@ export function ProfilePage({ lang, setLang }: ProfilePageProps) {
     }
   };
 
-  const handleCancelSubscription = async () => {
-    if (!user) return;
-    setSubscriptionError("");
-    setCancelingSubscription(true);
-    try {
-      const updated = await cancelSubscriptionRequest();
-      setUser(updated);
-    } catch {
-      setSubscriptionError(copy.subscriptionCancelError);
-    } finally {
-      setCancelingSubscription(false);
-    }
-  };
-
   const handleDeleteAccount = async () => {
     setDeleteError("");
     setDeletingAccount(true);
@@ -771,14 +711,14 @@ export function ProfilePage({ lang, setLang }: ProfilePageProps) {
               <button
                 className="profile-delete-account-button"
                 type="button"
-                disabled={subscriptionIsActive(user)}
-                title={subscriptionIsActive(user) ? copy.deleteAccountBlocked : undefined}
+                disabled={entitlementIsActive(user)}
+                title={entitlementIsActive(user) ? copy.deleteAccountBlocked : undefined}
                 onClick={() => setDeleteModalOpen(true)}
               >
                 {copy.deleteAccount}
               </button>
             </div>
-            {subscriptionIsActive(user) && <p className="profile-delete-hint">{copy.deleteAccountBlocked}</p>}
+            {entitlementIsActive(user) && <p className="profile-delete-hint">{copy.deleteAccountBlocked}</p>}
           </>
         ) : (
           <div className="profile-empty">
@@ -793,35 +733,15 @@ export function ProfilePage({ lang, setLang }: ProfilePageProps) {
           <p className="landing-kicker">{copy.subscriptionPlan}</p>
           <h2>{copy.currentSubscription}</h2>
           <p>{user ? subscriptionCardSummary(user, copy, lang) : copy.paidPlansBody}</p>
-          {user?.pendingSubscriptionPlan && user.pendingSubscriptionEffectiveAt && (
-            <p className="profile-subscription-note">
-              {copy.pendingSubscription
-                .replace("{date}", formatSubscriptionDate(user.pendingSubscriptionEffectiveAt, lang))
-                .replace("{plan}", copy[PLAN_LABEL_KEYS[user.pendingSubscriptionPlan]])}
-            </p>
-          )}
           <div className="profile-payment-line">
             <span>{copy.paymentMethod}</span>
             <strong>{user ? paymentSummary(user, copy) : copy.noPaymentMethod}</strong>
           </div>
-          {user && (
+          {user && (!entitlementIsActive(user) || user.entitlementTier === "alerts") && (
             <div className="profile-subscription-actions">
               <a className="profile-change-subscription-link" href={`/subscribe?lang=${lang}`}>
-                {subscriptionIsActive(user) ? copy.changeSubscription : copy.subscribeNow}
+                {entitlementIsActive(user) && user.entitlementTier === "alerts" ? copy.changeSubscription : copy.subscribeNow}
               </a>
-              {user.subscriptionCancelAtPeriodEnd ? (
-                <p>{copy.subscriptionCancelScheduled}</p>
-              ) : subscriptionIsActive(user) ? (
-                <button
-                  className="profile-cancel-subscription-button"
-                  type="button"
-                  disabled={cancelingSubscription}
-                  onClick={handleCancelSubscription}
-                >
-                  {cancelingSubscription ? copy.cancelingSubscription : copy.cancelSubscription}
-                </button>
-              ) : null}
-              {subscriptionError && <p className="landing-login-error">{subscriptionError}</p>}
             </div>
           )}
         </div>
@@ -1052,15 +972,14 @@ function countryLabel(country: DeliveryCountry, copy: ProfileCopy): string {
 }
 
 function subscriptionSummary(user: UserProfile, copy: ProfileCopy, lang: Lang): string {
-  if (isPaidSubscriptionPlan(user.subscriptionPlan) && user.subscriptionStatus === "none") return copy.subscriptionExpired;
-  if (!subscriptionIsActive(user)) return copy.subscriptionExpired;
-  if (!user.subscriptionCurrentPeriodEnd) return "";
-  return `${copy.subscriptionActiveUntil} ${formatSubscriptionDate(user.subscriptionCurrentPeriodEnd, lang)}`;
+  if (!entitlementIsActive(user)) return copy.subscriptionExpired;
+  if (!user.entitlementExpiresAt) return "";
+  return `${copy.subscriptionActiveUntil} ${formatSubscriptionDate(user.entitlementExpiresAt, lang)}`;
 }
 
 function subscriptionCardSummary(user: UserProfile, copy: ProfileCopy, lang: Lang): string {
-  if (user.subscriptionPlan === "none") return copy.none;
-  const plan = copy[PLAN_LABEL_KEYS[user.subscriptionPlan]];
+  if (user.entitlementTier === "none") return copy.none;
+  const plan = copy[PLAN_LABEL_KEYS[user.entitlementTier]];
   const summary = subscriptionSummary(user, copy, lang);
   return summary ? `${plan} · ${summary}` : plan;
 }

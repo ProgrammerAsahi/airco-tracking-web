@@ -127,11 +127,6 @@ export async function syncCheckoutStatus(sessionId?: string | null): Promise<Use
   return response.user;
 }
 
-export async function cancelSubscription(): Promise<UserProfile> {
-  const response = await postJson<AuthSessionResponse>("/api/billing/cancel-subscription", {});
-  return response.user;
-}
-
 export async function deleteAccount(): Promise<void> {
   await postJson<{ ok: true }>("/api/auth/account/delete", {});
 }

@@ -137,7 +137,7 @@ function publicUser(user: StoredUserProfile | null): UserProfile | null {
     profileRevision: _profileRevision,
     emailAlertsTokenVersion: _emailAlertsTokenVersion,
     stripeCustomerId: _stripeCustomerId,
-    stripeSubscriptionId: _stripeSubscriptionId,
+    passReceipts: _passReceipts,
     ...safeUser
   } = user;
   return safeUser;
@@ -275,16 +275,6 @@ async function handleBillingRequest(request: IncomingMessage, response: ServerRe
       return;
     }
 
-    if (url.pathname === "/api/billing/cancel-subscription") {
-      if (method !== "POST") {
-        rejectMethod(response, ["POST"]);
-        return;
-      }
-      const user = await getBillingService().cancelSubscription(request);
-      sendJson(response, 200, { user: publicUser(user), needsOnboarding: !user.nickname });
-      return;
-    }
-
     sendJson(response, 404, { error: "Unknown billing endpoint" });
   } catch (error) {
     sendApiError(response, error, "billing_unavailable");
@@ -416,6 +406,9 @@ async function handleAuthRequest(request: IncomingMessage, response: ServerRespo
         rejectMethod(response, ["POST"]);
         return;
       }
+      // Remove mutable customer-profile PII from Stripe first. Financial
+      // transaction records remain under Stripe's statutory retention rules.
+      await getBillingService().deleteCustomerForAccount(request);
       await auth.deleteAccount(request);
       clearSessionCookie(response, request, auth.cookieName);
       sendJson(response, 200, { ok: true });
@@ -599,7 +592,7 @@ const server = createServer(async (request, response) => {
       }
       if (!hasRealtimeStockAccess(user)) {
         response.setHeader("Cache-Control", "no-store");
-        sendJson(response, 403, { error: "subscription_required" });
+        sendJson(response, 403, { error: "radar_pass_required" });
         return;
       }
     } catch (error) {

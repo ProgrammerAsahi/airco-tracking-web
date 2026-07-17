@@ -52,26 +52,41 @@ while (Date.now() < deadline) {
       throw new Error("anonymous inventory did not return the expected auth error");
     }
 
-    for (const retiredAuthEndpoint of [
-      "/api/auth/subscription/preview-payment",
-      "/api/auth/subscription/cancel",
+    for (const retiredEndpoint of [
+      { path: "/api/auth/subscription/preview-payment", expectedError: "Unknown auth endpoint" },
+      { path: "/api/auth/subscription/cancel", expectedError: "Unknown auth endpoint" },
+      { path: "/api/billing/cancel-subscription", expectedError: "Unknown billing endpoint" },
     ]) {
-      const retiredResponse = await fetch(`${appUrl}${retiredAuthEndpoint}`, {
+      const retiredResponse = await fetch(`${appUrl}${retiredEndpoint.path}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: "{}",
         signal: AbortSignal.timeout(15_000),
       });
       if (retiredResponse.status !== 404) {
-        throw new Error(`retired auth endpoint ${retiredAuthEndpoint} should return 404; returned ${retiredResponse.status}`);
+        throw new Error(`retired endpoint ${retiredEndpoint.path} should return 404; returned ${retiredResponse.status}`);
       }
       const retiredError = await retiredResponse.json();
-      if (retiredError?.error !== "Unknown auth endpoint") {
-        throw new Error(`retired auth endpoint ${retiredAuthEndpoint} did not fail closed`);
+      if (retiredError?.error !== retiredEndpoint.expectedError) {
+        throw new Error(`retired endpoint ${retiredEndpoint.path} did not fail closed`);
       }
     }
 
-    console.log(`Verified ${appUrl}: app shell healthy, inventory protected, and legacy subscription bypasses retired`);
+    const unsignedWebhookResponse = await fetch(`${appUrl}/api/billing/webhook`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (unsignedWebhookResponse.status !== 400) {
+      throw new Error(`unsigned Stripe webhook should return 400; returned ${unsignedWebhookResponse.status}`);
+    }
+    const unsignedWebhookError = await unsignedWebhookResponse.json();
+    if (unsignedWebhookError?.error !== "missing_stripe_signature") {
+      throw new Error("Stripe secret or webhook signing secret is not available to the deployed app");
+    }
+
+    console.log(`Verified ${appUrl}: app shell healthy, inventory protected, Stripe webhook configured, and legacy recurring-billing endpoints retired`);
     process.exit(0);
   } catch (error) {
     lastError = error;

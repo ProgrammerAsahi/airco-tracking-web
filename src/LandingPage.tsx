@@ -10,7 +10,7 @@ import {
   type UserProfile,
 } from "./authClient";
 import { LanguageSwitcher } from "./LanguageSwitcher";
-import { subscriptionIsActive } from "../shared/auth";
+import { entitlementIsActive } from "../shared/auth";
 import type { Lang } from "./i18n";
 import { AircoLogoMark } from "./AircoLogoMark";
 import { LandingHeroVisual } from "./LandingHeroVisual";
@@ -121,7 +121,7 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     heroEyebrow: "欧洲空调库存追踪",
     heroTitle: "欧洲罕见<br />热浪来袭。",
     heroLead: "当塞纳河畔被晒到发烫，空调库存却在一小时内消失。Airco Tracker 帮你第一时间发现还能配送到你所在国家的现货。",
-    primaryCta: "即刻订阅",
+    primaryCta: "购买通行证",
     secondaryCta: "预览法国库存",
     scrollCue: "向下滚动，进入热浪现场",
     stepOneKicker: "Paris · 38°C",
@@ -154,24 +154,24 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     productBody: "配送国家、现货与预售、商家、型号和价格都在同一个视图里。少一点搜索，多一点抢到现货的把握。",
     finaleKicker: "夜色降临 · 清凉仍在",
     subscribeTitle: "清凉一夏，<br />从少刷新一次页面开始。",
-    subscribeBody: "选择库存提醒或实时雷达方案，通过 Stripe 安全订阅，随时掌握真正可买的空调。",
-    subscribeNotice: "登录后即可选择方案。房间已经开始降温了。",
+    subscribeBody: "选择 Heatwave Alerts Pass 或 Heatwave Radar Pass，通过 Stripe 一次性安全支付，获得 90 天库存追踪服务。",
+    subscribeNotice: "登录后即可购买热浪通行证。房间已经开始降温了。",
     loginTitle: "登录后开启清凉雷达",
-    loginSubtitle: "输入邮箱获取验证码，登录后即可选择订阅方案并解锁库存提醒。",
+    loginSubtitle: "输入邮箱获取验证码，登录后即可选择一次性热浪通行证并开启库存提醒。",
     emailLabel: "邮箱",
     emailPlaceholder: "you@example.com",
     codeLabel: "验证码",
     codePlaceholder: "输入 6 位验证码",
     sendCode: "发送验证码",
     sendCodeBusy: "发送中…",
-    loginSubmit: "登录 / 继续订阅",
+    loginSubmit: "登录 / 继续购买",
     loginBusy: "登录中…",
     socialDivider: "或使用第三方账号继续",
     loginWithGoogle: "Google",
     loginWithApple: "Apple",
     loginWithMicrosoft: "Microsoft",
     loginFinePrint: "继续即表示你同意用户协议和隐私政策。",
-    loginPreviewNotice: "邮箱验证码和订阅支付已接入；第三方登录即将开放。",
+    loginPreviewNotice: "邮箱验证码和热浪通行证一次性支付已接入；第三方登录即将开放。",
     closeLogin: "关闭登录弹窗",
     codeSent: "验证码已发送，请检查你的邮箱。",
     codeCooldown: "验证码刚刚发送过，请 {seconds} 秒后再试。",
@@ -210,7 +210,7 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     heroEyebrow: "Airco-voorraad voor Europa",
     heroTitle: "Een zeldzame hittegolf raakt Europa.",
     heroLead: "Terwijl de kades langs de Seine gloeien, verdwijnt airco-voorraad soms binnen een uur. Airco Tracker laat zien welke winkels nog naar jouw land leveren.",
-    primaryCta: "Abonneren",
+    primaryCta: "Koop een pas",
     secondaryCta: "Bekijk Frankrijk",
     scrollCue: "Scroll omlaag voor de hitte",
     stepOneKicker: "Paris · 38°C",
@@ -243,10 +243,10 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     productBody: "Bezorgland, voorraad en pre-orders, winkel, model en prijs staan in één overzicht. Minder zoeken, meer kans om echte voorraad op tijd te vinden.",
     finaleKicker: "De avond valt · de kamer blijft koel",
     subscribeTitle: "Een koelere zomer begint<br />met minder refreshen.",
-    subscribeBody: "Kies voorraadmeldingen of de realtime radar en abonneer je veilig via Stripe om beschikbare airco’s niet meer te missen.",
-    subscribeNotice: "Log in om een abonnement te kiezen. De kamer koelt alvast af.",
+    subscribeBody: "Kies de Heatwave Alerts Pass of Heatwave Radar Pass en betaal één keer veilig via Stripe voor 90 dagen voorraadtracking.",
+    subscribeNotice: "Log in om een Heatwave-pass te kopen. De kamer koelt alvast af.",
     loginTitle: "Log in voor je koele voorraad-radar",
-    loginSubtitle: "Vul je e-mail in voor een code. Na het inloggen kun je een abonnement kiezen en voorraadmeldingen activeren.",
+    loginSubtitle: "Vul je e-mail in voor een code. Na het inloggen kies je een eenmalige Heatwave-pass en activeer je voorraadmeldingen.",
     emailLabel: "E-mail",
     emailPlaceholder: "jij@example.com",
     codeLabel: "Code",
@@ -260,7 +260,7 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     loginWithApple: "Apple",
     loginWithMicrosoft: "Microsoft",
     loginFinePrint: "Door verder te gaan ga je akkoord met de voorwaarden en privacyverklaring.",
-    loginPreviewNotice: "E-mailcodes en abonnementsbetalingen werken; externe login volgt binnenkort.",
+    loginPreviewNotice: "E-mailcodes en eenmalige betalingen voor Heatwave-passen werken; externe login volgt binnenkort.",
     closeLogin: "Sluit loginvenster",
     codeSent: "De code is verstuurd. Check je mailbox.",
     codeCooldown: "Er is net een code verstuurd. Probeer opnieuw over {seconds} seconden.",
@@ -299,7 +299,7 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     heroEyebrow: "Portable AC stock tracking for Europe",
     heroTitle: "A rare heatwave is hitting Europe.",
     heroLead: "When the Seine-side stones start radiating heat, portable AC stock can vanish within an hour. Airco Tracker shows which stores can still deliver to your country.",
-    primaryCta: "Subscribe now",
+    primaryCta: "Buy a Pass",
     secondaryCta: "Preview France",
     scrollCue: "Scroll into the heatwave",
     stepOneKicker: "Paris · 38°C",
@@ -332,10 +332,10 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     productBody: "Delivery country, in-stock and pre-order status, retailer, model and price all live in one view. Less searching, a better chance of catching genuine stock.",
     finaleKicker: "Blue hour · comfort restored",
     subscribeTitle: "A cooler summer starts<br />with one less refresh.",
-    subscribeBody: "Choose stock alerts or the realtime radar and subscribe securely with Stripe so you never miss a genuinely buyable AC.",
-    subscribeNotice: "Sign in to choose a plan. The room is already cooling down.",
+    subscribeBody: "Choose the Heatwave Alerts Pass or Heatwave Radar Pass and make one secure Stripe payment for 90 days of stock tracking.",
+    subscribeNotice: "Sign in to buy a Heatwave Pass. The room is already cooling down.",
     loginTitle: "Log in to unlock your cooling radar",
-    loginSubtitle: "Enter your email for a code. After signing in, choose a plan and unlock stock alerts.",
+    loginSubtitle: "Enter your email for a code. After signing in, choose a one-time Heatwave Pass and unlock stock alerts.",
     emailLabel: "Email",
     emailPlaceholder: "you@example.com",
     codeLabel: "Verification code",
@@ -349,7 +349,7 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     loginWithApple: "Apple",
     loginWithMicrosoft: "Microsoft",
     loginFinePrint: "By continuing, you agree to the terms and privacy policy.",
-    loginPreviewNotice: "Email codes and subscription payments are available; third-party sign-in is coming soon.",
+    loginPreviewNotice: "Email codes and one-time Heatwave Pass payments are available; third-party sign-in is coming soon.",
     closeLogin: "Close login dialog",
     codeSent: "Code sent. Please check your inbox.",
     codeCooldown: "A code was just sent. Try again in {seconds} seconds.",
@@ -388,7 +388,7 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     heroEyebrow: "Suivi des climatiseurs disponibles en Europe",
     heroTitle: "Une canicule exceptionnelle frappe l’Europe.",
     heroLead: "Quand les quais de Seine se mettent à rayonner la chaleur, les climatiseurs mobiles peuvent disparaître des stocks en moins d’une heure. Airco Tracker vous indique quels magasins peuvent encore livrer dans votre pays.",
-    primaryCta: "S’abonner maintenant",
+    primaryCta: "Acheter un pass",
     secondaryCta: "Voir la France",
     scrollCue: "Faites défiler pour entrer dans la canicule",
     stepOneKicker: "Paris · 38 °C",
@@ -421,10 +421,10 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     productBody: "Pays de livraison, stock et précommandes, magasin, modèle et prix sont réunis dans une seule vue. Moins de recherches, plus de chances de trouver un appareil réellement disponible.",
     finaleKicker: "L’heure bleue · la fraîcheur retrouvée",
     subscribeTitle: "Un été plus frais commence<br />par une actualisation en moins.",
-    subscribeBody: "Choisissez les alertes de stock ou le radar en temps réel et abonnez-vous en toute sécurité avec Stripe pour ne plus manquer un climatiseur réellement disponible.",
-    subscribeNotice: "Connectez-vous pour choisir une formule. La pièce commence déjà à se rafraîchir.",
+    subscribeBody: "Choisissez le Heatwave Alerts Pass ou le Heatwave Radar Pass et payez une seule fois via Stripe pour 90 jours de suivi des stocks.",
+    subscribeNotice: "Connectez-vous pour acheter un pass canicule. La pièce commence déjà à se rafraîchir.",
     loginTitle: "Connectez-vous pour activer votre radar fraîcheur",
-    loginSubtitle: "Saisissez votre e-mail pour recevoir un code. Après connexion, choisissez une formule et activez les alertes de stock.",
+    loginSubtitle: "Saisissez votre e-mail pour recevoir un code. Après connexion, choisissez un pass canicule à paiement unique et activez les alertes de stock.",
     emailLabel: "E-mail",
     emailPlaceholder: "vous@exemple.fr",
     codeLabel: "Code de vérification",
@@ -438,7 +438,7 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     loginWithApple: "Apple",
     loginWithMicrosoft: "Microsoft",
     loginFinePrint: "En continuant, vous acceptez les conditions d’utilisation et la politique de confidentialité.",
-    loginPreviewNotice: "Les codes par e-mail et le paiement des abonnements sont disponibles ; la connexion avec un tiers arrive bientôt.",
+    loginPreviewNotice: "Les codes par e-mail et le paiement unique des pass canicule sont disponibles ; la connexion avec un tiers arrive bientôt.",
     closeLogin: "Fermer la fenêtre de connexion",
     codeSent: "Code envoyé. Consultez votre boîte de réception.",
     codeCooldown: "Un code vient d’être envoyé. Réessayez dans {seconds} secondes.",
@@ -534,9 +534,6 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
     document
       .querySelector('meta[name="description"]')
       ?.setAttribute("content", copy.pageDescription);
-    if (new URLSearchParams(window.location.search).get("subscribed") === "alerts") {
-      setCoolingPreview(true);
-    }
   }, [copy.pageDescription, copy.pageTitle]);
 
   useEffect(() => {
@@ -553,7 +550,7 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
         if (nextUser && !nextUser.nickname) {
           setNickname("");
           setNicknameOpen(true);
-        } else if (nextUser && subscriptionIsActive(nextUser)) {
+        } else if (nextUser && entitlementIsActive(nextUser)) {
           window.location.replace(`/ready?lang=${routeLanguage}`);
         }
       })
@@ -602,7 +599,7 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
     setLoginError("");
     setLoginMessage("");
     if (user) {
-      window.location.href = subscriptionIsActive(user)
+      window.location.href = entitlementIsActive(user)
         ? `/ready?lang=${lang}`
         : `/subscribe?lang=${lang}`;
       return;
@@ -646,7 +643,7 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
       if (result.needsOnboarding || !result.user.nickname) {
         setNickname("");
         setNicknameOpen(true);
-      } else if (!subscriptionIsActive(result.user)) {
+      } else if (!entitlementIsActive(result.user)) {
         window.location.href = `/subscribe?lang=${navigationLanguage(lang, result.user.languagePreference)}`;
       } else {
         window.location.href = `/ready?lang=${navigationLanguage(lang, result.user.languagePreference)}`;
@@ -667,7 +664,7 @@ export function LandingPage({ lang, setLang }: LandingPageProps) {
       setUser(updated);
       setNicknameOpen(false);
       setNickname("");
-      if (!subscriptionIsActive(updated)) {
+      if (!entitlementIsActive(updated)) {
         window.location.href = `/subscribe?lang=${navigationLanguage(lang, updated.languagePreference)}`;
       } else {
         window.location.href = `/ready?lang=${navigationLanguage(lang, updated.languagePreference)}`;

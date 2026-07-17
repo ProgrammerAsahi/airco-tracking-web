@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { hasRealtimeStockAccess, subscriptionIsActive } from "../shared/auth";
+import { entitlementIsActive, hasRealtimeStockAccess } from "../shared/auth";
 import { AccountMenu } from "./AccountMenu";
 import { getCurrentUser, syncCheckoutStatus, type UserProfile } from "./authClient";
 import { LanguageSwitcher } from "./LanguageSwitcher";
@@ -23,7 +23,7 @@ const READY_COPY: Record<Lang, ReadyCopy> = {
     productName: "Airco Tracker",
     pageTitle: "一切已就绪",
     pageDescription: "Airco Tracker 已准备好发送空调库存提醒。",
-    loading: "正在读取订阅状态…",
+    loading: "正在读取通行证状态…",
     title: "一切已就绪",
     body: "一旦出现空调上架，我们会邮件通知您。",
     bodyPaused: "库存提醒邮件已暂停。你可以随时在账号页面重新开启。",
@@ -34,7 +34,7 @@ const READY_COPY: Record<Lang, ReadyCopy> = {
     productName: "Airco Tracker",
     pageTitle: "Alles staat klaar",
     pageDescription: "Airco Tracker staat klaar om je meldingen over nieuwe airco-voorraad te sturen.",
-    loading: "Abonnement laden…",
+    loading: "Heatwave-pass laden…",
     title: "Alles staat klaar",
     body: "Zodra er airco-voorraad verschijnt, sturen we je een e-mail.",
     bodyPaused: "Voorraadmeldingen per e-mail zijn gepauzeerd. Je kunt ze op elk moment weer inschakelen in je account.",
@@ -45,7 +45,7 @@ const READY_COPY: Record<Lang, ReadyCopy> = {
     productName: "Airco Tracker",
     pageTitle: "You are all set",
     pageDescription: "Airco Tracker is ready to send your portable AC stock alerts.",
-    loading: "Loading subscription…",
+    loading: "Loading Heatwave Pass…",
     title: "You are all set.",
     body: "As soon as an air conditioner appears in stock, we’ll notify you by email.",
     bodyPaused: "Stock alert emails are paused. You can re-enable them at any time in your account.",
@@ -56,7 +56,7 @@ const READY_COPY: Record<Lang, ReadyCopy> = {
     productName: "Airco Tracker",
     pageTitle: "Tout est prêt",
     pageDescription: "Airco Tracker est prêt à vous envoyer des alertes de stock pour les climatiseurs mobiles.",
-    loading: "Chargement de l’abonnement…",
+    loading: "Chargement du pass canicule…",
     title: "Tout est prêt.",
     body: "Dès qu’un climatiseur sera disponible, nous vous préviendrons par e-mail.",
     bodyPaused: "Les alertes de stock par e-mail sont en pause. Vous pouvez les réactiver à tout moment depuis votre compte.",
@@ -81,11 +81,9 @@ export function ReadyPage({ lang, setLang }: ReadyPageProps) {
 
     async function loadUser() {
       const params = new URLSearchParams(window.location.search);
-      const checkoutSucceeded = params.get("checkout") === "success";
       const sessionId = params.get("session_id");
-      const subscriptionReturned = params.get("subscription") === "updated" || params.get("subscription") === "scheduled";
 
-      if (checkoutSucceeded || sessionId || subscriptionReturned) {
+      if (sessionId) {
         try {
           const syncedUser = await syncCheckoutStatus(sessionId);
           if (!ignore) {
@@ -99,15 +97,7 @@ export function ReadyPage({ lang, setLang }: ReadyPageProps) {
         }
       }
 
-      const currentUser = await getCurrentUser();
-      if (currentUser && !subscriptionIsActive(currentUser)) {
-        try {
-          return await syncCheckoutStatus();
-        } catch {
-          // No stored Stripe subscription yet, or Stripe still has not finalized it.
-        }
-      }
-      return currentUser;
+      return getCurrentUser();
     }
 
     loadUser()
@@ -122,7 +112,7 @@ export function ReadyPage({ lang, setLang }: ReadyPageProps) {
         if (!hasExplicitLanguage && nextUser.languagePreference !== lang) {
           setLang(nextUser.languagePreference);
         }
-        if (!subscriptionIsActive(nextUser)) {
+        if (!entitlementIsActive(nextUser)) {
           window.location.replace(`/subscribe?lang=${routeLanguage}`);
           return;
         }

@@ -22,7 +22,7 @@ Browser
                  ├─ GET /api/inventory
                  │      └─ Managed Identity → private inventory.json Blob
                  ├─ POST /api/billing/create-checkout-session
-                 │      └─ Stripe Checkout, card payments in the first billing pass
+                 │      └─ Stripe Checkout，一次性信用卡支付
                  ├─ Auth / profile / Stripe webhook 持久化
                  │      ├─ users（完整用户资料）
                  │      └─ alertrecipients（32 分片、最小邮件投影）
@@ -32,7 +32,7 @@ Browser
 
 该应用复用 `airco-tracking` 后端项目已有的 Container Apps Environment、ACR、Storage Account 和运行时身份，并只在同一个 resource group 中额外创建一个 `airco-tracking-web` Container App。
 
-用户以稳定 UUID `userId` 标识，因此修改邮箱不会改变账户身份。每次注册、资料/偏好更新、Stripe 订阅 webhook、取消订阅和账号删除都会同步维护 `alertrecipients` Table。该投影按 `sha256(userId) % 32` 分片，只保存邮件投递所需的邮箱、语言、配送国家和订阅状态；不保存昵称、Stripe ID、支付方式或卡信息。未配置 Azure Storage 的本地开发仍使用内存用户存储，不依赖该投影。
+用户以稳定 UUID `userId` 标识，因此修改邮箱不会改变账户身份。每次注册、资料/偏好更新、Stripe 通行证购买、退款/争议、权益到期和账号删除都会同步维护 `alertrecipients` Table。该投影按 `sha256(userId) % 32` 分片，只保存邮件投递所需的邮箱、语言、配送国家和通行证权益；不保存昵称、Stripe ID、支付方式或卡信息。未配置 Azure Storage 的本地开发仍使用内存用户存储，不依赖该投影。
 
 Azure-backed canonical 用户数据使用 `id:<uuid>` profile row，并通过 `email:<base64url>`、`stripe:<base64url>` index rows 定位账户。ETag/CAS 和单调 revision 防止验证码重复消费、并发资料覆盖和旧 webhook/projection 回写；修改已验证邮箱时保留 UUID，并以 transaction 替换邮箱索引。Public API 不返回 UUID、revision 或 Stripe identifiers。
 
@@ -93,20 +93,19 @@ node scripts/verify-deployment.mjs http://127.0.0.1:4174
 | `APP_BASE_URL` | Stripe 返回 URL 使用的公开 origin，例如 `https://airco-tracker.eu` |
 | `STRIPE_SECRET_KEY` | Stripe secret key。先使用 test mode (`sk_test_...`) |
 | `STRIPE_WEBHOOK_SECRET` | `/api/billing/webhook` 的 Stripe webhook signing secret |
-| `STRIPE_BILLING_PORTAL_CONFIGURATION_ID` | 已启用订阅切换、并允许四个 Price 的 Stripe Customer Portal configuration ID |
-| `STRIPE_PRICE_WEEKLY_BASIC` | `weekly_basic` 的 Stripe recurring Price ID |
-| `STRIPE_PRICE_WEEKLY_PRIORITY` | `weekly_priority` 的 Stripe recurring Price ID |
-| `STRIPE_PRICE_MONTHLY_BASIC` | `monthly_basic` 的 Stripe recurring Price ID |
-| `STRIPE_PRICE_MONTHLY_PRIORITY` | `monthly_priority` 的 Stripe recurring Price ID |
+| `STRIPE_PRICE_ALERTS_PASS` | €5 Heatwave Alerts Pass 的一次性 Stripe Price ID |
+| `STRIPE_PRICE_RADAR_PASS` | €10 Heatwave Radar Pass 的一次性 Stripe Price ID |
+| `STRIPE_PRICE_RADAR_UPGRADE` | 有效 Alerts Pass 升级到 Radar Pass 的 €5 一次性 Stripe Price ID |
 
 ### Stripe billing setup
 
-第一版 billing 使用托管的 Stripe Checkout，先只支持信用卡。卡号数据永远不会接触 Airco Tracker server。请在 Stripe test mode 中创建四个 recurring Prices，并映射到上面的变量：
+Billing 使用托管的 Stripe Checkout，先只支持信用卡。卡号数据永远不会接触 Airco Tracker server。请在 Stripe test mode 中创建三个一次性 Price，并映射到上面的变量：
 
-- `weekly_basic`: €10 / week
-- `weekly_priority`: €20 / week
-- `monthly_basic`: €15 / month
-- `monthly_priority`: €30 / month
+- Heatwave Alerts Pass：€5，一次付费，库存提醒邮件有效 90 天。
+- Heatwave Radar Pass：€10，一次付费，库存提醒邮件和实时库存访问有效 90 天。
+- Alerts → Radar upgrade：€5，一次付费，立即增加实时库存权限，并沿用原 Alerts Pass 到期日。
+
+通行证不会自动续费。有效 Radar Pass 不能降级；到期后用户可以重新购买任一通行证。有效 Alerts Pass 只能购买 €5 upgrade，不能重复购买同级通行证。
 
 配置 Stripe webhook endpoint：
 
@@ -114,16 +113,20 @@ node scripts/verify-deployment.mjs http://127.0.0.1:4174
 https://airco-tracker.eu/api/billing/webhook
 ```
 
-至少订阅以下事件：
+至少订阅以下与一次性付款、退款和争议有关的事件：
 
 - `checkout.session.completed`
-- `customer.subscription.created`
-- `customer.subscription.updated`
-- `customer.subscription.deleted`
+- `checkout.session.async_payment_succeeded`
+- `charge.refunded`
+- `refund.created`
+- `refund.updated`
+- `refund.failed`
+- `charge.dispute.created`
+- `charge.dispute.closed`
 
 切换到 live mode 之前，先使用 Stripe test cards 验证 Checkout。
 
-Customer Portal 配置必须启用订阅方案切换，并把两个产品下的四个 Price 全部加入允许列表。升级应立即结算差额；降级和切换到更短周期应在当前账期结束后生效。把该配置的 `bpc_...` ID 写入 `STRIPE_BILLING_PORTAL_CONFIGURATION_ID`，后端会在需要 3D Secure 时显式使用并校验这份配置。
+Customer Portal 不参与通行证购买流程。付款成功后，以经过签名验证的 webhook 和登录用户的 Checkout return sync 更新权益；重复事件必须保持幂等。完整回归矩阵见 `docs/SUBSCRIPTION_BILLING_TEST_PLAN.md`。
 
 ## 文档语言维护
 

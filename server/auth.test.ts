@@ -22,8 +22,7 @@ import {
   hasEmailAlertAccess,
   hasRealtimeStockAccess,
   normalizeEmail,
-  subscriptionChangeDirection,
-  subscriptionIsActive,
+  entitlementIsActive,
   userInitials,
   validateNickname,
 } from "../shared/auth.js";
@@ -37,17 +36,25 @@ function testUser(overrides: Partial<StoredUserProfile> = {}): StoredUserProfile
     nickname: "Test User",
     emailAlertsEnabled: true,
     emailAlertsTokenVersion: 1,
-    subscriptionPlan: "monthly_priority",
-    subscriptionStatus: "active",
-    subscriptionCurrentPeriodEnd: "2099-01-01T00:00:00.000Z",
-    subscriptionCancelAtPeriodEnd: false,
-    pendingSubscriptionPlan: null,
-    pendingSubscriptionEffectiveAt: null,
+    entitlementTier: "radar",
+    entitlementStatus: "active",
+    entitlementExpiresAt: "2099-01-01T00:00:00.000Z",
+    entitlementPurchasedAt: "2026-07-09T00:00:00.000Z",
+    passReceipts: [{
+      id: "pi_existing",
+      kind: "purchase",
+      tier: "radar",
+      baseReceiptId: null,
+      purchasedAt: "2026-07-09T00:00:00.000Z",
+      expiresAt: "2099-01-01T00:00:00.000Z",
+      status: "active",
+      paymentBrand: "VISA",
+      paymentLast4: "4242",
+    }],
     paymentMethod: "card",
     paymentBrand: "VISA",
     paymentLast4: "4242",
     stripeCustomerId: "cus_secret",
-    stripeSubscriptionId: "sub_secret",
     languagePreference: "en",
     deliveryCountry: "fr",
     createdAt: "2026-07-09T00:00:00.000Z",
@@ -66,14 +73,13 @@ function storedUserEntity(user: StoredUserProfile) {
     rowKey: `id:${user.userId}`,
     ...user,
     nickname: user.nickname ?? "",
-    subscriptionCurrentPeriodEnd: user.subscriptionCurrentPeriodEnd ?? "",
-    pendingSubscriptionPlan: user.pendingSubscriptionPlan ?? "",
-    pendingSubscriptionEffectiveAt: user.pendingSubscriptionEffectiveAt ?? "",
+    entitlementExpiresAt: user.entitlementExpiresAt ?? "",
+    entitlementPurchasedAt: user.entitlementPurchasedAt ?? "",
+    passReceiptsJson: JSON.stringify(user.passReceipts),
     paymentMethod: user.paymentMethod ?? "",
     paymentBrand: user.paymentBrand ?? "",
     paymentLast4: user.paymentLast4 ?? "",
     stripeCustomerId: user.stripeCustomerId ?? "",
-    stripeSubscriptionId: user.stripeSubscriptionId ?? "",
     recordType: "profile",
     recordState: "active",
     etag: `etag-${user.profileRevision}`,
@@ -288,42 +294,33 @@ test("validates stored language and delivery country preferences", () => {
   assert.equal(isDeliveryCountry("de"), false);
 });
 
-test("evaluates subscription entitlements through the current period", () => {
+test("evaluates one-time pass entitlements through their expiry", () => {
   const future = new Date(Date.now() + 60_000).toISOString();
   const past = new Date(Date.now() - 60_000).toISOString();
   const emailOnly = {
-    subscriptionPlan: "weekly_basic" as const,
-    subscriptionStatus: "active" as const,
-    subscriptionCurrentPeriodEnd: future,
+    entitlementTier: "alerts" as const,
+    entitlementStatus: "active" as const,
+    entitlementExpiresAt: future,
     emailAlertsEnabled: true,
   };
   const stock = {
-    subscriptionPlan: "monthly_priority" as const,
-    subscriptionStatus: "active" as const,
-    subscriptionCurrentPeriodEnd: future,
-  };
-  const canceledButValid = {
-    subscriptionPlan: "monthly_priority" as const,
-    subscriptionStatus: "canceled" as const,
-    subscriptionCurrentPeriodEnd: future,
+    entitlementTier: "radar" as const,
+    entitlementStatus: "active" as const,
+    entitlementExpiresAt: future,
   };
   const expired = {
-    subscriptionPlan: "monthly_priority" as const,
-    subscriptionStatus: "active" as const,
-    subscriptionCurrentPeriodEnd: past,
+    entitlementTier: "radar" as const,
+    entitlementStatus: "active" as const,
+    entitlementExpiresAt: past,
   };
 
-  assert.equal(subscriptionIsActive(emailOnly), true);
+  assert.equal(entitlementIsActive(emailOnly), true);
   assert.equal(hasEmailAlertAccess(emailOnly), true);
   assert.equal(hasEmailAlertAccess({ ...emailOnly, emailAlertsEnabled: false }), false);
   assert.equal(hasRealtimeStockAccess(emailOnly), false);
   assert.equal(hasRealtimeStockAccess(stock), true);
-  assert.equal(hasRealtimeStockAccess(canceledButValid), true);
-  assert.equal(subscriptionIsActive(expired), false);
+  assert.equal(entitlementIsActive(expired), false);
   assert.equal(hasRealtimeStockAccess(expired), false);
-  assert.equal(subscriptionChangeDirection("weekly_basic", "weekly_priority"), "upgrade");
-  assert.equal(subscriptionChangeDirection("monthly_priority", "monthly_basic"), "downgrade");
-  assert.equal(subscriptionChangeDirection("weekly_basic", "monthly_basic"), "lateral");
 });
 
 test("derives compact avatar initials", () => {
@@ -393,15 +390,15 @@ test("shards alert recipients deterministically across 32 partitions", () => {
 test("projects only the fields needed for alert delivery", () => {
   const entity = alertRecipientEntity(testUser(), Date.parse("2026-07-09T00:00:00.000Z"));
   assert.deepEqual(Object.keys(entity).sort(), [
-    "currentPeriodEnd",
     "deliveryCountry",
     "email",
     "enabled",
+    "entitlementExpiresAt",
+    "entitlementStatus",
+    "entitlementTier",
     "language",
     "partitionKey",
     "rowKey",
-    "status",
-    "subscriptionPlan",
     "sourceRevision",
     "unsubscribeTokenVersion",
     "updatedAt",
@@ -418,7 +415,7 @@ test("projects only the fields needed for alert delivery", () => {
   assert.equal(french.language, "fr");
 
   const expired = alertRecipientEntity(testUser({
-    subscriptionCurrentPeriodEnd: "2026-07-08T00:00:00.000Z",
+    entitlementExpiresAt: "2026-07-08T00:00:00.000Z",
   }), Date.parse("2026-07-09T00:00:00.000Z"));
   assert.equal(expired.enabled, false);
 
@@ -525,6 +522,43 @@ test("accepts a legacy same-revision projection without a token version", async 
 
   await store.upsert(testUser());
   assert.equal(updates, 0);
+});
+
+test("migrates a legacy subscription projection at the same source revision", async () => {
+  const desired = alertRecipientEntity(testUser());
+  const {
+    entitlementTier: _entitlementTier,
+    entitlementStatus: _entitlementStatus,
+    entitlementExpiresAt: _entitlementExpiresAt,
+    ...common
+  } = desired;
+  const legacy = {
+    ...common,
+    subscriptionPlan: "monthly_priority",
+    status: "active",
+    currentPeriodEnd: desired.entitlementExpiresAt,
+    etag: "etag-legacy",
+  };
+  let migrated: typeof desired | null = null;
+  let updateEtag: string | null = null;
+  const store = new AlertRecipientProjectionStore({
+    async createTable() {},
+    async getEntity() {
+      return legacy as unknown as typeof desired & { etag: string };
+    },
+    async createEntity() {},
+    async updateEntity(entity, etag) {
+      migrated = entity;
+      updateEtag = etag;
+    },
+    async deleteEntity() {},
+  });
+
+  await store.upsert(testUser());
+
+  assert.equal(updateEtag, "etag-legacy");
+  assert.deepEqual(migrated, desired);
+  assert.equal("subscriptionPlan" in (migrated ?? {}), false);
 });
 
 test("rechecks projection revision after an ETag race", async () => {
@@ -670,6 +704,45 @@ test("uses point reads for canonical UUID, email, and Stripe indexes", async () 
   assert.equal(users.listEntitiesCalls, 0);
 });
 
+test("cleans the superseded Stripe customer index after a replacement", async () => {
+  const original = testUser();
+  const users = new FakeUsersTable([original]);
+  const { store } = tableStoreForTest(users);
+
+  const changed = await store.mutateUser(original.userId, (current) => ({
+    ...current,
+    stripeCustomerId: "cus_replacement",
+    profileRevision: current.profileRevision + 1,
+    updatedAt: "2026-07-09T00:00:05.000Z",
+  }));
+
+  assert.equal(changed.stripeCustomerId, "cus_replacement");
+  assert.equal(users.entities.has(`stripe:${encodedEmail(original.stripeCustomerId ?? "")}`), false);
+  assert.equal(users.entities.has(`stripe:${encodedEmail("cus_replacement")}`), true);
+  assert.equal((await store.getUserByStripeCustomerId("cus_replacement"))?.userId, original.userId);
+});
+
+test("fails closed when a non-empty pass receipt ledger is corrupt", async () => {
+  const original = testUser();
+  const users = new FakeUsersTable([original]);
+  users.entities.get(`id:${original.userId}`)!.passReceiptsJson = "{not-json";
+  const { store } = tableStoreForTest(users);
+  const originalError = console.error;
+  console.error = () => {};
+  try {
+    await assert.rejects(
+      store.getUser(original.email),
+      (error: unknown) => error instanceof Error && error.message === "Pass receipt ledger is corrupt",
+    );
+    await assert.rejects(
+      store.getUserByStripeCustomerId(original.stripeCustomerId!),
+      (error: unknown) => error instanceof Error && error.message === "Pass receipt ledger is corrupt",
+    );
+  } finally {
+    console.error = originalError;
+  }
+});
+
 test("migrates a legacy email-keyed profile to canonical UUID and indexes once", async () => {
   const original = testUser();
   const users = new FakeUsersTable([original], { legacy: true });
@@ -686,32 +759,40 @@ test("migrates a legacy email-keyed profile to canonical UUID and indexes once",
   assert.equal(users.listEntitiesCalls, 0);
 });
 
-test("commits account deletion before suppressing the alert projection", async () => {
+test("commits account deletion even when projection cleanup is deferred", async () => {
   const original = testUser({
-    subscriptionPlan: "none",
-    subscriptionStatus: "none",
-    subscriptionCurrentPeriodEnd: null,
+    entitlementTier: "none",
+    entitlementStatus: "none",
+    entitlementExpiresAt: null,
+    entitlementPurchasedAt: null,
+    passReceipts: [],
+    paymentMethod: null,
+    paymentBrand: null,
+    paymentLast4: null,
   });
   const users = new FakeUsersTable([original]);
   const projectionError = new Error("projection unavailable");
   const { store, projectionSuppressions } = tableStoreForTest(users, { projectionError });
 
-  await assert.rejects(
-    store.deleteUser(original.email, { userId: original.userId }),
-    projectionError,
-  );
+  await store.deleteUser(original.email, { userId: original.userId });
 
-  assert.equal(users.entities.get(`id:${original.userId}`)?.recordState, "deleted");
-  assert.equal(users.entities.get(`email:${encodedEmail(original.email)}`)?.recordState, "superseded");
+  assert.equal(users.entities.has(`id:${original.userId}`), false);
+  assert.equal(users.entities.has(`email:${encodedEmail(original.email)}`), false);
+  assert.equal(users.entities.has(`stripe:${encodedEmail(original.stripeCustomerId ?? "")}`), false);
   assert.deepEqual(projectionSuppressions, [{ userId: original.userId, sourceRevision: 2 }]);
   assert.equal(await store.getUser(original.email), null);
 });
 
-test("rechecks subscription entitlement after a concurrent deletion race", async () => {
+test("rechecks pass entitlement after a concurrent deletion race", async () => {
   const original = testUser({
-    subscriptionPlan: "none",
-    subscriptionStatus: "none",
-    subscriptionCurrentPeriodEnd: null,
+    entitlementTier: "none",
+    entitlementStatus: "none",
+    entitlementExpiresAt: null,
+    entitlementPurchasedAt: null,
+    passReceipts: [],
+    paymentMethod: null,
+    paymentBrand: null,
+    paymentLast4: null,
   });
   const users = new FakeUsersTable([original]);
   const { store, projectionSuppressions } = tableStoreForTest(users);
@@ -723,9 +804,9 @@ test("rechecks subscription entitlement after a concurrent deletion race", async
     const current = users.entities.get(key)!;
     users.entities.set(key, {
       ...current,
-      subscriptionPlan: "monthly_priority",
-      subscriptionStatus: "active",
-      subscriptionCurrentPeriodEnd: "2099-01-01T00:00:00.000Z",
+      entitlementTier: "radar",
+      entitlementStatus: "active",
+      entitlementExpiresAt: "2099-01-01T00:00:00.000Z",
       profileRevision: 2,
       etag: "etag-2",
     });
@@ -734,7 +815,7 @@ test("rechecks subscription entitlement after a concurrent deletion race", async
 
   await assert.rejects(
     store.deleteUser(original.email, { userId: original.userId }),
-    (error: unknown) => error instanceof Error && error.message === "active_subscription",
+    (error: unknown) => error instanceof Error && error.message === "active_entitlement",
   );
 
   assert.equal(users.entities.get(`id:${original.userId}`)?.recordState, "active");
@@ -777,7 +858,109 @@ test("keeps the same userId through an email change in local memory auth", async
   assert.equal((await auth.currentUser(request))?.email, "second@example.test");
 });
 
-test("toggles stock alert emails without changing subscription access", async () => {
+test("binds sessions to immutable userId even if a stale session keeps a reused email", async () => {
+  const auth = new AuthService({ exposeDevCode: true });
+  const firstCode = await auth.requestCode("reused@example.test", "en");
+  const first = await auth.verifyCode("reused@example.test", firstCode.devCode, "en");
+  const firstRequest = {
+    headers: { cookie: `${auth.cookieName}=${first.sessionToken}` },
+  } as IncomingMessage;
+
+  const changeCode = await auth.requestEmailChangeCode(firstRequest, "owner@example.test", "en");
+  await auth.updateEmail(firstRequest, { email: "owner@example.test", code: changeCode.devCode });
+
+  // Simulate a post-commit session-email repair failure. Authentication must
+  // still follow the immutable userId rather than this stale mutable address.
+  const memoryStore = (auth as unknown as {
+    store: { sessions: Map<string, { userId: string | null; email: string }> };
+  }).store;
+  const staleSession = [...memoryStore.sessions.values()].find((session) => session.userId === first.user.userId);
+  assert.ok(staleSession);
+  staleSession.email = "reused@example.test";
+
+  const secondCode = await auth.requestCode("reused@example.test", "en");
+  const second = await auth.verifyCode("reused@example.test", secondCode.devCode, "en");
+  assert.notEqual(second.user.userId, first.user.userId);
+
+  const resolved = await auth.currentUser(firstRequest);
+  assert.equal(resolved?.userId, first.user.userId);
+  assert.equal(resolved?.email, "owner@example.test");
+});
+
+test("deduplicates pass receipts and falls back safely when an upgrade is refunded", async () => {
+  const auth = new AuthService({ exposeDevCode: true });
+  const code = await auth.requestCode("passes@example.test", "en");
+  const verified = await auth.verifyCode("passes@example.test", code.devCode, "en");
+  const request = {
+    headers: { cookie: `${auth.cookieName}=${verified.sessionToken}` },
+  } as IncomingMessage;
+  const customer = await auth.attachStripeCustomer(request, "cus_passes");
+  const purchasedAt = new Date(Date.now() - 60_000).toISOString();
+  const expiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
+  const basePurchase = {
+    userId: customer.userId,
+    stripeCustomerId: "cus_passes",
+    stripePaymentIntentId: "pi_alerts",
+    kind: "purchase" as const,
+    baseReceiptId: null,
+    tier: "alerts" as const,
+    purchasedAt,
+    expiresAt,
+    paymentBrand: "visa",
+    paymentLast4: "4242",
+  };
+
+  const purchased = await auth.applyStripePassPurchase(basePurchase);
+  assert.equal(purchased?.entitlementTier, "alerts");
+  assert.equal(purchased?.passReceipts.length, 1);
+  const revisionAfterPurchase = purchased!.profileRevision;
+
+  const replayed = await auth.applyStripePassPurchase({
+    ...basePurchase,
+    purchasedAt: new Date(Date.now() + 60_000).toISOString(),
+    expiresAt: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString(),
+  });
+  assert.equal(replayed?.profileRevision, revisionAfterPurchase);
+  assert.equal(replayed?.passReceipts.length, 1);
+  assert.equal(replayed?.entitlementExpiresAt, expiresAt);
+
+  const upgraded = await auth.applyStripePassPurchase({
+    ...basePurchase,
+    stripePaymentIntentId: "pi_upgrade",
+    kind: "upgrade",
+    baseReceiptId: "pi_alerts",
+    tier: "radar",
+    purchasedAt: new Date(Date.now() - 30_000).toISOString(),
+    paymentLast4: "4444",
+  });
+  assert.equal(upgraded?.entitlementTier, "radar");
+  assert.equal(upgraded?.passReceipts.length, 2);
+
+  const fallback = await auth.revokeStripePassEntitlement("cus_passes", "pi_upgrade", "refunded");
+  assert.equal(fallback?.entitlementTier, "alerts");
+  assert.equal(fallback?.entitlementStatus, "active");
+  assert.equal(fallback?.entitlementExpiresAt, expiresAt);
+  assert.equal(fallback?.paymentLast4, "4242");
+
+  const refundedReplay = await auth.applyStripePassPurchase({
+    ...basePurchase,
+    stripePaymentIntentId: "pi_upgrade",
+    kind: "upgrade",
+    baseReceiptId: "pi_alerts",
+    tier: "radar",
+    purchasedAt: new Date(Date.now() - 30_000).toISOString(),
+  });
+  assert.equal(refundedReplay?.entitlementTier, "alerts");
+  assert.equal(refundedReplay?.passReceipts.find((receipt) => receipt.id === "pi_upgrade")?.status, "refunded");
+
+  const fullyRefunded = await auth.revokeStripePassEntitlement("cus_passes", "pi_alerts", "refunded");
+  assert.equal(fullyRefunded?.entitlementTier, "none");
+  assert.equal(fullyRefunded?.entitlementStatus, "refunded");
+  assert.equal(hasEmailAlertAccess(fullyRefunded!), false);
+  assert.equal(hasRealtimeStockAccess(fullyRefunded!), false);
+});
+
+test("toggles stock alert emails without changing pass access", async () => {
   const auth = new AuthService({ exposeDevCode: true });
   const code = await auth.requestCode("alerts@example.test", "en");
   const verified = await auth.verifyCode("alerts@example.test", code.devCode, "en");
@@ -788,7 +971,7 @@ test("toggles stock alert emails without changing subscription access", async ()
   const disabled = await auth.updateEmailAlerts(request, false);
   assert.equal(disabled.emailAlertsEnabled, false);
   assert.equal(disabled.emailAlertsTokenVersion, 2);
-  assert.equal(disabled.subscriptionPlan, "none");
+  assert.equal(disabled.entitlementTier, "none");
 
   const enabled = await auth.updateEmailAlerts(request, true);
   assert.equal(enabled.emailAlertsEnabled, true);

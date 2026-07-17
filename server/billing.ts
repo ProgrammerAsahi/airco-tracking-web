@@ -1,53 +1,46 @@
 import type { IncomingMessage } from "node:http";
 import Stripe from "stripe";
 import {
+  SUBSCRIPTION_PLAN_DETAILS,
+  entitlementIsActive,
   isPaidSubscriptionPlan,
-  subscriptionChangeDirection,
-  subscriptionIsActive,
   type PaidSubscriptionPlan,
-  type SubscriptionStatus,
 } from "../shared/auth.js";
 import type { Lang } from "../shared/i18n.js";
 import {
   AuthHttpError,
+  activePassBaseReceiptId,
   type AuthService,
   type StoredUserProfile,
-  type StripeSubscriptionSnapshot,
+  type StripePassPurchase,
 } from "./auth.js";
 
 type StripeBillingOptions = {
   appBaseUrl?: string;
-  billingPortalConfigurationId?: string;
   secretKey?: string;
   webhookSecret?: string;
   priceIds: Partial<Record<PaidSubscriptionPlan, string>>;
+  radarUpgradePriceId?: string;
 };
 
-type CheckoutSessionResult = {
-  url: string;
-};
+type CheckoutSessionResult = { url: string };
+type PassPurchaseKind = "purchase" | "upgrade";
 
 const PRICE_ENV_BY_PLAN: Record<PaidSubscriptionPlan, string> = {
-  weekly_basic: "STRIPE_PRICE_WEEKLY_BASIC",
-  weekly_priority: "STRIPE_PRICE_WEEKLY_PRIORITY",
-  monthly_basic: "STRIPE_PRICE_MONTHLY_BASIC",
-  monthly_priority: "STRIPE_PRICE_MONTHLY_PRIORITY",
+  alerts: "STRIPE_PRICE_ALERTS_PASS",
+  radar: "STRIPE_PRICE_RADAR_PASS",
 };
-
-const ACTIVE_STRIPE_STATUSES = new Set(["active", "trialing"]);
-const STRIPE_ACTION_REQUIRED_CODES = new Set([
-  "subscription_payment_intent_requires_action",
-  "invoice_payment_intent_requires_action",
-  "payment_intent_action_required",
-  "authentication_required",
-]);
+const RADAR_UPGRADE_PRICE_ENV = "STRIPE_PRICE_RADAR_UPGRADE";
+const PASS_DURATION_MILLISECONDS = 90 * 24 * 60 * 60 * 1000;
+const MINIMUM_UPGRADE_REMAINING_MILLISECONDS = 60 * 60 * 1000;
+const CHECKOUT_SESSION_TTL_SECONDS = 31 * 60;
 
 export class StripeBillingService {
   private readonly stripe: Stripe | null;
   private readonly webhookSecret: string | undefined;
   private readonly appBaseUrl: string | undefined;
-  private readonly billingPortalConfigurationId: string | undefined;
   private readonly priceIds: Partial<Record<PaidSubscriptionPlan, string>>;
+  private readonly radarUpgradePriceId: string | undefined;
 
   constructor(
     private readonly auth: AuthService,
@@ -56,249 +49,66 @@ export class StripeBillingService {
     this.stripe = options.secretKey ? new Stripe(options.secretKey) : null;
     this.webhookSecret = options.webhookSecret;
     this.appBaseUrl = options.appBaseUrl;
-    this.billingPortalConfigurationId = options.billingPortalConfigurationId;
     this.priceIds = options.priceIds;
+    this.radarUpgradePriceId = options.radarUpgradePriceId;
   }
 
-  async createCheckoutSession(request: IncomingMessage, values: { plan?: unknown; lang: Lang }): Promise<CheckoutSessionResult> {
+  async createCheckoutSession(
+    request: IncomingMessage,
+    values: { plan?: unknown; lang: Lang },
+  ): Promise<CheckoutSessionResult> {
     const user = await this.auth.requireUser(request);
-    if (!isPaidSubscriptionPlan(values.plan)) throw new AuthHttpError(400, "invalid_subscription_plan");
+    if (!isPaidSubscriptionPlan(values.plan)) throw new AuthHttpError(400, "invalid_pass");
     const stripe = this.requireStripe();
-
-    const price = this.priceIds[values.plan];
-    if (!price) throw new AuthHttpError(503, "stripe_price_not_configured");
-
-    if (subscriptionIsActive(user)) {
-      return this.changeActiveSubscription(request, user, values.plan, price, values.lang);
-    }
-
+    const selection = selectPassCheckout(user, values.plan, {
+      priceIds: this.priceIds,
+      radarUpgradePriceId: this.radarUpgradePriceId,
+    });
     const customerId = await this.ensureStripeCustomer(request, user, values.lang);
     const baseUrl = this.publicBaseUrl(request);
+    const checkoutNow = Date.now();
+    const metadata: Stripe.MetadataParam = {
+      airco_user_id: user.userId,
+      airco_entitlement_tier: values.plan,
+      airco_purchase_kind: selection.kind,
+      airco_entitlement_expires_at: selection.expiresAt ?? "",
+      airco_base_receipt_id: selection.baseReceiptId ?? "",
+    };
+
     const session = await stripe.checkout.sessions.create({
-      mode: "subscription",
+      mode: "payment",
       payment_method_types: ["card"],
       customer: customerId,
       client_reference_id: user.userId,
-      line_items: [{ price, quantity: 1 }],
+      line_items: [{ price: selection.priceId, quantity: 1 }],
       locale: stripeLocale(values.lang),
+      // Keep every create parameter deterministic inside the idempotency
+      // window so a network retry returns the original Checkout Session.
+      expires_at: checkoutSessionExpiresAt(checkoutNow),
       success_url: `${baseUrl}/ready?lang=${values.lang}&checkout=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/subscribe?lang=${values.lang}&checkout=cancelled`,
-      subscription_data: {
-        metadata: {
-          airco_user_id: user.userId,
-          airco_plan: values.plan,
-        },
-      },
-      metadata: {
-        airco_user_id: user.userId,
-        airco_plan: values.plan,
-      },
+      payment_intent_data: { metadata },
+      metadata,
+    }, {
+      idempotencyKey: checkoutIdempotencyKey(user, values.plan, selection.kind, values.lang, checkoutNow),
     });
 
     if (!session.url) throw new AuthHttpError(502, "stripe_checkout_unavailable");
     return { url: session.url };
   }
 
-  private async changeActiveSubscription(
-    request: IncomingMessage,
-    user: StoredUserProfile,
-    plan: PaidSubscriptionPlan,
-    price: string,
-    lang: Lang,
-  ): Promise<CheckoutSessionResult> {
-    const baseUrl = this.publicBaseUrl(request);
-    if (user.subscriptionPlan === plan) {
-      return { url: `${baseUrl}/ready?lang=${lang}` };
-    }
-    if (!user.stripeSubscriptionId) throw new AuthHttpError(409, "active_subscription_without_stripe_id");
-
-    const stripe = this.requireStripe();
-    const subscription = await this.retrieveSubscription(user.stripeSubscriptionId);
-    this.assertSubscriptionBelongsToUser(subscription, user);
-    const direction = subscriptionChangeDirection(user.subscriptionPlan, plan);
-    if (direction === "downgrade") {
-      return this.scheduleSubscriptionDowngrade(request, user, subscription, plan, price, lang);
-    }
-
-    const scheduleId = subscriptionScheduleId(subscription.schedule);
-    if (scheduleId) await stripe.subscriptionSchedules.release(scheduleId);
-
-    const item = subscription.items.data[0];
-    if (!item?.id) throw new AuthHttpError(502, "stripe_subscription_item_missing");
-
-    const updated = await stripe.subscriptions.update(subscription.id, {
-      billing_cycle_anchor: "now",
-      cancel_at_period_end: false,
-      expand: ["default_payment_method"],
-      items: [{
-        id: item.id,
-        price,
-        quantity: item.quantity || 1,
-      }],
-      metadata: {
-        ...subscription.metadata,
-        airco_user_email: "",
-        airco_user_id: user.userId,
-        airco_plan: plan,
-      },
-      payment_behavior: "error_if_incomplete",
-      proration_behavior: "always_invoice",
-    }).catch((error: unknown) => {
-      if (isSubscriptionPaymentActionRequired(error)) {
-        console.warn("Stripe subscription update requires customer action; redirecting to Billing Portal", {
-          code: stripeErrorCode(error),
-          subscription: subscription.id,
-        });
-        return null;
-      }
-      throw error;
-    });
-
-    if (!updated) {
-      return this.createSubscriptionUpdatePortalSession(request, user, subscription, item, price, lang);
-    }
-
-    const synced = await this.syncSubscription(updated, plan);
-    if (!synced) throw new AuthHttpError(502, "stripe_subscription_sync_failed");
-    return { url: `${baseUrl}/ready?lang=${lang}&subscription=updated` };
-  }
-
-  private async createSubscriptionUpdatePortalSession(
-    request: IncomingMessage,
-    user: StoredUserProfile,
-    subscription: Stripe.Subscription,
-    item: Stripe.SubscriptionItem,
-    price: string,
-    lang: Lang,
-  ): Promise<CheckoutSessionResult> {
-    const stripe = this.requireStripe();
-    const baseUrl = this.publicBaseUrl(request);
-    const customerId = stripeObjectId(subscription.customer) || user.stripeCustomerId;
-    if (!customerId) throw new AuthHttpError(400, "stripe_subscription_missing_customer");
-    if (!item.id) throw new AuthHttpError(502, "stripe_subscription_item_missing");
-
-    const returnUrl = `${baseUrl}/ready?lang=${lang}&subscription=updated`;
-    const configurationId = this.billingPortalConfigurationId;
-    if (!configurationId) {
-      throw new AuthHttpError(503, "stripe_portal_configuration_not_configured");
-    }
-
-    const configuration = await stripe.billingPortal.configurations.retrieve(configurationId);
-    if (!portalConfigurationSupportsSubscriptionUpdates(configuration)) {
-      console.error("Stripe Billing Portal configuration does not support immediate subscription price updates", {
-        configuration: configurationId,
-        price,
-      });
-      throw new AuthHttpError(503, "stripe_portal_configuration_invalid");
-    }
-
-    const session = await stripe.billingPortal.sessions.create(buildSubscriptionUpdatePortalSessionParams({
-      configurationId,
-      customer: customerId,
-      itemId: item.id,
-      price,
-      quantity: item.quantity || 1,
-      returnUrl,
-      subscriptionId: subscription.id,
-      locale: stripeLocale(lang),
-    }));
-    if (!session.url) throw new AuthHttpError(502, "stripe_portal_unavailable");
-    return { url: session.url };
-  }
-
-  private async scheduleSubscriptionDowngrade(
-    request: IncomingMessage,
-    user: StoredUserProfile,
-    subscription: Stripe.Subscription,
-    plan: PaidSubscriptionPlan,
-    price: string,
-    lang: Lang,
-  ): Promise<CheckoutSessionResult> {
-    const stripe = this.requireStripe();
-    const baseUrl = this.publicBaseUrl(request);
-    const item = subscription.items.data[0];
-    const currentPrice = item?.price?.id;
-    const currentPeriodEnd = subscriptionCurrentPeriodEnd(subscription);
-    const currentPeriodStart = subscriptionCurrentPeriodStart(subscription);
-    if (!item?.id || !currentPrice || !currentPeriodEnd || !currentPeriodStart) {
-      throw new AuthHttpError(502, "stripe_subscription_schedule_unavailable");
-    }
-
-    const scheduleId = subscriptionScheduleId(subscription.schedule)
-      || (await stripe.subscriptionSchedules.create({ from_subscription: subscription.id })).id;
-
-    const currentPhase = {
-      items: [{ price: currentPrice, quantity: item.quantity || 1 }],
-      metadata: {
-        ...subscription.metadata,
-        airco_user_email: "",
-        airco_user_id: user.userId,
-        airco_plan: user.subscriptionPlan,
-      },
-      start_date: currentPeriodStart,
-      end_date: currentPeriodEnd,
-      proration_behavior: "none",
-    };
-    const nextPhase = {
-      items: [{ price, quantity: item.quantity || 1 }],
-      metadata: {
-        ...subscription.metadata,
-        airco_user_email: "",
-        airco_user_id: user.userId,
-        airco_plan: plan,
-      },
-      start_date: currentPeriodEnd,
-      proration_behavior: "none",
-    };
-
-    await stripe.subscriptionSchedules.update(scheduleId, {
-      end_behavior: "release",
-      phases: [currentPhase, nextPhase],
-      proration_behavior: "none",
-    } as Stripe.SubscriptionScheduleUpdateParams);
-
-    const effectiveAt = stripeTimestampToIso(currentPeriodEnd);
-    if (!effectiveAt) throw new AuthHttpError(502, "stripe_subscription_schedule_unavailable");
-    await this.auth.schedulePendingSubscriptionChange(request, plan, effectiveAt);
-    return { url: `${baseUrl}/ready?lang=${lang}&subscription=scheduled` };
-  }
-
   async syncCheckoutStatus(request: IncomingMessage, values: { sessionId?: unknown }): Promise<StoredUserProfile> {
     const user = await this.auth.requireUser(request);
-    const stripe = this.requireStripe();
     const sessionId = typeof values.sessionId === "string" ? values.sessionId.trim() : "";
+    if (!/^cs_(test|live)_/.test(sessionId)) throw new AuthHttpError(400, "invalid_checkout_session");
 
-    if (sessionId) {
-      if (!/^cs_(test|live)_/.test(sessionId)) throw new AuthHttpError(400, "invalid_checkout_session");
-      const session = await stripe.checkout.sessions.retrieve(sessionId);
-      this.assertCheckoutSessionBelongsToUser(session, user);
-      const updated = await this.syncCheckoutSession(session);
-      if (updated) return updated;
-    }
-
-    const freshUser = await this.auth.currentUser(request) ?? user;
-    if (freshUser.stripeSubscriptionId) {
-      const subscription = await this.retrieveSubscription(freshUser.stripeSubscriptionId);
-      this.assertSubscriptionBelongsToUser(subscription, freshUser);
-      const updated = await this.syncSubscription(subscription);
-      if (updated) return updated;
-    }
-
-    throw new AuthHttpError(400, "stripe_subscription_not_found");
-  }
-
-  async cancelSubscription(request: IncomingMessage): Promise<StoredUserProfile> {
-    const stripe = this.stripe;
-    const user = await this.auth.requireUser(request);
-    if (!user.stripeSubscriptionId) return this.auth.cancelSubscription(request);
-    if (!stripe) throw new AuthHttpError(503, "stripe_not_configured");
-
-    const subscription = await stripe.subscriptions.update(user.stripeSubscriptionId, {
-      cancel_at_period_end: true,
+    const session = await this.requireStripe().checkout.sessions.retrieve(sessionId, {
+      expand: ["payment_intent.payment_method", "payment_intent.latest_charge"],
     });
-    const snapshot = await this.snapshotFromSubscription(subscription);
-    const updated = await this.auth.applyStripeSubscriptionSnapshot(snapshot);
-    return updated ?? this.auth.cancelSubscription(request);
+    this.assertCheckoutSessionBelongsToUser(session, user);
+    const updated = await this.syncCheckoutSession(session);
+    if (!updated) throw new AuthHttpError(400, "stripe_payment_not_complete");
+    return updated;
   }
 
   async syncCustomerProfile(user: StoredUserProfile): Promise<void> {
@@ -310,10 +120,20 @@ export class StripeBillingService {
     });
   }
 
+  async deleteCustomerForAccount(request: IncomingMessage): Promise<void> {
+    const user = await this.auth.requireUser(request);
+    if (entitlementIsActive(user)) throw new AuthHttpError(409, "active_entitlement");
+    if (!user.stripeCustomerId) return;
+    try {
+      await this.requireStripe().customers.del(user.stripeCustomerId);
+    } catch (error) {
+      if (!isStripeResourceMissing(error)) throw error;
+    }
+  }
+
   async handleWebhook(request: IncomingMessage): Promise<{ received: true }> {
     const stripe = this.requireStripe();
     if (!this.webhookSecret) throw new AuthHttpError(503, "stripe_webhook_not_configured");
-
     const signature = request.headers["stripe-signature"];
     if (typeof signature !== "string" || !signature.trim()) {
       throw new AuthHttpError(400, "missing_stripe_signature");
@@ -328,23 +148,63 @@ export class StripeBillingService {
       throw new AuthHttpError(400, "invalid_stripe_signature");
     }
 
-    if (event.type === "checkout.session.completed") {
-      await this.syncCheckoutSession(event.data.object as Stripe.Checkout.Session);
+    if (event.type === "checkout.session.completed" || event.type === "checkout.session.async_payment_succeeded") {
+      const session = await stripe.checkout.sessions.retrieve((event.data.object as Stripe.Checkout.Session).id, {
+        expand: ["payment_intent.payment_method", "payment_intent.latest_charge"],
+      });
+      await this.syncCheckoutSession(session);
       return { received: true };
     }
 
-    if (
-      event.type === "customer.subscription.created"
-      || event.type === "customer.subscription.updated"
-      || event.type === "customer.subscription.deleted"
-    ) {
-      const eventSubscription = event.data.object as Stripe.Subscription;
-      // Stripe doesn't guarantee webhook ordering. Re-read non-terminal subscriptions so
-      // an older event can never overwrite the latest plan/payment state.
-      const subscription = event.type === "customer.subscription.deleted"
-        ? eventSubscription
-        : await this.retrieveSubscription(eventSubscription.id);
-      await this.syncSubscription(subscription);
+    if (event.type === "charge.refunded") {
+      const charge = event.data.object as Stripe.Charge;
+      if (charge.refunded) {
+        await this.revokeFromCharge(charge, "refunded");
+        await this.refundLinkedUpgrades(charge);
+      }
+      return { received: true };
+    }
+
+    if (event.type === "refund.created" || event.type === "refund.updated" || event.type === "refund.failed") {
+      const refund = event.data.object as Stripe.Refund;
+      if (refund.status === "failed" || event.type === "refund.failed") {
+        console.error("automatic_refund_failed", {
+          refundId: refund.id,
+          paymentIntentId: stripeObjectId(refund.payment_intent),
+          failureReason: refund.failure_reason ?? "unknown",
+        });
+        // Keep retrying and surface a durable operational signal. Never report
+        // a failed refund as successfully compensated.
+        throw new AuthHttpError(502, "automatic_refund_failed");
+      }
+      if (refund.status === "succeeded") {
+        const chargeId = stripeObjectId(refund.charge);
+        if (chargeId) {
+          const charge = await stripe.charges.retrieve(chargeId);
+          if (charge.refunded) {
+            await this.revokeFromCharge(charge, "refunded");
+            await this.refundLinkedUpgrades(charge);
+          }
+        }
+      }
+      return { received: true };
+    }
+
+    if (event.type === "charge.dispute.created" || event.type === "charge.dispute.closed") {
+      // Stripe does not guarantee webhook order. Reload the Dispute so a late
+      // `created` event cannot overwrite a newer terminal `won` decision.
+      const eventDispute = event.data.object as Stripe.Dispute;
+      const dispute = await stripe.disputes.retrieve(eventDispute.id);
+      const chargeId = stripeObjectId(dispute.charge);
+      if (chargeId) {
+        const charge = await stripe.charges.retrieve(chargeId);
+        if (disputeStatusAllowsEntitlement(dispute.status)) {
+          await this.restoreFromCharge(charge);
+        } else {
+          await this.revokeFromCharge(charge, "revoked");
+          if (dispute.status === "lost") await this.refundLinkedUpgrades(charge);
+        }
+      }
       return { received: true };
     }
 
@@ -367,82 +227,331 @@ export class StripeBillingService {
         });
         return user.stripeCustomerId;
       } catch (error) {
-        console.warn("Unable to update stored Stripe customer; creating a new one", error);
+        if (!isStripeResourceMissing(error)) throw error;
+        console.warn("Stored Stripe customer no longer exists; creating a replacement");
       }
     }
 
     const customer = await stripe.customers.create({
-      email: user.email,
+      // Keep every parameter behind this idempotency key immutable. Email and
+      // locale can change concurrently and are synchronized after attachment.
       metadata: { airco_user_id: user.userId },
-      preferred_locales: [stripeLocale(lang)],
+    }, {
+      // The initial "new" key collapses concurrent first-checkout requests.
+      // If a previously stored Customer was deleted in Stripe, include that
+      // missing ID so Stripe cannot replay the original create response.
+      idempotencyKey: `airco-customer-${user.userId}-${user.stripeCustomerId ?? "new"}`,
     });
     await this.auth.attachStripeCustomer(request, customer.id);
+    const latestUser = await this.auth.requireUser(request);
+    await stripe.customers.update(customer.id, {
+      email: latestUser.email,
+      metadata: { airco_user_email: "", airco_user_id: latestUser.userId },
+      preferred_locales: [stripeLocale(lang)],
+    });
     return customer.id;
   }
 
   private async syncCheckoutSession(session: Stripe.Checkout.Session): Promise<StoredUserProfile | null> {
-    const subscriptionId = stripeObjectId(session.subscription);
-    if (!subscriptionId) return null;
-    const subscription = await this.retrieveSubscription(subscriptionId);
-    return this.syncSubscription(subscription, session.metadata?.airco_plan);
-  }
+    if (session.mode !== "payment" || session.payment_status !== "paid") return null;
+    const customerId = stripeObjectId(session.customer);
+    const paymentIntentId = stripeObjectId(session.payment_intent);
+    const userId = session.metadata?.airco_user_id?.trim().toLowerCase() || "";
+    const tier = session.metadata?.airco_entitlement_tier;
+    const kind = session.metadata?.airco_purchase_kind;
+    const baseReceiptId = session.metadata?.airco_base_receipt_id?.trim() || null;
+    const expectedPriceId = kind === "upgrade" ? this.radarUpgradePriceId : (
+      isPaidSubscriptionPlan(tier) ? this.priceIds[tier] : undefined
+    );
+    if (
+      !paymentIntentId
+      || !userId
+      || !isPaidSubscriptionPlan(tier)
+      || !isPassPurchaseKind(kind)
+      || !expectedPriceId
+      || (kind === "upgrade" && (!baseReceiptId || tier !== "radar"))
+    ) {
+      if (paymentIntentId) {
+        await this.refundInvalidPassPayment(paymentIntentId, "invalid-metadata");
+        return null;
+      }
+      throw new AuthHttpError(400, "invalid_pass_checkout_metadata");
+    }
+    if (!customerId) {
+      await this.refundInvalidPassPayment(paymentIntentId, "missing-customer");
+      return null;
+    }
 
-  private async syncSubscription(subscription: Stripe.Subscription, fallbackPlan?: unknown): Promise<StoredUserProfile | null> {
-    const snapshot = await this.snapshotFromSubscription(subscription, fallbackPlan);
-    return this.auth.applyStripeSubscriptionSnapshot(snapshot);
-  }
+    const lineItems = await this.requireStripe().checkout.sessions.listLineItems(session.id, { limit: 2 });
+    const onlyLine = lineItems.data.length === 1 ? lineItems.data[0] : null;
+    const expectedAmount = expectedPassAmount(kind, tier);
+    if (
+      !onlyLine
+      || stripeObjectId(onlyLine.price) !== expectedPriceId
+      || onlyLine.quantity !== 1
+      || onlyLine.currency !== "eur"
+      || onlyLine.amount_total !== expectedAmount
+      || session.currency !== "eur"
+      || session.amount_total !== expectedAmount
+    ) {
+      await this.refundInvalidPassPayment(paymentIntentId, "invalid-price");
+      return null;
+    }
 
-  private async retrieveSubscription(subscriptionId: string): Promise<Stripe.Subscription> {
-    return this.requireStripe().subscriptions.retrieve(subscriptionId, {
-      expand: ["default_payment_method"],
-    });
-  }
-
-  private async snapshotFromSubscription(subscription: Stripe.Subscription, fallbackPlan?: unknown): Promise<StripeSubscriptionSnapshot> {
-    const customerId = stripeObjectId(subscription.customer);
-    if (!customerId) throw new AuthHttpError(400, "stripe_subscription_missing_customer");
-
-    const rawStatus = String(subscription.status || "");
-    const status: SubscriptionStatus = ACTIVE_STRIPE_STATUSES.has(rawStatus) ? "active" : "none";
-    const plan = this.planFromSubscription(subscription, fallbackPlan);
-    const paymentDetails = await this.cardDetailsFromSubscription(subscription);
-
-    return {
+    const paymentIntent = typeof session.payment_intent === "object" && session.payment_intent
+      ? session.payment_intent as Stripe.PaymentIntent
+      : await this.requireStripe().paymentIntents.retrieve(paymentIntentId, {
+          expand: ["payment_method", "latest_charge"],
+        });
+    const charge = typeof paymentIntent.latest_charge === "object" && paymentIntent.latest_charge
+      ? paymentIntent.latest_charge as Stripe.Charge
+      : paymentIntent.latest_charge
+        ? await this.requireStripe().charges.retrieve(paymentIntent.latest_charge)
+        : null;
+    if (paymentIntent.status !== "succeeded" || !charge) return null;
+    const disputeAllowsEntitlement = !charge.disputed
+      || await this.chargeHasNoAdverseDisputes(charge.id);
+    if (
+      !charge.paid
+      || charge.refunded
+      || !disputeAllowsEntitlement
+      || charge.currency !== "eur"
+      || paymentIntent.amount_received !== expectedAmount
+      || charge.amount !== expectedAmount
+      || charge.amount_captured !== expectedAmount
+    ) return null;
+    const purchasedAt = stripeTimestampToIso(charge.created)
+      ?? stripeTimestampToIso(paymentIntent.created)
+      ?? new Date().toISOString();
+    let expiresAt: string;
+    try {
+      expiresAt = passExpirationForCheckout({
+        kind,
+        metadataExpiresAt: session.metadata?.airco_entitlement_expires_at,
+        purchasedAt,
+      });
+    } catch (error) {
+      if (error instanceof AuthHttpError && error.code === "expired_pass_upgrade") {
+        await this.refundInvalidPassPayment(paymentIntentId, "expired-upgrade");
+        return null;
+      }
+      throw error;
+    }
+    const existingOwner = await this.auth.findUserByStripeCustomerId(customerId);
+    const isReceiptReplay = existingOwner?.userId === userId
+      && existingOwner.passReceipts.some((receipt) => receipt.id === paymentIntentId);
+    if (!isReceiptReplay && Date.parse(expiresAt) <= Date.now()) {
+      await this.refundInvalidPassPayment(paymentIntentId, "expired-on-arrival");
+      return null;
+    }
+    const paymentDetails = await this.cardDetailsFromPaymentIntent(paymentIntent);
+    const purchase: StripePassPurchase = {
+      userId,
       stripeCustomerId: customerId,
-      stripeSubscriptionId: subscription.id,
-      plan: status === "active" ? plan : null,
-      status,
-      currentPeriodEnd: status === "active" ? stripeTimestampToIso(subscriptionCurrentPeriodEnd(subscription)) : null,
-      cancelAtPeriodEnd: Boolean(subscription.cancel_at_period_end),
+      stripePaymentIntentId: paymentIntentId,
+      kind,
+      baseReceiptId,
+      tier,
+      expiresAt,
+      purchasedAt,
       paymentBrand: paymentDetails.paymentBrand,
       paymentLast4: paymentDetails.paymentLast4,
     };
+    try {
+      const updated = await this.auth.applyStripePassPurchase(purchase);
+      if (!updated) {
+        await this.refundInvalidPassPayment(paymentIntentId, "missing-owner");
+        return null;
+      }
+      await this.expireOtherOpenCheckoutSessions(customerId, session.id);
+      return updated;
+    } catch (error) {
+      if (error instanceof AuthHttpError && [
+        "invalid_stripe_pass_purchase",
+        "invalid_pass_expiration",
+        "pass_already_active_after_payment",
+        "pass_upgrade_already_applied",
+        "pass_upgrade_base_unavailable",
+        "profile_conflict",
+      ].includes(error.code)) {
+        await this.refundInvalidPassPayment(paymentIntentId, error.code);
+        return null;
+      }
+      throw error;
+    }
   }
 
-  private planFromSubscription(subscription: Stripe.Subscription, fallbackPlan?: unknown): PaidSubscriptionPlan | null {
-    return resolveSubscriptionPlan({
-      fallbackPlan,
-      metadataPlan: subscription.metadata?.airco_plan,
-      priceId: subscription.items.data[0]?.price?.id,
-      priceIds: this.priceIds,
+  private async refundInvalidPassPayment(paymentIntentId: string, reason: string): Promise<Stripe.Refund> {
+    return this.createAutomaticRefund(
+      paymentIntentId,
+      reason,
+      `airco-pass-refund-${reason}-${paymentIntentId}`,
+    );
+  }
+
+  private async createAutomaticRefund(
+    paymentIntentId: string,
+    reason: string,
+    idempotencyKey: string,
+  ): Promise<Stripe.Refund> {
+    const refund = await this.requireStripe().refunds.create(
+      { payment_intent: paymentIntentId, reason: "requested_by_customer" },
+      { idempotencyKey },
+    );
+    if (refund.status === "succeeded") return refund;
+    if (refund.status === "pending") {
+      console.warn("automatic_refund_pending", { refundId: refund.id, paymentIntentId, reason });
+      return refund;
+    }
+    console.error("automatic_refund_not_accepted", {
+      refundId: refund.id,
+      paymentIntentId,
+      reason,
+      status: refund.status ?? "unknown",
     });
+    throw new AuthHttpError(502, "automatic_refund_failed");
   }
 
-  private async cardDetailsFromSubscription(subscription: Stripe.Subscription): Promise<{ paymentBrand: string | null; paymentLast4: string | null }> {
-    const stripe = this.requireStripe();
-    const defaultPaymentMethod = subscription.default_payment_method;
-    const paymentMethod = typeof defaultPaymentMethod === "string"
-      ? await stripe.paymentMethods.retrieve(defaultPaymentMethod)
-      : defaultPaymentMethod;
-
+  private async cardDetailsFromPaymentIntent(paymentIntent: Stripe.PaymentIntent): Promise<{ paymentBrand: string | null; paymentLast4: string | null }> {
+    const paymentMethod = typeof paymentIntent.payment_method === "string"
+      ? await this.requireStripe().paymentMethods.retrieve(paymentIntent.payment_method)
+      : paymentIntent.payment_method;
     if (!paymentMethod || paymentMethod.type !== "card" || !paymentMethod.card) {
       return { paymentBrand: null, paymentLast4: null };
     }
-
     return {
       paymentBrand: paymentMethod.card.brand.toUpperCase(),
       paymentLast4: paymentMethod.card.last4,
     };
+  }
+
+  private async revokeFromCharge(charge: Stripe.Charge, status: "refunded" | "revoked"): Promise<void> {
+    const customerId = stripeObjectId(charge.customer);
+    const paymentIntentId = stripeObjectId(charge.payment_intent);
+    if (!customerId || !paymentIntentId) return;
+    await this.auth.revokeStripePassEntitlement(customerId, paymentIntentId, status);
+  }
+
+  private async restoreFromCharge(charge: Stripe.Charge): Promise<void> {
+    const customerId = stripeObjectId(charge.customer);
+    const paymentIntentId = stripeObjectId(charge.payment_intent);
+    if (!customerId || !paymentIntentId || charge.refunded) return;
+    const restored = await this.auth.restoreStripePassEntitlement(customerId, paymentIntentId);
+    const restoredReceipt = restored?.passReceipts.find((receipt) => receipt.id === paymentIntentId);
+    if (restored && restoredReceipt?.kind === "upgrade") {
+      const base = restored.passReceipts.find((receipt) => receipt.id === restoredReceipt.baseReceiptId);
+      if (!base || base.status !== "active" || Date.parse(base.expiresAt) <= Date.now()) {
+        // The upgrade dispute can be won after its base payment was refunded,
+        // lost, or expired. Return the now-orphaned upgrade payment instead of
+        // restoring a paid receipt that cannot grant any entitlement.
+        const refund = await this.refundInvalidPassPayment(paymentIntentId, "upgrade-base-reversed");
+        await this.auth.revokeStripePassEntitlement(
+          customerId,
+          paymentIntentId,
+          refund.status === "succeeded" ? "refunded" : "revoked",
+        );
+        return;
+      }
+    }
+    // A dispute may close before Checkout completion reaches us. Replaying the
+    // verified paid session after a win grants the missing receipt; when the
+    // receipt already exists the same PaymentIntent ID keeps this idempotent.
+    const sessions = await this.requireStripe().checkout.sessions.list({
+      payment_intent: paymentIntentId,
+      limit: 1,
+    });
+    const sessionId = sessions.data[0]?.id;
+    if (!sessionId) return;
+    const session = await this.requireStripe().checkout.sessions.retrieve(sessionId, {
+      expand: ["payment_intent.payment_method", "payment_intent.latest_charge"],
+    });
+    await this.syncCheckoutSession(session);
+  }
+
+  private async chargeHasNoAdverseDisputes(chargeId: string): Promise<boolean> {
+    const disputes = await this.requireStripe().disputes.list({ charge: chargeId, limit: 10 });
+    return disputes.data.length > 0
+      && disputes.data.every((dispute) => disputeStatusAllowsEntitlement(dispute.status));
+  }
+
+  private async refundLinkedUpgrades(baseCharge: Stripe.Charge): Promise<void> {
+    const customerId = stripeObjectId(baseCharge.customer);
+    const basePaymentIntentId = stripeObjectId(baseCharge.payment_intent);
+    if (!customerId || !basePaymentIntentId) return;
+    const owner = await this.auth.findUserByStripeCustomerId(customerId);
+    const upgradePaymentIntentIds = new Set(owner
+      ? await this.auth.linkedActiveUpgradePaymentIntentIds(customerId, basePaymentIntentId)
+      : []);
+    // The user may exercise account deletion while a dispute is open. Stripe
+    // remains the financial system of record, so recover linked upgrades from
+    // verified Checkout metadata even after the local receipt ledger is gone.
+    if (!owner) {
+      let startingAfter: string | undefined;
+      do {
+        const sessions = await this.requireStripe().checkout.sessions.list({
+          customer: customerId,
+          status: "complete",
+          limit: 100,
+          ...(startingAfter ? { starting_after: startingAfter } : {}),
+        });
+        for (const session of sessions.data) {
+          if (
+            session.mode !== "payment"
+            || session.payment_status !== "paid"
+            || session.metadata?.airco_purchase_kind !== "upgrade"
+            || session.metadata?.airco_base_receipt_id !== basePaymentIntentId
+          ) continue;
+          const linkedPaymentIntentId = stripeObjectId(session.payment_intent);
+          if (linkedPaymentIntentId) upgradePaymentIntentIds.add(linkedPaymentIntentId);
+        }
+        startingAfter = sessions.has_more ? sessions.data.at(-1)?.id : undefined;
+      } while (startingAfter);
+    }
+    for (const upgradePaymentIntentId of upgradePaymentIntentIds) {
+      const paymentIntent = await this.requireStripe().paymentIntents.retrieve(upgradePaymentIntentId, {
+        expand: ["latest_charge"],
+      });
+      const charge = typeof paymentIntent.latest_charge === "object" && paymentIntent.latest_charge
+        ? paymentIntent.latest_charge as Stripe.Charge
+        : paymentIntent.latest_charge
+          ? await this.requireStripe().charges.retrieve(paymentIntent.latest_charge)
+          : null;
+      if (charge?.disputed && !await this.chargeHasNoAdverseDisputes(charge.id)) {
+        // An open dispute cannot be refunded safely, while a lost dispute has
+        // already returned the money through the card network. A later win is
+        // handled by restoreFromCharge, which refunds an orphaned upgrade.
+        continue;
+      }
+      if (!charge?.refunded) {
+        const refund = await this.createAutomaticRefund(
+          upgradePaymentIntentId,
+          "base-payment-reversed",
+          `airco-linked-upgrade-refund-${basePaymentIntentId}-${upgradePaymentIntentId}`,
+        );
+        await this.auth.revokeStripePassEntitlement(
+          customerId,
+          upgradePaymentIntentId,
+          refund.status === "succeeded" ? "refunded" : "revoked",
+        );
+        continue;
+      }
+      await this.auth.revokeStripePassEntitlement(customerId, upgradePaymentIntentId, "refunded");
+    }
+  }
+
+  private async expireOtherOpenCheckoutSessions(customerId: string, completedSessionId: string): Promise<void> {
+    try {
+      const sessions = await this.requireStripe().checkout.sessions.list({
+        customer: customerId,
+        status: "open",
+        limit: 100,
+      });
+      await Promise.all(sessions.data
+        .filter((candidate) => candidate.id !== completedSessionId)
+        .map((candidate) => this.requireStripe().checkout.sessions.expire(candidate.id)));
+    } catch (error) {
+      console.warn("Unable to expire superseded Stripe Checkout sessions", error);
+    }
   }
 
   private publicBaseUrl(request: IncomingMessage): string {
@@ -461,24 +570,12 @@ export class StripeBillingService {
     if (user.stripeCustomerId && customerId && user.stripeCustomerId !== customerId) {
       throw new AuthHttpError(403, "checkout_session_mismatch");
     }
-    const metadataUserId = typeof session.metadata?.airco_user_id === "string"
-      ? session.metadata.airco_user_id.trim().toLowerCase()
-      : "";
-    if (metadataUserId && metadataUserId !== user.userId) {
+    const metadataUserId = session.metadata?.airco_user_id?.trim().toLowerCase() || "";
+    if (!metadataUserId || metadataUserId !== user.userId) {
       throw new AuthHttpError(403, "checkout_session_mismatch");
     }
-    const metadataEmail = typeof session.metadata?.airco_user_email === "string"
-      ? session.metadata.airco_user_email.trim().toLowerCase()
-      : "";
-    if (!metadataUserId && metadataEmail && metadataEmail !== user.email) {
+    if (session.client_reference_id !== user.userId) {
       throw new AuthHttpError(403, "checkout_session_mismatch");
-    }
-  }
-
-  private assertSubscriptionBelongsToUser(subscription: Stripe.Subscription, user: StoredUserProfile): void {
-    const customerId = stripeObjectId(subscription.customer);
-    if (user.stripeCustomerId && customerId && user.stripeCustomerId !== customerId) {
-      throw new AuthHttpError(403, "stripe_subscription_mismatch");
     }
   }
 }
@@ -486,15 +583,13 @@ export class StripeBillingService {
 export function stripeBillingFromEnvironment(auth: AuthService): StripeBillingService {
   return new StripeBillingService(auth, {
     appBaseUrl: process.env.APP_BASE_URL?.trim() || process.env.PUBLIC_APP_URL?.trim() || undefined,
-    billingPortalConfigurationId: process.env.STRIPE_BILLING_PORTAL_CONFIGURATION_ID?.trim() || undefined,
     secretKey: process.env.STRIPE_SECRET_KEY?.trim() || undefined,
     webhookSecret: process.env.STRIPE_WEBHOOK_SECRET?.trim() || undefined,
     priceIds: {
-      weekly_basic: process.env[PRICE_ENV_BY_PLAN.weekly_basic]?.trim() || undefined,
-      weekly_priority: process.env[PRICE_ENV_BY_PLAN.weekly_priority]?.trim() || undefined,
-      monthly_basic: process.env[PRICE_ENV_BY_PLAN.monthly_basic]?.trim() || undefined,
-      monthly_priority: process.env[PRICE_ENV_BY_PLAN.monthly_priority]?.trim() || undefined,
+      alerts: process.env[PRICE_ENV_BY_PLAN.alerts]?.trim() || undefined,
+      radar: process.env[PRICE_ENV_BY_PLAN.radar]?.trim() || undefined,
     },
+    radarUpgradePriceId: process.env[RADAR_UPGRADE_PRICE_ENV]?.trim() || undefined,
   });
 }
 
@@ -515,159 +610,93 @@ function stripeObjectId(value: string | { id?: string } | null | undefined): str
   return typeof value?.id === "string" ? value.id : "";
 }
 
-function subscriptionScheduleId(value: string | { id?: string } | null | undefined): string {
-  if (typeof value === "string") return value;
-  return typeof value?.id === "string" ? value.id : "";
-}
-
-function stripeTimestampToIso(value: number | null): string | null {
+function stripeTimestampToIso(value: number | null | undefined): string | null {
   return typeof value === "number" && Number.isFinite(value) && value > 0
     ? new Date(value * 1000).toISOString()
     : null;
-}
-
-function subscriptionCurrentPeriodStart(subscription: Stripe.Subscription): number | null {
-  const value = (subscription as Stripe.Subscription & { current_period_start?: unknown }).current_period_start;
-  if (typeof value === "number") return value;
-  const itemValue = (subscription.items?.data?.[0] as { current_period_start?: unknown } | undefined)?.current_period_start;
-  return typeof itemValue === "number" ? itemValue : null;
-}
-
-function subscriptionCurrentPeriodEnd(subscription: Stripe.Subscription): number | null {
-  const value = (subscription as Stripe.Subscription & { current_period_end?: unknown }).current_period_end;
-  if (typeof value === "number") return value;
-  const itemValue = (subscription.items?.data?.[0] as { current_period_end?: unknown } | undefined)?.current_period_end;
-  return typeof itemValue === "number" ? itemValue : null;
-}
-
-export function isSubscriptionPaymentActionRequired(error: unknown): boolean {
-  if (typeof error !== "object" || error === null) return false;
-  const code = stripeErrorCode(error);
-  if (STRIPE_ACTION_REQUIRED_CODES.has(code)) return true;
-  if (stripeDeclineCode(error) === "authentication_required") return true;
-
-  const candidate = error as {
-    statusCode?: unknown;
-    payment_intent?: unknown;
-    raw?: {
-      payment_intent?: unknown;
-    };
-  };
-  const paymentIntent = paymentIntentRecord(candidate.payment_intent)
-    ?? paymentIntentRecord(candidate.raw?.payment_intent);
-  return candidate.statusCode === 402 && paymentIntent?.status === "requires_action";
-}
-
-type SubscriptionUpdatePortalSessionInput = {
-  configurationId: string;
-  customer: string;
-  itemId: string;
-  price: string;
-  quantity: number;
-  returnUrl: string;
-  subscriptionId: string;
-  locale: ReturnType<typeof stripeLocale>;
-};
-
-export function buildSubscriptionUpdatePortalSessionParams(
-  input: SubscriptionUpdatePortalSessionInput,
-): Stripe.BillingPortal.SessionCreateParams {
-  return {
-    configuration: input.configurationId,
-    customer: input.customer,
-    locale: input.locale,
-    return_url: input.returnUrl,
-    flow_data: {
-      type: "subscription_update_confirm",
-      subscription_update_confirm: {
-        subscription: input.subscriptionId,
-        items: [{
-          id: input.itemId,
-          price: input.price,
-          quantity: input.quantity,
-        }],
-      },
-      after_completion: {
-        type: "redirect",
-        redirect: {
-          return_url: input.returnUrl,
-        },
-      },
-    },
-  };
 }
 
 export function stripeLocale(lang: Lang): "zh" | "nl" | "en" | "fr" {
   return lang;
 }
 
-type PortalConfigurationLike = {
-  active?: boolean;
-  features?: {
-    subscription_update?: {
-      default_allowed_updates?: string[] | null;
-      enabled?: boolean;
-      proration_behavior?: string | null;
-    } | null;
-  } | null;
-};
-
-export function portalConfigurationSupportsSubscriptionUpdates(
-  configuration: PortalConfigurationLike,
-): boolean {
-  const subscriptionUpdate = configuration.features?.subscription_update;
-  return configuration.active === true
-    && subscriptionUpdate?.enabled === true
-    && subscriptionUpdate.default_allowed_updates?.includes("price") === true
-    && subscriptionUpdate.proration_behavior === "always_invoice";
+export function passExpirationForCheckout(input: {
+  kind: PassPurchaseKind;
+  metadataExpiresAt?: unknown;
+  purchasedAt: string;
+}): string {
+  const purchasedAt = Date.parse(input.purchasedAt);
+  if (!Number.isFinite(purchasedAt)) throw new AuthHttpError(400, "invalid_pass_purchase_time");
+  if (input.kind === "upgrade") {
+    const existingExpiry = typeof input.metadataExpiresAt === "string" ? Date.parse(input.metadataExpiresAt) : NaN;
+    if (!Number.isFinite(existingExpiry) || existingExpiry <= purchasedAt) {
+      throw new AuthHttpError(400, "expired_pass_upgrade");
+    }
+    return new Date(existingExpiry).toISOString();
+  }
+  return new Date(purchasedAt + PASS_DURATION_MILLISECONDS).toISOString();
 }
 
-type ResolveSubscriptionPlanInput = {
-  fallbackPlan?: unknown;
-  metadataPlan?: unknown;
-  priceId?: string;
-  priceIds: Partial<Record<PaidSubscriptionPlan, string>>;
-};
-
-export function resolveSubscriptionPlan(input: ResolveSubscriptionPlanInput): PaidSubscriptionPlan | null {
-  if (input.priceId) {
-    for (const [plan, configuredPriceId] of Object.entries(input.priceIds) as Array<[PaidSubscriptionPlan, string | undefined]>) {
-      if (configuredPriceId === input.priceId) return plan;
+export function selectPassCheckout(
+  user: StoredUserProfile,
+  plan: PaidSubscriptionPlan,
+  prices: { priceIds: Partial<Record<PaidSubscriptionPlan, string>>; radarUpgradePriceId?: string },
+  now = Date.now(),
+): { baseReceiptId: string | null; expiresAt: string | null; kind: PassPurchaseKind; priceId: string } {
+  const active = entitlementIsActive(user, now);
+  if (active && user.entitlementTier === "radar") throw new AuthHttpError(409, "radar_pass_already_active");
+  if (active && user.entitlementTier === "alerts") {
+    if (plan === "alerts") throw new AuthHttpError(409, "alerts_pass_already_active");
+    const expiresAt = user.entitlementExpiresAt ? Date.parse(user.entitlementExpiresAt) : NaN;
+    if (Number.isFinite(expiresAt) && expiresAt - now > MINIMUM_UPGRADE_REMAINING_MILLISECONDS) {
+      if (!prices.radarUpgradePriceId) throw new AuthHttpError(503, "stripe_upgrade_price_not_configured");
+      return {
+        baseReceiptId: activePassBaseReceiptId(user, now),
+        expiresAt: new Date(expiresAt).toISOString(),
+        kind: "upgrade",
+        priceId: prices.radarUpgradePriceId,
+      };
     }
   }
-  if (isPaidSubscriptionPlan(input.metadataPlan)) return input.metadataPlan;
-  if (isPaidSubscriptionPlan(input.fallbackPlan)) return input.fallbackPlan;
-  return null;
+
+  const priceId = prices.priceIds[plan];
+  if (!priceId) throw new AuthHttpError(503, "stripe_price_not_configured");
+  return { baseReceiptId: null, expiresAt: null, kind: "purchase", priceId };
 }
 
-function stripeErrorCode(error: unknown): string {
-  if (typeof error !== "object" || error === null) return "";
-  const candidate = error as {
-    code?: unknown;
-    raw?: {
-      code?: unknown;
-    };
-  };
-  if (typeof candidate.code === "string") return candidate.code;
-  if (typeof candidate.raw?.code === "string") return candidate.raw.code;
-  return "";
+function isPassPurchaseKind(value: unknown): value is PassPurchaseKind {
+  return value === "purchase" || value === "upgrade";
 }
 
-function stripeDeclineCode(error: unknown): string {
-  if (typeof error !== "object" || error === null) return "";
-  const candidate = error as {
-    decline_code?: unknown;
-    raw?: {
-      decline_code?: unknown;
-    };
-  };
-  if (typeof candidate.decline_code === "string") return candidate.decline_code;
-  if (typeof candidate.raw?.decline_code === "string") return candidate.raw.decline_code;
-  return "";
+function expectedPassAmount(kind: PassPurchaseKind, tier: PaidSubscriptionPlan): number {
+  if (kind === "upgrade") return 500;
+  return SUBSCRIPTION_PLAN_DETAILS[tier].priceEur * 100;
 }
 
-function paymentIntentRecord(value: unknown): { status?: unknown } | null {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
-    ? value as { status?: unknown }
-    : null;
+function disputeStatusAllowsEntitlement(status: Stripe.Dispute.Status): boolean {
+  return status === "won" || status === "warning_closed" || status === "prevented";
+}
+
+function checkoutIdempotencyKey(
+  user: StoredUserProfile,
+  plan: PaidSubscriptionPlan,
+  kind: PassPurchaseKind,
+  lang: Lang,
+  now = Date.now(),
+): string {
+  const bucket = Math.floor(now / CHECKOUT_SESSION_TTL_SECONDS / 1000);
+  const entitlementVersion = user.entitlementPurchasedAt
+    ? Buffer.from(user.entitlementPurchasedAt).toString("base64url")
+    : "new";
+  return `airco-pass-${user.userId}-${plan}-${kind}-${lang}-${entitlementVersion}-${bucket}`;
+}
+
+function checkoutSessionExpiresAt(now = Date.now()): number {
+  const bucket = Math.floor(now / CHECKOUT_SESSION_TTL_SECONDS / 1000);
+  return (bucket + 2) * CHECKOUT_SESSION_TTL_SECONDS;
+}
+
+function isStripeResourceMissing(error: unknown): boolean {
+  return error instanceof Stripe.errors.StripeInvalidRequestError
+    && error.code === "resource_missing";
 }

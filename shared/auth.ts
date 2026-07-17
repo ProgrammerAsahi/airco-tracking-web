@@ -1,42 +1,21 @@
 import { SUPPORTED_LANGS, type Lang } from "./i18n.js";
 
-export const PAID_SUBSCRIPTION_PLANS = [
-  "weekly_basic",
-  "weekly_priority",
-  "monthly_basic",
-  "monthly_priority",
-] as const;
+export const PAID_SUBSCRIPTION_PLANS = ["alerts", "radar"] as const;
 
 export const SUBSCRIPTION_PLAN_DETAILS = {
-  weekly_basic: {
-    billingCycle: "weekly",
+  alerts: {
+    billingCycle: "one_time",
     tier: "alerts",
+    priceEur: 5,
+    intervalDays: 90,
+    realtimeStock: false,
+    emailAlerts: true,
+  },
+  radar: {
+    billingCycle: "one_time",
+    tier: "radar",
     priceEur: 10,
-    intervalDays: 7,
-    realtimeStock: false,
-    emailAlerts: true,
-  },
-  weekly_priority: {
-    billingCycle: "weekly",
-    tier: "stock",
-    priceEur: 20,
-    intervalDays: 7,
-    realtimeStock: true,
-    emailAlerts: true,
-  },
-  monthly_basic: {
-    billingCycle: "monthly",
-    tier: "alerts",
-    priceEur: 15,
-    intervalDays: 30,
-    realtimeStock: false,
-    emailAlerts: true,
-  },
-  monthly_priority: {
-    billingCycle: "monthly",
-    tier: "stock",
-    priceEur: 30,
-    intervalDays: 30,
+    intervalDays: 90,
     realtimeStock: true,
     emailAlerts: true,
   },
@@ -45,10 +24,14 @@ export const SUBSCRIPTION_PLAN_DETAILS = {
 export const SUPPORTED_LANGUAGE_PREFERENCES = SUPPORTED_LANGS satisfies readonly Lang[];
 export const SUPPORTED_DELIVERY_COUNTRIES = ["fr", "nl"] as const;
 export const SUPPORTED_PAYMENT_METHODS = ["card", "ideal"] as const;
+export const ENTITLEMENT_TIERS = ["none", "alerts", "radar"] as const;
+export const ENTITLEMENT_STATUSES = ["none", "active", "expired", "refunded", "revoked"] as const;
 export const SUBSCRIPTION_STATUSES = ["none", "active", "canceled"] as const;
 
 export type PaidSubscriptionPlan = (typeof PAID_SUBSCRIPTION_PLANS)[number];
 export type SubscriptionPlan = "none" | PaidSubscriptionPlan;
+export type EntitlementTier = (typeof ENTITLEMENT_TIERS)[number];
+export type EntitlementStatus = (typeof ENTITLEMENT_STATUSES)[number];
 export type DeliveryCountry = (typeof SUPPORTED_DELIVERY_COUNTRIES)[number];
 export type PaymentMethod = (typeof SUPPORTED_PAYMENT_METHODS)[number];
 export type SubscriptionStatus = (typeof SUBSCRIPTION_STATUSES)[number];
@@ -59,17 +42,13 @@ export type UserProfile = {
   email: string;
   nickname: string | null;
   emailAlertsEnabled: boolean;
-  subscriptionPlan: SubscriptionPlan;
-  subscriptionStatus: SubscriptionStatus;
-  subscriptionCurrentPeriodEnd: string | null;
-  subscriptionCancelAtPeriodEnd: boolean;
-  pendingSubscriptionPlan: PaidSubscriptionPlan | null;
-  pendingSubscriptionEffectiveAt: string | null;
+  entitlementTier: EntitlementTier;
+  entitlementStatus: EntitlementStatus;
+  entitlementExpiresAt: string | null;
+  entitlementPurchasedAt: string | null;
   paymentMethod: PaymentMethod | null;
   paymentBrand: string | null;
   paymentLast4: string | null;
-  stripeCustomerId?: string | null;
-  stripeSubscriptionId?: string | null;
   languagePreference: Lang;
   deliveryCountry: DeliveryCountry;
   createdAt: string;
@@ -134,16 +113,29 @@ export function isSubscriptionStatus(value: unknown): value is SubscriptionStatu
   return SUBSCRIPTION_STATUSES.includes(value as SubscriptionStatus);
 }
 
-export function subscriptionIsActive(user: Pick<UserProfile, "subscriptionPlan" | "subscriptionStatus" | "subscriptionCurrentPeriodEnd">, now = Date.now()): boolean {
-  if (!isPaidSubscriptionPlan(user.subscriptionPlan)) return false;
-  if (user.subscriptionStatus !== "active" && user.subscriptionStatus !== "canceled") return false;
-  if (!user.subscriptionCurrentPeriodEnd) return false;
-  const periodEnd = Date.parse(user.subscriptionCurrentPeriodEnd);
+export function isEntitlementTier(value: unknown): value is EntitlementTier {
+  return ENTITLEMENT_TIERS.includes(value as EntitlementTier);
+}
+
+export function isEntitlementStatus(value: unknown): value is EntitlementStatus {
+  return ENTITLEMENT_STATUSES.includes(value as EntitlementStatus);
+}
+
+export function entitlementIsActive(user: Pick<UserProfile, "entitlementTier" | "entitlementStatus" | "entitlementExpiresAt">, now = Date.now()): boolean {
+  if (user.entitlementTier === "none" || user.entitlementStatus !== "active" || !user.entitlementExpiresAt) return false;
+  const periodEnd = Date.parse(user.entitlementExpiresAt);
   return Number.isFinite(periodEnd) && periodEnd > now;
 }
 
+/** @deprecated Prefer entitlementIsActive. Kept while callers migrate from subscription naming. */
+export const subscriptionIsActive = entitlementIsActive;
+
 export function planIncludesRealtimeStock(plan: SubscriptionPlan): boolean {
   return isPaidSubscriptionPlan(plan) && SUBSCRIPTION_PLAN_DETAILS[plan].realtimeStock;
+}
+
+export function entitlementIncludesRealtimeStock(tier: EntitlementTier): boolean {
+  return tier === "radar";
 }
 
 export function subscriptionTierRank(plan: SubscriptionPlan): number {
@@ -158,15 +150,14 @@ export function subscriptionChangeDirection(currentPlan: SubscriptionPlan, nextP
   return "lateral";
 }
 
-export function hasRealtimeStockAccess(user: Pick<UserProfile, "subscriptionPlan" | "subscriptionStatus" | "subscriptionCurrentPeriodEnd">, now = Date.now()): boolean {
-  return subscriptionIsActive(user, now) && planIncludesRealtimeStock(user.subscriptionPlan);
+export function hasRealtimeStockAccess(user: Pick<UserProfile, "entitlementTier" | "entitlementStatus" | "entitlementExpiresAt">, now = Date.now()): boolean {
+  return entitlementIsActive(user, now) && entitlementIncludesRealtimeStock(user.entitlementTier);
 }
 
-export function hasEmailAlertAccess(user: Pick<UserProfile, "subscriptionPlan" | "subscriptionStatus" | "subscriptionCurrentPeriodEnd" | "emailAlertsEnabled">, now = Date.now()): boolean {
+export function hasEmailAlertAccess(user: Pick<UserProfile, "entitlementTier" | "entitlementStatus" | "entitlementExpiresAt" | "emailAlertsEnabled">, now = Date.now()): boolean {
   return user.emailAlertsEnabled
-    && subscriptionIsActive(user, now)
-    && isPaidSubscriptionPlan(user.subscriptionPlan)
-    && SUBSCRIPTION_PLAN_DETAILS[user.subscriptionPlan].emailAlerts;
+    && entitlementIsActive(user, now)
+    && user.entitlementTier !== "none";
 }
 
 export function isLanguagePreference(value: unknown): value is Lang {

@@ -22,7 +22,7 @@ Browser
                  ├─ GET /api/inventory
                  │      └─ Managed Identity → private inventory.json Blob
                  ├─ POST /api/billing/create-checkout-session
-                 │      └─ Stripe Checkout, card payments in the first billing pass
+                 │      └─ Stripe Checkout, one-time card payments
                  ├─ Auth / profile / Stripe webhook persistence
                  │      ├─ users (full user profile)
                  │      └─ alertrecipients (32-shard minimal mail projection)
@@ -32,7 +32,7 @@ Browser
 
 The app reuses the existing Container Apps Environment, ACR, Storage Account, and runtime identity from `airco-tracking`. It creates only one additional Container App in the same resource group.
 
-Users have a stable UUID `userId`, so changing an email address does not change account identity. Registration, profile/preference updates, Stripe subscription webhooks, cancellation, and account deletion all synchronize the `alertrecipients` Table. This projection is sharded by `sha256(userId) % 32` and stores only the email, language, delivery country, and subscription state required for mail delivery; it excludes nicknames, Stripe IDs, payment methods, and card data. Local development without Azure Storage continues to use the in-memory user store and does not depend on this projection.
+Users have a stable UUID `userId`, so changing an email address does not change account identity. Registration, profile/preference updates, Stripe pass purchases, refunds/disputes, entitlement expiry, and account deletion all synchronize the `alertrecipients` Table. This projection is sharded by `sha256(userId) % 32` and stores only the email, language, delivery country, and pass entitlement required for mail delivery; it excludes nicknames, Stripe IDs, payment methods, and card data. Local development without Azure Storage continues to use the in-memory user store and does not depend on this projection.
 
 Azure-backed canonical user data uses an `id:<uuid>` profile row and `email:<base64url>` / `stripe:<base64url>` index rows. ETag/CAS plus monotonic revisions prevent duplicate code consumption, concurrent profile overwrites, and stale webhook/projection writes. A verified email change preserves the UUID and transactionally replaces the email index. Public APIs do not expose UUIDs, revisions, or Stripe identifiers.
 
@@ -93,20 +93,19 @@ Every eligible code push to `main` runs tests, compiles TypeScript and Bicep, bu
 | `APP_BASE_URL` | Public origin used for Stripe return URLs, for example `https://airco-tracker.eu` |
 | `STRIPE_SECRET_KEY` | Stripe secret key. Use test mode first (`sk_test_...`) |
 | `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret for `/api/billing/webhook` |
-| `STRIPE_BILLING_PORTAL_CONFIGURATION_ID` | Stripe Customer Portal configuration ID with subscription switching enabled and all four Prices allowed |
-| `STRIPE_PRICE_WEEKLY_BASIC` | Stripe recurring Price ID for `weekly_basic` |
-| `STRIPE_PRICE_WEEKLY_PRIORITY` | Stripe recurring Price ID for `weekly_priority` |
-| `STRIPE_PRICE_MONTHLY_BASIC` | Stripe recurring Price ID for `monthly_basic` |
-| `STRIPE_PRICE_MONTHLY_PRIORITY` | Stripe recurring Price ID for `monthly_priority` |
+| `STRIPE_PRICE_ALERTS_PASS` | One-time Stripe Price ID for the €5 Heatwave Alerts Pass |
+| `STRIPE_PRICE_RADAR_PASS` | One-time Stripe Price ID for the €10 Heatwave Radar Pass |
+| `STRIPE_PRICE_RADAR_UPGRADE` | One-time €5 Stripe Price ID for upgrading an active Alerts Pass to Radar |
 
 ### Stripe billing setup
 
-The first billing integration uses hosted Stripe Checkout for card payments only. Card data never touches the Airco Tracker server. Create four recurring Prices in Stripe test mode and map them to the variables above:
+Billing uses hosted Stripe Checkout for card payments only. Card data never touches the Airco Tracker server. Create three one-time Prices in Stripe test mode and map them to the variables above:
 
-- `weekly_basic`: €10 / week
-- `weekly_priority`: €20 / week
-- `monthly_basic`: €15 / month
-- `monthly_priority`: €30 / month
+- Heatwave Alerts Pass: €5 once, with 90 days of stock-alert emails.
+- Heatwave Radar Pass: €10 once, with 90 days of stock-alert emails and realtime inventory access.
+- Alerts → Radar upgrade: €5 once, enabling realtime inventory immediately while preserving the Alerts Pass expiry date.
+
+Passes never renew automatically. An active Radar Pass cannot be downgraded; after expiry, the user may buy either pass again. An active Alerts Pass can only purchase the €5 upgrade, not another same-tier pass.
 
 Configure a Stripe webhook endpoint at:
 
@@ -114,16 +113,20 @@ Configure a Stripe webhook endpoint at:
 https://airco-tracker.eu/api/billing/webhook
 ```
 
-Subscribe at least to:
+Subscribe at least to these one-time payment, refund, and dispute events:
 
 - `checkout.session.completed`
-- `customer.subscription.created`
-- `customer.subscription.updated`
-- `customer.subscription.deleted`
+- `checkout.session.async_payment_succeeded`
+- `charge.refunded`
+- `refund.created`
+- `refund.updated`
+- `refund.failed`
+- `charge.dispute.created`
+- `charge.dispute.closed`
 
 Use Stripe test cards to verify Checkout before switching the environment variables to live mode.
 
-The Customer Portal configuration must enable subscription plan switching and allow all four Prices under the two products. Upgrades should invoice the price difference immediately; downgrades and switches to a shorter interval should take effect at the end of the current billing period. Store its `bpc_...` ID in `STRIPE_BILLING_PORTAL_CONFIGURATION_ID`; the backend explicitly uses and validates this configuration when 3D Secure is required.
+Customer Portal is not part of pass purchases. After payment, signature-verified webhooks and authenticated Checkout return sync update the entitlement; duplicate events must remain idempotent. See `docs/SUBSCRIPTION_BILLING_TEST_PLAN.en.md` for the full regression matrix.
 
 ## Documentation language maintenance
 

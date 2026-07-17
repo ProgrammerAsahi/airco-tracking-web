@@ -1,136 +1,128 @@
-# 订阅与 Stripe 支付测试场景
+# Heatwave Pass 支付与权益测试计划
 
 <p align="center">
-  <a href="./SUBSCRIPTION_BILLING_TEST_PLAN.md"><img alt="简体中文" src="https://img.shields.io/badge/docs-简体中文-d73a49"></a>
-  <a href="./SUBSCRIPTION_BILLING_TEST_PLAN.en.md"><img alt="English" src="https://img.shields.io/badge/docs-English-0969da"></a>
+  <a href="./SUBSCRIPTION_BILLING_TEST_PLAN.md"><img alt="简体中文" src="https://img.shields.io/badge/TEST_PLAN-简体中文-d73a49"></a>
+  <a href="./SUBSCRIPTION_BILLING_TEST_PLAN.en.md"><img alt="English" src="https://img.shields.io/badge/TEST_PLAN-English-0969da"></a>
 </p>
 
-最后更新：2026-07-11
+最后更新：2026-07-16
 
-## 维护规则
+本文件跟踪门户、登录、一次性 Stripe 支付、90 天权益和实时库存访问控制的端到端测试。任何场景、状态或测试记录变化时，都必须同步更新中英文版本。
 
-本文档用于追踪门户、登录、订阅、Stripe 支付和库存访问权限的端到端测试。以后每次新增测试场景、更新状态或记录结果时，都必须同时更新中文和英语两个版本：
+> 2026-07-09 以前完成的周/月订阅测试只作为历史证据保留在 Git 历史中，不能证明当前一次性 Heatwave Pass 实现正确。以下矩阵已按新产品重新置为待测。
 
-- `docs/SUBSCRIPTION_BILLING_TEST_PLAN.md`
-- `docs/SUBSCRIPTION_BILLING_TEST_PLAN.en.md`
+状态：✅ 通过 · ❌ 失败 · 🚧 部分完成/待修复 · ⬜ 待测 · ⏸️ 延后
 
-状态标记：
+## 测试配置
 
-- ✅ 已完成并验证
-- ⬜ 待测试
-- 🚧 需要先实现或确认功能后再测试
+- 站点：`https://airco-tracker.eu`
+- Stripe：Sandbox / test mode
+- Webhook：`https://airco-tracker.eu/api/billing/webhook`
+- 支付方式：第一阶段只启用信用卡；卡号由 Stripe Checkout 托管，Airco Tracker 不读取或保存完整卡号。
 
-## 当前测试环境
+| 产品 | 权益 | 价格 | 有效期 | Stripe test Price ID |
+| --- | --- | ---: | ---: | --- |
+| Heatwave Alerts Pass (`alerts`) | 库存上线邮件 | €5 一次性 | 90 天 | `price_1TtoNS0XRx7WeBOsNN5xPzlf` |
+| Heatwave Radar Pass (`radar`) | 邮件 + 实时库存 | €10 一次性 | 90 天 | `price_1TtoCl0XRx7WeBOs3ATeEv0Y` |
+| Alerts → Radar upgrade | 增加实时库存；沿用原到期日 | €5 一次性 | 原 Alerts 到期日 | `price_1TtoG10XRx7WeBOsvsvaarrD` |
 
-- 生产站点：[https://airco-tracker.eu](https://airco-tracker.eu)
-- Stripe 模式：Sandbox / test mode
-- Stripe webhook：`https://airco-tracker.eu/api/billing/webhook`
-- 订阅方案：
+Canonical 权益以 `tier`、`status`、`purchasedAt`、`expiresAt` 和最小化的支付 receipt ledger 表达。Stripe Customer、Checkout Session 和 PaymentIntent 标识只能保存在私有服务端数据中，不能出现在 public profile 或 `alertrecipients` 投影中。
 
-| 内部方案 | 展示名 | 价格 | Stripe Price ID |
+## P0：首次购买与返回站内
+
+| 状态 | 场景 | 预期结果 | 记录 |
 | --- | --- | --- | --- |
-| `weekly_basic` | 周订阅 · 库存提醒 | €10 / 周 | `price_1Tqti10XRx7WeBOsbaTiCY5v` |
-| `weekly_priority` | 周订阅 · 实时雷达 | €20 / 周 | `price_1TqtlM0XRx7WeBOsaBF2uQSo` |
-| `monthly_basic` | 月订阅 · 库存提醒 | €15 / 月 | `price_1Tqtj20XRx7WeBOsdnuL3Hwb` |
-| `monthly_priority` | 月订阅 · 实时雷达 | €30 / 月 | `price_1Tqtm80XRx7WeBOsvTwtW4nM` |
+| ⬜ | 未登录用户选择任一 Pass | 先完成登录/新用户昵称，再继续原先选择的支付流程 | 待测 |
+| ⬜ | 购买 Alerts Pass | Stripe 收取 €5；立即获得 90 天邮件权益；不能访问实时库存 | 待测 |
+| ⬜ | 购买 Radar Pass | Stripe 收取 €10；立即获得 90 天邮件和实时库存权益 | 待测 |
+| ⬜ | 在 Checkout 取消或返回 | 不产生权益或 receipt；回到站内可安全重试 | 待测 |
+| ⬜ | 支付成功并自动回跳 | 无需手动刷新，`sync-checkout-status` 或 webhook 即可显示正确权益 | 待测 |
+| ⬜ | 支付后刷新、登出再登录 | 同一用户的 tier、到期日、国家和语言保持一致 | 待测 |
+| ⬜ | 有效 Alerts 用户再次选择 Alerts | 按钮不可用；服务端拒绝重复购买 | 待测 |
+| ⬜ | 有效 Radar 用户选择任一 Pass | 当前 Radar 显示为已拥有；Alerts 显示已包含；服务端拒绝重复购买/降级 | 待测 |
+| ⬜ | 检查 Stripe 对象 | 仅产生一次性 Checkout/PaymentIntent；不创建 Subscription、续费 Invoice 或自动扣款 | 待测 |
 
-## P0：购买、回跳与权益
+## P0：升级、到期和重新购买
 
-| 状态 | 场景 | 预期结果 | 备注 |
+| 状态 | 场景 | 预期结果 | 记录 |
 | --- | --- | --- | --- |
-| ⬜ | 未登录用户在 `/subscribe` 点“选择方案” | 先弹出登录卡片；登录成功后继续进入所选方案的支付流程 | 不再显示“登录后即可选择订阅方案 / 回到首页登录”的提示条 |
-| ⬜ | 已登录用户在 `/subscribe` 点“选择方案” | 直接进入 Stripe Checkout 或支付卡片，不重复要求登录 | 需要分别测四个方案 |
-| ✅ | 使用测试卡购买 `monthly_priority` | Stripe Checkout 成功，返回站点后用户获得 `monthly_priority` 权益 | 2026-07-08 已用测试卡完成；刷新后订阅状态正确出现 |
-| ⬜ | 使用测试卡购买 `weekly_priority` | 用户获得实时库存访问权限，权益周期为一周 | 待测 |
-| ⬜ | 使用测试卡购买 `weekly_basic` | 用户只获得库存上线邮件提醒，不可进入实时库存页 | 待测 |
-| ⬜ | 使用测试卡购买 `monthly_basic` | 用户只获得库存上线邮件提醒，不可进入实时库存页 | 待测 |
-| ✅ | Checkout 过程中点取消或返回 | 返回订阅页；数据库仍显示无有效订阅；不会误开通权益 | 2026-07-09 生产验证：返回后进入订阅页，Profile 无订阅，未开通权益 |
-| ✅ | 支付成功后不刷新，直接等待回跳同步 | 页面应自动同步 Stripe checkout session 并展示正确权益 | 2026-07-09 生产验证：支付成功后自动跳回站内，权益正确开通 |
-| ✅ | 支付成功后刷新页面 | 订阅状态仍正确显示 | 2026-07-08 已验证 |
-| ✅ | 已有有效订阅时再次选择同级方案 | 不应创建重复有效订阅；应提示已有订阅或进入更改方案流程 | 2026-07-09 生产验证：当前方案按钮置灰不可点击，不会创建重复订阅 |
+| ⬜ | 有效 Alerts → Radar | Stripe 收取 €5；Radar 立即生效；`expiresAt` 保持为原 Alerts 到期日 | 待测 |
+| ⬜ | 升级支付失败/取消 | 继续保留原 Alerts 权益；不产生 Radar receipt | 待测 |
+| ⬜ | 有效 Radar 尝试降级或重复购买 | UI 不提供可执行按钮；API 返回冲突且不创建 Checkout | 待测 |
+| ⬜ | 到期前一小时购买 Radar | 按产品规则购买新的 90 天 Radar，而不是几乎无剩余时间的 upgrade | 待测 |
+| ⬜ | 到期边界 | `expiresAt` 前最后一刻仍有权益；到点后邮件投影和实时库存权限立即关闭 | 待测 |
+| ⬜ | 到期后重新购买 | 可购买任一 Pass；从新支付时间获得新的 90 天有效期 | 待测 |
+| ⬜ | 有效 Pass 时注销账户 | 服务端拒绝注销，并明确显示到期日 | 待测 |
+| ⬜ | 无 Pass 或 Pass 到期后注销 | 账户、session 和提醒投影被删除；Stripe 支付记录不被伪造删除 | 待测 |
 
-## P0：取消、续期与方案变更
+## P0：访问控制与偏好
 
-| 状态 | 场景 | 预期结果 | 备注 |
+| 状态 | 场景 | 预期结果 | 记录 |
 | --- | --- | --- | --- |
-| ✅ | 用户取消当前订阅 | Stripe 设置为周期末取消；权益保留到本周期结束 | 2026-07-08 生产验证：用户表显示 `subscriptionCancelAtPeriodEnd=true`，`monthly_priority` 有效至 2026-08-08T13:31:16Z |
-| ✅ | 取消后查看 Profile | Profile 显示取消状态和权益有效期；支付方式仍可见 | 2026-07-08 生产验证：Profile 阻止有效期内注销；用户表保留 VISA 尾号 4242 和周期结束时间 |
-| ✅ | 取消后继续访问权益页 | 周期结束前仍可使用已购买权益 | 2026-07-08 生产验证：Ready 页仍显示库存入口，`/deliver-to/fr` 实时库存页可访问 |
-| ⬜ | 周期结束后访问权益页 | 订阅失效；实时库存入口被关闭；用户可重新订阅 | 待测，可配合 Stripe Test Clock |
-| ✅ | 从库存提醒升级到实时雷达 | 升级后应立刻生效 | 2026-07-09 生产复测：`weekly_basic` → `monthly_priority` 进入 Stripe Portal，完成 3D Secure 并支付 €20 测试差额；Profile 与法国库存权限立即更新，未创建重复订阅 |
-| ✅ | 从实时雷达降级到库存提醒 | 当前周期结束后再降级，当前权益保留到期 | 2026-07-09 生产验证：`monthly_priority` 降级到 basic 后一键完成；Ready 页仍可进入库存；订阅卡片显示将在当前周期结束后切换到 basic |
-| ✅ | 周付与月付之间切换 | 按产品规则处理立即生效或周期末变更，且不生成重复订阅 | 2026-07-09 生产验证：存在 pending downgrade 时切到 `weekly_priority` 可立即生效，且 Profile 不再显示未来降级提示 |
+| ⬜ | 匿名访问 `/deliver-to/nl` 或 `/deliver-to/fr` | 看不到库存数据；引导登录/购买 | 待测 |
+| ⬜ | 已登录但无有效 Pass | 看不到库存数据；引导购买 | 待测 |
+| ⬜ | 有效 Alerts Pass | Ready 页显示邮件已启用，但不可读取实时库存 | 待测 |
+| ⬜ | 有效 Radar Pass | 按账户国家进入对应库存页并只显示可配送站点 | 待测 |
+| ⬜ | Radar 用户切换国家 | 权益不变，库存路由和站点列表随国家变化 | 待测 |
+| ⬜ | Header 临时切换语言 | 当前页面即时切换；不覆盖 Profile 持久化偏好 | 待测 |
+| ⬜ | Profile 保存语言 | Profile、Ready、库存、验证码邮件、提醒邮件与 Stripe locale 一致 | 待测 |
 
-## P0：库存访问权限与国家/语言
+## P0：Webhook、退款和争议
 
-| 状态 | 场景 | 预期结果 | 备注 |
+| 状态 | 场景 | 预期结果 | 记录 |
 | --- | --- | --- | --- |
-| ✅ | 未登录用户访问 `/deliver-to/nl` 或 `/deliver-to/fr` | 不展示库存数据；引导登录/订阅 | 2026-07-08 生产验证：登出后直接访问库存页会跳转到订阅页 |
-| ✅ | 无订阅用户访问 `/deliver-to/nl` 或 `/deliver-to/fr` | 不展示库存数据；引导订阅 | 2026-07-08 生产验证：重新注册但未订阅后，直接访问库存页会跳转到订阅页 |
-| ✅ | `basic` 用户访问实时库存页 | 不展示库存数据；提示当前方案仅包含邮件提醒 | 2026-07-08 生产验证：订阅 basic 后直接访问库存页会被拦截，无法查看实时库存 |
-| ✅ | `priority` 用户访问实时库存页 | 根据用户国家字段进入 `/deliver-to/nl` 或 `/deliver-to/fr` 并展示可配送站点 | 2026-07-08 生产验证：切换到 priority 后可访问实时库存页并看到可配送站点 |
-| ✅ | Ready 页面切换中文/荷兰语/英语 | 这三种语言即时切换，且不改变配送国家 | 2026-07-09 生产已验证 |
-| ⬜ | Ready 页面切换法语 | 法语即时切换，且不改变配送国家 | 四语自动化覆盖已通过；仍需单独重复一次登录态生产 Ready 页面交互 |
-| ✅ | `/deliver-to/*` 页面切换中文/荷兰语/英语 | 这三种语言即时切换，且不改变配送国家 | 2026-07-09 生产已验证 |
-| ⬜ | `/deliver-to/*` 页面切换法语 | 法语即时切换，且不改变配送国家 | 四语自动化覆盖已通过；仍需单独重复一次登录态生产库存页面交互 |
-| ✅ | Profile 页面右上角切换语言 | 只切换当前 Profile 页面显示语言，不自动覆盖账户默认语言偏好；语言下拉菜单不被卡片遮挡 | 中/荷/英于 2026-07-09 生产验证；2026-07-11 通过法语生产页面/菜单、偏好保存语义和完整自动化契约 |
-| ✅ | 在 Profile 保存法语偏好 | 保存后网页默认语言、验证码邮件和库存提醒邮件都使用法语；重新登录后仍保持 | 2026-07-11 生产验证：保存 `fr` 后投影和邮件语言同步；真实法语 OTP 到达 Outlook，真实法语库存 canary 到达 Gmail；测试结束后账户偏好已恢复为 `zh` |
-| ✅ | Profile 切换国家 | 二次确认后更新用户国家；后续库存入口跳转到对应国家 | 2026-07-09 生产验证：法国/荷兰之间可来回切换，确认流程和后续入口正常 |
+| ⬜ | 无效/缺失 Stripe signature | Webhook 返回 400，不写任何用户或权益数据 | 待测 |
+| ⬜ | `checkout.session.completed` | 根据服务端 metadata 和实际 Price 绑定正确用户、tier、金额和 PaymentIntent | 待测 |
+| ⬜ | `checkout.session.async_payment_succeeded` | 延迟支付只在确认成功后赋权，重复事件保持幂等 | 待测 |
+| ⬜ | 重放同一事件/重复回跳同步 | receipt 只写一次，不延长 90 天，也不重复赋权 | 待测 |
+| ⬜ | 登录用户同步他人的 Session | 返回拒绝，不泄漏或修改另一用户权益 | 待测 |
+| ⬜ | 全额退款 Alerts 或 Radar | 对应 receipt 标记退款并立即撤销其贡献的权益 | 待测 |
+| ⬜ | 退款 Radar upgrade | Radar 被撤销；未退款且未到期的基础 Alerts 自动恢复 | 待测 |
+| ⬜ | 退款 upgrade 的基础 Alerts | 基础和依赖 upgrade 均不再赋权，不能留下孤立 Radar | 待测 |
+| ⬜ | 部分退款 | 按明确的客服/退款政策处理；实现与文案一致，不能静默产生不确定权益 | 政策待最终确认 |
+| ⬜ | `charge.dispute.created` | 立即撤销相关 receipt 的权益并记录争议状态 | 待测 |
+| ⬜ | `charge.dispute.closed` 胜诉 | 仅恢复仍有效、归属正确的 receipt；不重复延长到期日 | 待测 |
+| ⬜ | 失败/成功/退款事件乱序到达 | 最终状态由 receipt ledger 收敛，不被旧事件覆盖 | 待测 |
+| ⏸️ | 多标签页并发支付 | 最终仅保留合法 receipt，重复购买被退款或拒绝 | 边界测试暂缓 |
 
-## P0：Stripe webhook 与同步安全
+## P1：支付失败与 3D Secure
 
-| 状态 | 场景 | 预期结果 | 备注 |
+| 状态 | 场景 | 预期结果 | 记录 |
 | --- | --- | --- | --- |
-| ✅ | 无 Stripe 签名调用 webhook | 返回 400，不处理任何状态变更 | 2026-07-08 生产已验证 |
-| ⬜ | `checkout.session.completed` webhook | 正确绑定当前用户、Stripe customer 和 subscription | 需要新 checkout 再验证 |
-| ✅ | `customer.subscription.updated` webhook | 正确更新方案、状态、取消标记、有效期和支付方式摘要 | 2026-07-09 生产验证：Portal 切换后 Stripe metadata 仍为旧方案，但后端按实际 Price 同步为 `monthly_priority`，有效期和 VISA 3155 摘要正确 |
-| ⬜ | `customer.subscription.deleted` webhook | 正确关闭权益并保留必要的历史信息 | 待测 |
-| ⬜ | webhook 延迟或丢失时用户回跳同步 | `/api/billing/sync-checkout-status` 能从 Stripe 拉取状态并补齐数据库 | 修复已部署，需要新 checkout 再验证 |
-| 🚧 | 重复 webhook 事件 | 重复事件不会重复写入危险状态或创建重复订阅 | 需要确认是否需要事件去重表 |
-| ⬜ | 登录用户尝试同步不属于自己的 checkout session | 后端拒绝，不泄露其他用户订阅 | 待测 |
-| ✅ | 未登录用户调用 checkout 同步 API | 返回 401 | 2026-07-08 生产已验证 |
+| ⬜ | 通用失败卡 `4000 0000 0000 0002` | 支付失败，无权益、无 receipt，可安全重试 | 待测 |
+| ⬜ | 资金不足卡 `4000 0000 0000 9995` | 显示可理解的 Stripe 失败状态，无权益 | 待测 |
+| ⬜ | 3D Secure 卡 `4000 0025 0000 3155` 成功 | 认证完成后回站并正确赋权 | 待测 |
+| ⬜ | 3D Secure 失败/取消 | 不赋权；已有 Alerts upgrade 场景下仍保留 Alerts | 待测 |
+| ⏸️ | Stripe API 临时失败 | 前端显示重试状态；数据库没有半完成权益 | 边界测试暂缓 |
 
-## P1：用户资料、邮箱与账户生命周期
+## P1：旧订阅迁移与配置清理
 
-| 状态 | 场景 | 预期结果 | 备注 |
+| 状态 | 场景 | 预期结果 | 记录 |
 | --- | --- | --- | --- |
-| ⬜ | 新用户邮箱验证码注册 | 验证码正确才创建/登录用户；首次登录弹出昵称卡片 | 待测 |
-| ✅ | 法语验证码邮件 | 主题、纯文本、HTML、安全提示和语言 metadata 使用法语，且能到达收件箱 | 2026-07-11 生产验证：真实 OTP 已通过自定义 ACS sender 投递至授权 Outlook inbox |
-| ✅ | 法语提醒流水线 canary 邮件 | 收件人 Profile 为法语时，canary 的主题、正文和可见暂停提醒链接使用法语，且真实队列链路可送达 | 2026-07-11 生产验证：canary 经 Service Bus 投递至授权 Gmail inbox；最终状态为 `delivered`，active/scheduled/dead-letter 均为 0 |
-| ⬜ | 法语真实补货商品邮件 | 真实补货时，单复数主题、配送国家、价格、商品字段、footer 和退订链接全部本地化 | 渲染已有 unit tests；本轮没有注入虚假生产补货，待下一次真实法语 Profile 投递时确认 |
-| ✅ | 发送验证码按钮倒计时 | 点击后 60 秒内不可重复发送；倒计时结束后可重新发送 | 2026-07-09 生产验证：倒计时体验正常 |
-| ✅ | 修改昵称 | 弹出“我们该如何称呼您呢？”卡片；保存后 avatar 首字母更新 | 2026-07-09 生产验证：avatar 会随昵称更新 |
-| ✅ | 修改邮箱 | 新邮箱验证码通过后，用户 ID 保持稳定，邮箱字段更新 | 2026-07-09 生产验证：修改邮箱后重新登录正常，订阅、国家和语言保持不变 |
-| ✅ | 有有效订阅时注销账户 | 后端拒绝注销，提示需取消并等权益到期 | 2026-07-09 生产验证：有有效订阅时无法注销账户 |
-| ✅ | 无订阅或订阅到期后注销账户 | 用户资料和会话被清理；无法再访问付费权益 | 2026-07-09 生产验证：无有效订阅时可以注销账户 |
-| ✅ | 登出后重新登录 | 订阅、国家、语言、昵称和支付方式摘要仍正确 | 2026-07-09 生产验证：登出再登录后用户资料和订阅信息仍正确 |
+| ⬜ | 现有 test-mode 周/月订阅 | 上线迁移前设置为周期末取消，确认不会再次自动扣费 | 待执行 |
+| ⬜ | 旧四个 recurring Prices | 在 Stripe 中 archive，不能从新 UI/API 创建订阅 | 待执行 |
+| ⬜ | GitHub/Azure 配置 | 只保留三项一次性 Price variables；旧 weekly/monthly/Portal 配置已删除 | 待执行 |
+| ⬜ | 旧用户权益迁移 | 只保留原已付周期内的 legacy 权益；旧 subscription webhook 不覆盖新 Pass receipt | 待测 |
+| ⬜ | 退役 API | `/api/auth/subscription/preview-payment`、`/api/auth/subscription/cancel`、`/api/billing/cancel-subscription` 均返回 404 | 待部署验证 |
 
-## P1：支付异常与边界情况
+## P2：发布前/生产 smoke
 
-| 状态 | 场景 | 预期结果 | 备注 |
+| 状态 | 场景 | 预期结果 | 记录 |
 | --- | --- | --- | --- |
-| ✅ | Stripe 测试卡支付失败 | 用户仍无订阅；页面显示可理解的失败/重试状态 | 2026-07-09 生产验证：`4000 0000 0000 0341` 和 `4000 0000 0000 0002` 均被 Stripe decline；返回站内后无权益、无库存访问权限 |
-| ✅ | 需要 3D Secure 的测试卡 | 认证成功后开通；认证失败后不开通 | 2026-07-09 生产验证：`4000 0025 0000 3155` 首次订阅及已有订阅升级均完成测试；失败不授予权益，成功自动返回 Ready，方案与库存权限正确 |
-| ⏸️ | Checkout 会话过期 | 用户返回后看到可重新选择方案的状态 | 暂缓测试，回头再测 |
-| ⏸️ | Stripe API 临时失败 | 前端显示重试或错误提示；数据库不写入半开通状态 | 暂缓测试，回头再测 |
-| ⏸️ | 用户在多个标签页同时发起支付 | 最终只保留一个有效订阅状态，不互相覆盖 | 暂缓测试，回头再测 |
+| ⬜ | `/health` 和 `www` health | 返回 200 | 待新 release |
+| ⬜ | 匿名 `/api/inventory` | 返回 401 `not_authenticated` | 待新 release |
+| ⬜ | 两种产品与 upgrade 的金额/文案 | 中文、荷兰语、英语、法语均显示 €5/€10/€5 和 90 天，不出现周/月/续费/取消订阅 | 待视觉复核 |
+| ⬜ | GitHub Actions + Azure 环境 | 三个 Price ID 与 Stripe test mode 一致；没有 secret 出现在日志或前端 bundle | 待验证 |
+| ⬜ | 生产 test-mode Alerts 购买 | 支付、回跳、Profile、Ready 和邮件投影均正确 | 待测 |
+| ⬜ | 生产 test-mode Radar 购买 | 支付、回跳、Profile、Ready 和库存权限均正确 | 待测 |
+| ⬜ | 生产 test-mode upgrade | €5、立即 Radar、原到期日不变 | 待测 |
+| ⬜ | 部署后自动验证 | `scripts/verify-deployment.mjs` 通过，包括三个旧接口 404 | 待新 release |
 
-## P2：生产发布回归
+## 推荐执行顺序
 
-| 状态 | 场景 | 预期结果 | 备注 |
-| --- | --- | --- | --- |
-| ✅ | `/health` | 返回 200 | 2026-07-08 生产已验证 |
-| ✅ | `/ready?lang=zh` | 返回 200 | 2026-07-08 生产已验证 |
-| ✅ | 最新前端 bundle 被生产站点加载 | 浏览器加载新构建产物 | 2026-07-11 生产 revision `airco-tracking-web--0000044` 已加载前端 commit `241be5c` |
-| ✅ | 四语自动化契约 | `zh`、`nl`、`en`、`fr` 的所有应用自有翻译 key 均存在且非空，前后端网页 map 一致 | 2026-07-11：71/71 前端测试、typecheck、production build 和 deployment verifier 通过；生产 i18n Table 为 2 个 scopes、56 个 entries |
-| ✅ | 法语门户和账户界面视觉回归 | Landing、Subscribe、Login、Profile、Unsubscribe 在桌面和窄屏均正确呈现 | 2026-07-11 生产验证：1440×900 与 390×844 均通过，未发现 console error/warning |
-| ✅ | `/subscribe?lang=fr` | 法语页面可加载，按钮行为与现有语言一致 | 2026-07-11 生产视觉和 header 切换验证通过 |
-| ✅ | `/profile?lang=fr` | 法语页面可加载，资料和订阅卡片正确，临时与持久语言语义一致 | 2026-07-11 生产验证：法语 Profile、header 临时切换和持久偏好保存通过 |
-| ⬜ | `/deliver-to/nl?lang=zh/nl/en/fr` | 四语库存页可加载，语言切换可用 | 四语 key 自动契约已通过；尚未对四种语言逐一重复完整的登录态路由回归 |
-| ⬜ | `/deliver-to/fr?lang=zh/nl/en/fr` | 四语库存页可加载，语言切换可用 | 四语 key 自动契约已通过；尚未对四种语言逐一重复完整的登录态路由回归 |
-
-## 建议测试顺序
-
-1. 用 Stripe Test Clock 验证周期结束、取消后到期和续期。
-2. 验证 Stripe webhook 事件与回跳同步的边界：事件正常、事件延迟、重复事件。
-3. 暂缓 Checkout 会话过期、Stripe API 临时失败和多个标签页同时发起支付等边界测试，回头再测。
+1. 完成 Stripe test Products/Prices、GitHub variables 和 Azure 配置切换；先停止旧订阅继续续费。
+2. 本地完成 typecheck、tests、build 和 receipt/refund/dispute 单元测试。
+3. 部署后先跑 health、匿名库存和三个退役接口 smoke。
+4. 使用全新测试账户依次购买 Alerts、upgrade 到 Radar，再测试退款/争议回退。
+5. 清空或到期该测试账户后，单独购买 Radar，验证 90 天权益和实时库存。
+6. 最后执行 3D Secure、失败卡、到期边界、乱序 webhook 与并发场景。

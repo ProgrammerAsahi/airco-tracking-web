@@ -1,136 +1,128 @@
-# Subscription and Stripe Payment Test Scenarios
+# Heatwave Pass payment and entitlement test plan
 
 <p align="center">
-  <a href="./SUBSCRIPTION_BILLING_TEST_PLAN.md"><img alt="简体中文" src="https://img.shields.io/badge/docs-简体中文-d73a49"></a>
-  <a href="./SUBSCRIPTION_BILLING_TEST_PLAN.en.md"><img alt="English" src="https://img.shields.io/badge/docs-English-0969da"></a>
+  <a href="./SUBSCRIPTION_BILLING_TEST_PLAN.md"><img alt="简体中文" src="https://img.shields.io/badge/TEST_PLAN-简体中文-d73a49"></a>
+  <a href="./SUBSCRIPTION_BILLING_TEST_PLAN.en.md"><img alt="English" src="https://img.shields.io/badge/TEST_PLAN-English-0969da"></a>
 </p>
 
-Last updated: 2026-07-11
+Last updated: 2026-07-16
 
-## Maintenance rule
+This document tracks end-to-end tests for the portal, login, one-time Stripe payments, 90-day entitlements, and realtime-inventory access control. Update the Chinese and English versions together whenever a scenario, status, or test note changes.
 
-This document tracks end-to-end tests for the portal, login, subscriptions, Stripe payments, and inventory access controls. Whenever a scenario, status, or test note is added or changed, update both language versions together:
+> Weekly/monthly subscription tests completed before 2026-07-09 remain available as historical evidence in Git, but they do not prove the new one-time Heatwave Pass implementation. The matrix below has therefore been reset for the new products.
 
-- `docs/SUBSCRIPTION_BILLING_TEST_PLAN.md`
-- `docs/SUBSCRIPTION_BILLING_TEST_PLAN.en.md`
+Status: ✅ passed · ❌ failed · 🚧 partial/fix pending · ⬜ not tested · ⏸️ deferred
 
-Status markers:
+## Test configuration
 
-- ✅ Completed and verified
-- ⬜ Not tested yet
-- 🚧 Requires implementation or functional confirmation before testing
+- Site: `https://airco-tracker.eu`
+- Stripe: Sandbox / test mode
+- Webhook: `https://airco-tracker.eu/api/billing/webhook`
+- Payment method: phase one enables cards only. Stripe Checkout hosts card entry; Airco Tracker never reads or stores full card numbers.
 
-## Current test environment
+| Product | Entitlement | Price | Validity | Stripe test Price ID |
+| --- | --- | ---: | ---: | --- |
+| Heatwave Alerts Pass (`alerts`) | In-stock email alerts | €5 one time | 90 days | `price_1TtoNS0XRx7WeBOsNN5xPzlf` |
+| Heatwave Radar Pass (`radar`) | Email + realtime inventory | €10 one time | 90 days | `price_1TtoCl0XRx7WeBOs3ATeEv0Y` |
+| Alerts → Radar upgrade | Adds realtime inventory; retains the original expiry | €5 one time | Original Alerts expiry | `price_1TtoG10XRx7WeBOsvsvaarrD` |
 
-- Production site: [https://airco-tracker.eu](https://airco-tracker.eu)
-- Stripe mode: Sandbox / test mode
-- Stripe webhook: `https://airco-tracker.eu/api/billing/webhook`
-- Subscription plans:
+Canonical entitlement state is expressed through `tier`, `status`, `purchasedAt`, `expiresAt`, and a minimal payment-receipt ledger. Stripe Customer, Checkout Session, and PaymentIntent identifiers must remain private server-side data and must not appear in the public profile or `alertrecipients` projection.
 
-| Internal plan | Display name | Price | Stripe Price ID |
+## P0: initial purchase and return
+
+| Status | Scenario | Expected result | Record |
 | --- | --- | --- | --- |
-| `weekly_basic` | Weekly · Inventory Alerts | €10 / week | `price_1Tqti10XRx7WeBOsbaTiCY5v` |
-| `weekly_priority` | Weekly · Realtime Radar | €20 / week | `price_1TqtlM0XRx7WeBOsaBF2uQSo` |
-| `monthly_basic` | Monthly · Inventory Alerts | €15 / month | `price_1Tqtj20XRx7WeBOsdnuL3Hwb` |
-| `monthly_priority` | Monthly · Realtime Radar | €30 / month | `price_1Tqtm80XRx7WeBOsvTwtW4nM` |
+| ⬜ | Anonymous user selects either Pass | Complete login/new-user nickname first, then continue the originally selected payment flow | Not tested |
+| ⬜ | Buy Alerts Pass | Stripe charges €5; 90 days of email entitlement starts immediately; realtime inventory remains blocked | Not tested |
+| ⬜ | Buy Radar Pass | Stripe charges €10; 90 days of email and realtime-inventory entitlement starts immediately | Not tested |
+| ⬜ | Cancel or return from Checkout | No entitlement or receipt is created; the user can retry safely | Not tested |
+| ⬜ | Successful payment redirects back | Correct entitlement appears without a manual refresh through `sync-checkout-status` or webhook delivery | Not tested |
+| ⬜ | Refresh, log out, and log back in | Tier, expiry, country, and language persist for the same user | Not tested |
+| ⬜ | Active Alerts user selects Alerts again | Button is disabled and the server rejects a duplicate purchase | Not tested |
+| ⬜ | Active Radar user selects either Pass | Radar is shown as owned and Alerts as included; the server rejects duplicate purchase/downgrade | Not tested |
+| ⬜ | Inspect Stripe objects | Only one-time Checkout/PaymentIntent objects exist; no Subscription, renewal Invoice, or automatic charge is created | Not tested |
 
-## P0: Purchase, return flow, and entitlements
+## P0: upgrade, expiry, and repurchase
 
-| Status | Scenario | Expected result | Notes |
+| Status | Scenario | Expected result | Record |
 | --- | --- | --- | --- |
-| ⬜ | Anonymous user clicks “Select plan” on `/subscribe` | The login card opens first; after login, the selected plan continues to payment | The old “Log in before choosing a plan / Back to homepage” banner should not appear |
-| ⬜ | Logged-in user clicks “Select plan” on `/subscribe` | The user goes directly to Stripe Checkout or the payment card, without another login prompt | Test all four plans |
-| ✅ | Buy `monthly_priority` with a test card | Stripe Checkout succeeds; after returning to the site, the user receives `monthly_priority` entitlements | Completed on 2026-07-08 with a test card; subscription status appeared correctly after refresh |
-| ⬜ | Buy `weekly_priority` with a test card | The user receives realtime inventory access for one week | Not tested yet |
-| ⬜ | Buy `weekly_basic` with a test card | The user receives inventory alert emails only and cannot access realtime inventory pages | Not tested yet |
-| ⬜ | Buy `monthly_basic` with a test card | The user receives inventory alert emails only and cannot access realtime inventory pages | Not tested yet |
-| ✅ | Cancel or go back during Checkout | The user returns to the subscription page; the database still shows no active subscription; no entitlement is granted accidentally | Verified in production on 2026-07-09: returning from Checkout lands on the subscription page; Profile shows no subscription and no entitlement is granted |
-| ✅ | After successful payment, wait for the return sync without refreshing | The page automatically syncs the Stripe checkout session and shows the correct entitlement | Verified in production on 2026-07-09: after successful payment, Stripe returns to the site automatically and entitlement is granted correctly |
-| ✅ | Refresh after successful payment | Subscription status still appears correctly | Verified in production on 2026-07-08 |
-| ✅ | Existing active subscriber selects an equivalent plan again | The system should not create duplicate active subscriptions; it should show the existing subscription or enter a change-plan flow | Verified in production on 2026-07-09: the current-plan button is disabled and no duplicate subscription can be created |
+| ⬜ | Active Alerts → Radar | Stripe charges €5; Radar starts immediately; `expiresAt` remains the original Alerts expiry | Not tested |
+| ⬜ | Upgrade payment fails/is canceled | Existing Alerts entitlement remains; no Radar receipt is created | Not tested |
+| ⬜ | Active Radar tries to downgrade or repurchase | UI offers no actionable button; API returns a conflict without creating Checkout | Not tested |
+| ⬜ | Buy Radar during the final hour of Alerts | Product policy sells a fresh 90-day Radar pass instead of a nearly expired upgrade | Not tested |
+| ⬜ | Exact expiry boundary | Access remains through the last instant before `expiresAt`; email projection and realtime access close at expiry | Not tested |
+| ⬜ | Repurchase after expiry | Either Pass can be purchased and receives a fresh 90-day window from the new payment time | Not tested |
+| ⬜ | Delete account with an active Pass | Server rejects deletion and clearly shows the expiry date | Not tested |
+| ⬜ | Delete with no Pass or after expiry | Account, session, and alert projection are removed; Stripe payment records are not falsely erased | Not tested |
 
-## P0: Cancellation, renewal, and plan changes
+## P0: access control and preferences
 
-| Status | Scenario | Expected result | Notes |
+| Status | Scenario | Expected result | Record |
 | --- | --- | --- | --- |
-| ✅ | User cancels the current subscription | Stripe is set to cancel at period end; entitlement remains active until the end of the current period | Verified in production on 2026-07-08: user table shows `subscriptionCancelAtPeriodEnd=true`, with `monthly_priority` valid until 2026-08-08T13:31:16Z |
-| ✅ | Open Profile after cancellation | Profile shows cancellation state and entitlement end date; payment summary remains visible | Verified in production on 2026-07-08: Profile blocks account deletion during the valid period; user table keeps VISA ending 4242 and the period end |
-| ✅ | Access entitled pages after cancellation | The purchased entitlement remains usable before the period ends | Verified in production on 2026-07-08: Ready page still shows the inventory entry point and `/deliver-to/fr` realtime inventory remains accessible |
-| ⬜ | Access entitled pages after the period ends | Subscription expires; realtime inventory entry is closed; user can subscribe again | Not tested yet; can use Stripe Test Clock |
-| ✅ | Upgrade from Inventory Alerts to Realtime Radar | Upgrade should take effect immediately | Re-verified in production on 2026-07-09: `weekly_basic` → `monthly_priority` opened Stripe Portal, completed 3D Secure, and paid the €20 test difference; Profile and France inventory access updated immediately without creating a duplicate subscription |
-| ✅ | Downgrade from Realtime Radar to Inventory Alerts | Downgrade should apply at period end while the current entitlement remains active | Verified in production on 2026-07-09: downgrading from `monthly_priority` to a basic plan completes in one click; Ready still allows inventory access; the subscription card shows the switch to basic scheduled for the current period end |
-| ✅ | Switch between weekly and monthly billing | Apply the chosen product policy without creating duplicate subscriptions | Verified in production on 2026-07-09: switching to `weekly_priority` while a pending downgrade exists takes effect immediately and Profile no longer shows the future downgrade note |
+| ⬜ | Anonymous user opens `/deliver-to/nl` or `/deliver-to/fr` | Inventory data stays hidden; user is guided to log in/buy | Not tested |
+| ⬜ | Logged-in user has no active Pass | Inventory data stays hidden; user is guided to buy | Not tested |
+| ⬜ | Active Alerts Pass | Ready confirms email alerts, but realtime inventory cannot be read | Not tested |
+| ⬜ | Active Radar Pass | User enters the saved-country inventory page and sees only deliverable retailers | Not tested |
+| ⬜ | Radar user changes country | Entitlement remains; route and retailer list change with delivery country | Not tested |
+| ⬜ | Temporary header language switch | Current UI changes immediately without overwriting the saved Profile preference | Not tested |
+| ⬜ | Save language in Profile | Profile, Ready, inventory, OTP/alert email, and Stripe locale agree | Not tested |
 
-## P0: Inventory access, country, and language
+## P0: webhooks, refunds, and disputes
 
-| Status | Scenario | Expected result | Notes |
+| Status | Scenario | Expected result | Record |
 | --- | --- | --- | --- |
-| ✅ | Anonymous user opens `/deliver-to/nl` or `/deliver-to/fr` | Inventory data is hidden; user is guided to log in or subscribe | Verified in production on 2026-07-08: after logout, direct inventory-page access redirects to the subscription page |
-| ✅ | User without a subscription opens `/deliver-to/nl` or `/deliver-to/fr` | Inventory data is hidden; user is guided to subscribe | Verified in production on 2026-07-08: after re-registering without a subscription, direct inventory-page access redirects to the subscription page |
-| ✅ | `basic` user opens a realtime inventory page | Inventory data is hidden; page explains the plan only includes email alerts | Verified in production on 2026-07-08: after subscribing to a basic plan, direct inventory-page access is blocked and realtime inventory remains hidden |
-| ✅ | `priority` user opens a realtime inventory page | User lands on `/deliver-to/nl` or `/deliver-to/fr` based on the saved country and sees deliverable retailers | Verified in production on 2026-07-08: after switching to priority, realtime inventory is accessible and deliverable retailers are visible |
-| ✅ | Switch Chinese/Dutch/English on the Ready page | These three languages switch immediately without changing delivery country | Verified in production on 2026-07-09 |
-| ⬜ | Switch French on the Ready page | French switches immediately without changing delivery country | Four-language automated coverage passes; repeat the authenticated production Ready-page interaction separately |
-| ✅ | Switch Chinese/Dutch/English on `/deliver-to/*` | These three languages switch immediately without changing delivery country | Verified in production on 2026-07-09 |
-| ⬜ | Switch French on `/deliver-to/*` | French switches immediately without changing delivery country | Four-language automated coverage passes; repeat the authenticated production inventory-page interaction separately |
-| ✅ | Switch language from the Profile page header | Only the current Profile page display language changes; the account default language preference is not overwritten automatically; the dropdown is not hidden behind the card | Chinese/Dutch/English were verified on 2026-07-09; the French production page/menu and saved-preference semantics plus the complete automated contract passed on 2026-07-11 |
-| ✅ | Save French as the Profile preference | The default web language, verification emails, and stock-alert emails use French and remain French after login | Verified in production on 2026-07-11: saving `fr` synchronized the projection and email language; a real French OTP reached Outlook and a real French inventory canary reached Gmail; the account preference was restored to `zh` after testing |
-| ✅ | Change country in Profile | After confirmation, saved country changes and future inventory entry points use that country | Verified in production on 2026-07-09: switching between France and the Netherlands works both ways, including confirmation and future entry points |
+| ⬜ | Missing/invalid Stripe signature | Webhook returns 400 and writes no user or entitlement data | Not tested |
+| ⬜ | `checkout.session.completed` | Correct user, tier, amount, and PaymentIntent are resolved from server metadata and the actual Price | Not tested |
+| ⬜ | `checkout.session.async_payment_succeeded` | Delayed payment grants access only after success; duplicate delivery remains idempotent | Not tested |
+| ⬜ | Replay the event/repeat return sync | Receipt is written once and does not extend 90 days or duplicate entitlement | Not tested |
+| ⬜ | Logged-in user syncs another user's Session | Request is rejected without leaking or changing the other user's entitlement | Not tested |
+| ⬜ | Full refund of Alerts or Radar | Corresponding receipt becomes refunded and immediately stops contributing entitlement | Not tested |
+| ⬜ | Refund Radar upgrade | Radar is revoked; the unrefunded, unexpired base Alerts entitlement is restored | Not tested |
+| ⬜ | Refund the base Alerts behind an upgrade | Base and dependent upgrade stop granting access; no orphaned Radar remains | Not tested |
+| ⬜ | Partial refund | Follow a documented support/refund policy; implementation and copy agree and never leave ambiguous entitlement | Policy pending final approval |
+| ⬜ | `charge.dispute.created` | Revoke the related receipt immediately and record dispute state | Not tested |
+| ⬜ | Won `charge.dispute.closed` | Restore only the still-valid, correctly owned receipt without extending expiry | Not tested |
+| ⬜ | Failure/success/refund events arrive out of order | Receipt ledger converges to the final state and stale events cannot overwrite it | Not tested |
+| ⏸️ | Concurrent purchases in multiple tabs | Final state keeps only legitimate receipts; duplicate purchase is refunded or rejected | Boundary test deferred |
 
-## P0: Stripe webhook and sync safety
+## P1: payment failures and 3D Secure
 
-| Status | Scenario | Expected result | Notes |
+| Status | Scenario | Expected result | Record |
 | --- | --- | --- | --- |
-| ✅ | Call webhook without a Stripe signature | Returns 400 and does not process any state change | Verified in production on 2026-07-08 |
-| ⬜ | `checkout.session.completed` webhook | Correctly links the current user, Stripe customer, and subscription | Needs a new checkout to verify |
-| ✅ | `customer.subscription.updated` webhook | Correctly updates plan, status, cancel flag, period end, and payment method summary | Verified in production on 2026-07-09: after the Portal switch, Stripe metadata still named the old plan, but the backend resolved `monthly_priority` from the actual Price and synced the period and VISA 3155 summary correctly |
-| ⬜ | `customer.subscription.deleted` webhook | Correctly removes entitlement while preserving necessary historical data | Not tested yet |
-| ⬜ | Webhook is delayed or missed and the user returns from Checkout | `/api/billing/sync-checkout-status` pulls the state from Stripe and repairs the database | Fix is deployed; needs a new checkout to verify |
-| 🚧 | Duplicate webhook events | Duplicate events should not cause dangerous repeated writes or duplicate subscriptions | Need to confirm whether an event de-duplication table is required |
-| ⬜ | Logged-in user tries to sync another user’s checkout session | Backend rejects the request and does not leak subscription data | Not tested yet |
-| ✅ | Anonymous user calls checkout sync API | Returns 401 | Verified in production on 2026-07-08 |
+| ⬜ | Generic decline `4000 0000 0000 0002` | Payment fails, no entitlement/receipt is created, and retry is safe | Not tested |
+| ⬜ | Insufficient funds `4000 0000 0000 9995` | Stripe shows an understandable failure and no entitlement is granted | Not tested |
+| ⬜ | 3D Secure `4000 0025 0000 3155` succeeds | Authentication completes, returns to the site, and grants the correct Pass | Not tested |
+| ⬜ | 3D Secure fails/is canceled | No entitlement; an upgrade attempt preserves the existing Alerts Pass | Not tested |
+| ⏸️ | Temporary Stripe API outage | UI shows retry state and the database contains no half-completed entitlement | Boundary test deferred |
 
-## P1: Profile, email, and account lifecycle
+## P1: legacy subscription migration and configuration cleanup
 
-| Status | Scenario | Expected result | Notes |
+| Status | Scenario | Expected result | Record |
 | --- | --- | --- | --- |
-| ⬜ | New user registers with email code | User is created/logged in only with a valid code; first login opens the nickname card | Not tested yet |
-| ✅ | French verification email | Subject, plain text, HTML, safety copy, and language metadata are French and the message reaches the inbox | Verified in production on 2026-07-11: a real OTP from the custom ACS sender reached an authorized Outlook inbox |
-| ✅ | French alert-pipeline canary email | When the recipient Profile language is French, the canary subject, body, and visible pause-alert link are French and the real queue path delivers the message | Verified in production on 2026-07-11: the canary traversed Service Bus to an authorized Gmail inbox; final status was `delivered` and active/scheduled/dead-letter counts were all 0 |
-| ⬜ | French real-restock product email | A genuine restock renders the localized singular/plural subject, destination, price, product fields, footer, and unsubscribe link | Rendering is covered by unit tests; no false production restock was injected, so confirm this during the next genuine French-profile delivery |
-| ✅ | Send-code button countdown | After clicking, the button is disabled for 60 seconds; it can be used again after the countdown | Verified in production on 2026-07-09: countdown behavior works |
-| ✅ | Change nickname | The “What should we call you?” card opens; after saving, avatar initials update | Verified in production on 2026-07-09: avatar initials update after nickname changes |
-| ✅ | Change email | After verifying the new email code, stable user ID remains unchanged and email field updates | Verified in production on 2026-07-09: after changing email and logging back in, subscription, country, and language are preserved |
-| ✅ | Delete account with an active subscription | Backend rejects deletion and explains cancellation plus expiry is required first | Verified in production on 2026-07-09: account deletion is blocked while an active subscription exists |
-| ✅ | Delete account with no subscription or after expiry | User profile and sessions are cleared; paid entitlements are no longer accessible | Verified in production on 2026-07-09: account deletion succeeds when there is no active subscription |
-| ✅ | Log out and log back in | Subscription, country, language, nickname, and payment summary remain correct | Verified in production on 2026-07-09: profile and subscription data persist after logout/login |
+| ⬜ | Existing test-mode weekly/monthly subscriptions | Set them to cancel at period end before rollout and prove no further automatic charge will occur | Pending |
+| ⬜ | Four old recurring Prices | Archive in Stripe and make them unreachable from the new UI/API | Pending |
+| ⬜ | GitHub/Azure configuration | Only three one-time Price variables remain; old weekly/monthly/Portal configuration is removed | Pending |
+| ⬜ | Legacy user entitlement migration | Preserve only the previously paid legacy period; old subscription webhooks cannot overwrite new Pass receipts | Not tested |
+| ⬜ | Retired APIs | `/api/auth/subscription/preview-payment`, `/api/auth/subscription/cancel`, and `/api/billing/cancel-subscription` all return 404 | Pending deployment verification |
 
-## P1: Payment failures and edge cases
+## P2: pre-release/production smoke
 
-| Status | Scenario | Expected result | Notes |
+| Status | Scenario | Expected result | Record |
 | --- | --- | --- | --- |
-| ✅ | Stripe test card payment fails | User still has no subscription; page shows an understandable failure/retry state | Verified in production on 2026-07-09: both `4000 0000 0000 0341` and `4000 0000 0000 0002` are declined by Stripe; after returning to the site, the user has no entitlement and no inventory access |
-| ✅ | Test card requires 3D Secure | Successful authentication grants entitlement; failed authentication does not | Verified in production on 2026-07-09 for both initial checkout and an existing-subscription upgrade with `4000 0025 0000 3155`: failure grants no entitlement; success returns to Ready with the correct plan and inventory access |
-| ⏸️ | Checkout session expires | Returning user sees a state that allows choosing a plan again | Deferred for later testing |
-| ⏸️ | Temporary Stripe API failure | Frontend shows retry/error state; database does not write a partially active subscription | Deferred for later testing |
-| ⏸️ | User starts payments in multiple tabs | Final state keeps only one valid subscription and does not overwrite data incorrectly | Deferred for later testing |
+| ⬜ | `/health` and `www` health | Return 200 | Pending new release |
+| ⬜ | Anonymous `/api/inventory` | Returns 401 `not_authenticated` | Pending new release |
+| ⬜ | Amount/copy for both products and upgrade | Chinese, Dutch, English, and French show €5/€10/€5 and 90 days with no weekly/monthly/renewal/cancel-subscription copy | Pending visual QA |
+| ⬜ | GitHub Actions + Azure environment | Three Price IDs match Stripe test mode; no secret appears in logs or frontend bundle | Pending verification |
+| ⬜ | Production test-mode Alerts purchase | Payment, return, Profile, Ready, and alert projection are correct | Not tested |
+| ⬜ | Production test-mode Radar purchase | Payment, return, Profile, Ready, and inventory access are correct | Not tested |
+| ⬜ | Production test-mode upgrade | €5, immediate Radar, unchanged original expiry | Not tested |
+| ⬜ | Post-deploy automated verification | `scripts/verify-deployment.mjs` passes, including all three retired APIs returning 404 | Pending new release |
 
-## P2: Production release regression
+## Recommended execution order
 
-| Status | Scenario | Expected result | Notes |
-| --- | --- | --- | --- |
-| ✅ | `/health` | Returns 200 | Verified in production on 2026-07-08 |
-| ✅ | `/ready?lang=zh` | Returns 200 | Verified in production on 2026-07-08 |
-| ✅ | Latest frontend bundle is loaded by production | Browser loads the new build artifact | Production revision `airco-tracking-web--0000044` loaded frontend commit `241be5c` on 2026-07-11 |
-| ✅ | Automated four-language contract | Every application-owned translation key is present and non-empty for `zh`, `nl`, `en`, and `fr`, with matching frontend/backend web maps | Verified on 2026-07-11: 71/71 frontend tests, typecheck, production build, and deployment verifier passed; production i18n Table contains 56 entries across 2 scopes |
-| ✅ | French portal and account visual regression | Landing, Subscribe, Login, Profile, and Unsubscribe render correctly at desktop and narrow widths | Verified in production on 2026-07-11 at 1440×900 and 390×844, with no console errors or warnings |
-| ✅ | `/subscribe?lang=fr` | The French page loads and its plan-button behavior matches the existing languages | Production visual and header-switch verification passed on 2026-07-11 |
-| ✅ | `/profile?lang=fr` | The French page loads with correct profile/subscription cards and correct transient-versus-persistent language behavior | Verified in production on 2026-07-11: French Profile, transient header switching, and persistent preference save passed |
-| ⬜ | `/deliver-to/nl?lang=zh/nl/en/fr` | All four inventory pages load and language switching works | The automated four-language key contract passes; the complete authenticated route regression has not been repeated separately in every language |
-| ⬜ | `/deliver-to/fr?lang=zh/nl/en/fr` | All four inventory pages load and language switching works | The automated four-language key contract passes; the complete authenticated route regression has not been repeated separately in every language |
-
-## Recommended test order
-
-1. Use Stripe Test Clock to verify period end, cancellation-after-period, and renewal.
-2. Verify Stripe webhook and return-sync boundaries: normal events, delayed events, and duplicate events.
-3. Defer Checkout session expiry, temporary Stripe API failures, and multiple simultaneous Checkout-tab tests for a later round.
+1. Switch Stripe test Products/Prices, GitHub variables, and Azure configuration; first stop legacy subscriptions from renewing.
+2. Run local typecheck, tests, build, and receipt/refund/dispute unit tests.
+3. After deployment, run health, anonymous-inventory, and all three retired-endpoint smoke checks.
+4. With a fresh test user, buy Alerts, upgrade to Radar, then test refund/dispute fallback.
+5. Clear or expire that test user, buy Radar directly, and verify the 90-day entitlement and realtime inventory.
+6. Finally test 3D Secure, declined cards, exact expiry, out-of-order webhooks, and concurrency.

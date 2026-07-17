@@ -240,9 +240,9 @@
     "fr": "Français"
   },
   "checking_subscription": {
-    "zh": "正在检查订阅状态…",
-    "nl": "Abonnement controleren…",
-    "en": "Checking subscription…",
-    "fr": "Vérification de l’abonnement…"
+    "zh": "正在检查热浪通行证…",
+    "nl": "Heatwave-pass controleren…",
+    "en": "Checking Heatwave Pass…",
+    "fr": "Vérification du pass canicule…"
   }
 }
