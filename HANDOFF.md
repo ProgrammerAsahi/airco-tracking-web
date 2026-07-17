@@ -25,10 +25,10 @@ The coordinated frontend/backend design uses a stable user UUID and a minimal, 3
 - Container App: `airco-tracking-web`
 - Azure resource group: `airco-tracker-rg`
 - Backend repository: `https://github.com/ProgrammerAsahi/airco-tracking`
-- Deployed frontend commit/image: `aircotrackertdzvfmmi.azurecr.io/airco-tracking-web:f310690c89b3ed732ccfa9d8f4dec4c91ad7ad6f`
-- Coordinated backend commit/image: `6b26c2be27761aea65d8af7bafc574bf6d669b39`
-- Ready revision: `airco-tracking-web--0000057`; provisioning state `Provisioned`; revision health `Healthy`; traffic 100%
-- Successful deployment workflow runs: frontend `29582313469`, backend `29567315723`
+- Deployed frontend commit/image: `aircotrackertdzvfmmi.azurecr.io/airco-tracking-web:ceff82e63d88abde90b7b9e2164a42fb29294d5c`
+- Coordinated backend commit/image: `e6d1f3a6d5c6ee782c4459b0eefe9ed7da3a86d9`
+- Ready revision: `airco-tracking-web--0000058`; provisioning state `Provisioned`; revision health `Healthy`; traffic 100%
+- Successful deployment workflow runs: frontend `29611600902`, backend `29611560636`
 - Deployment workflow: `.github/workflows/deploy.yml`; Markdown/docs-only pushes do not deploy
 
 Both custom web hostnames and their existing managed-certificate names are declared in `infra/app.bicep`. Do not remove those `customDomains` entries: an application Bicep deployment would otherwise clear the bindings.
@@ -42,6 +42,7 @@ Both custom web hostnames and their existing managed-certificate names are decla
 - `/profile` supports nickname and verified-email changes, language preference, delivery country, logout, Pass status/expiry, Alerts-to-Radar upgrade, and account deletion when no active entitlement remains.
 - `/subscribe` offers two Stripe test-mode products: Heatwave Alerts Pass (`alerts`, €5) and Heatwave Radar Pass (`radar`, €10), each valid for 90 days. The active Pass is disabled in the UI; active Alerts users receive a dedicated €5 Radar upgrade that takes effect immediately and preserves the original expiry.
 - `/ready` confirms that alerting is active. Radar users also receive a button to the inventory page.
+- `/privacy.html`, `/terms.html`, and `/imprint.html` are four-language static legal skeletons following the same pattern as the affiliate disclosure page. They ship with visible `[TODO]` placeholders for operator identity, VAT treatment, refund policy, and governing law; the login consent area and a new landing footer link to them.
 - `/deliver-to/nl` and `/deliver-to/fr` filter retailers by delivery coverage. Anonymous users, users without an active Pass, and Alerts-only users cannot read realtime inventory.
 - Interface language (`zh`, `nl`, `en`, or `fr`) is independent from delivery country and can be switched in the header without a reload. An explicit header/query choice survives normal in-app navigation. Saving the Profile preference changes the persisted account default, the alert-recipient projection, stock-alert email language, and the Stripe customer locale.
 
@@ -59,7 +60,7 @@ Both custom web hostnames and their existing managed-certificate names are decla
 
 - Application-owned browser text, dialogs, errors, accessibility labels, metadata, dates, prices, verification emails, and Stripe Checkout support Chinese, Dutch, English, and French.
 - `test-fixtures/i18n.local.json` is the complete browser fallback schema. Azure Table values are optional non-empty overrides; a missing new language safely falls back to the bundled value during mixed-version rollout.
-- The backend `airco_tracker/i18n_local.json` `web` scope is the production seed source and must remain value-for-value equivalent as a JSON map. The current contract contains 41 browser keys, each with exactly four non-empty languages.
+- The backend `airco_tracker/i18n_local.json` `web` scope is the production seed source and must remain value-for-value equivalent as a JSON map. The current contract contains 45 browser keys, each with exactly four non-empty languages; the four new `legal_privacy_link`, `legal_terms_link`, `legal_imprint_link`, and `legal_affiliate_link` keys are synchronized value-for-value with the backend `web` map and were seeded to the production Table before release.
 - Retailer/product names and retailer-supplied delivery wording remain source evidence and are not machine-translated.
 
 ## Alert-recipient projection contract
@@ -81,8 +82,8 @@ The backend daily reconciler repairs partial cross-table failures and legacy row
 ## Azure deployment and sender-domain selection
 
 - The app reuses the backend Container Apps Environment, ACR, Storage Account, shared runtime identity, and ACS resources.
-- The old storage-account-wide Table contributor assignment has been removed. The shared identity now has only the required per-table roles; real production OTP login, profile/projection writes, logout, retention, and scanner execution passed after narrowing.
-- GitHub Actions uses branch-restricted OIDC and immutable commit-SHA images; no Azure client secret or `AZURE_CREDENTIALS` secret exists.
+- The old storage-account-wide Table contributor assignment has been removed, and the shared identity's blob data-plane access is now scoped to the `airco-tracker` container. Both ACS sender identities use the custom `aircontrack-acs-email-sender` role instead of `Communication and Email Service Owner`; the legacy broad assignments were deleted after verification, and a backend scanner execution passed afterwards. A real OTP login email under the new sender role is still pending confirmation (see next steps).
+- GitHub Actions uses branch-restricted OIDC and immutable commit-SHA images; no Azure client secret or `AZURE_CREDENTIALS` secret exists. `main` requires the `validate` status check and blocks force-push and deletion. The deploy workflow is gated on the `production` GitHub environment with a required reviewer; the environment-scoped federated credential `github-airco-tracking-web-env-production` was added to the shared `airco-github-deployer` identity.
 - `scripts/deploy.sh` selects an ACS Email Domain by exact `ACS_EMAIL_DOMAIN_NAME`, defaulting to `AzureManagedDomain`. `EMAIL_DOMAIN_ID` remains an explicit emergency/administrative override.
 - Production now uses the verified customer-managed `airco-tracker.eu` ACS sender in both repositories; the Azure-managed domain remains the explicit fallback.
 - The temporary operator Table-data permission used to seed and verify the four-language production rows has been revoked. Runtime and deploy identities retain only their scoped application permissions.
@@ -106,22 +107,20 @@ All four legacy recurring Prices are archived. Three legacy Sandbox subscription
 
 The current production release is deployed and verified:
 
-- Frontend workflow `29582313469` deployed commit `f310690c89b3ed732ccfa9d8f4dec4c91ad7ad6f`; backend workflow `29567315723` deployed commit `6b26c2be27761aea65d8af7bafc574bf6d669b39`.
-- Production runs ready web revision `airco-tracking-web--0000057` with provisioning state `Provisioned`, revision health `Healthy`, and 100% traffic.
-- `https://airco-tracker.eu/health` and the `www` health endpoint return 200; both preserve the strict CSP, and anonymous `/api/inventory` returns 401.
-- POST requests to `/api/auth/subscription/preview-payment`, `/api/auth/subscription/cancel`, and `/api/billing/cancel-subscription` all return 404. An unsigned Stripe webhook request returns 400.
-- Production i18n Table contains 56 translation entries across the `web` and `email` scopes. Automated contracts confirm every key has exactly four non-empty `zh`/`nl`/`en`/`fr` values and that the frontend/backend web maps match.
-- A real French OTP sent through the custom ACS sender reached an authorized Outlook inbox. A French alert-pipeline canary traversed the Service Bus pipeline to an authorized Gmail inbox and reached final status `delivered`.
-- The language-preference test exercised Profile persistence and `alertrecipients` synchronization; the test account was restored to `zh` afterwards. Service Bus active, scheduled, and dead-letter counts were all zero after the canary, and the temporary operator Table permission was removed.
+- Frontend workflow `29611600902` deployed commit `ceff82e63d88abde90b7b9e2164a42fb29294d5c` after approval through the new `production` environment gate; backend workflow `29611560636` deployed commit `e6d1f3a6d5c6ee782c4459b0eefe9ed7da3a86d9`.
+- Production runs ready web revision `airco-tracking-web--0000058` with provisioning state `Provisioned`, revision health `Healthy`, and 100% traffic.
+- `/`, `/privacy.html`, `/terms.html`, `/imprint.html`, `/health`, the `www` host, and `/deliver-to/nl` all return 200; anonymous `/api/inventory` still returns 401; the strict CSP is intact; and the four new `legal_*` i18n keys are served in the embedded payload.
+- Production i18n Table was reseeded to 64 entries across the `web` and `email` scopes before release; automated contracts confirm every key has exactly four non-empty `zh`/`nl`/`en`/`fr` values and that the frontend/backend web maps match.
 
 ## Known limitations and next work
 
 1. Google, Apple, and Microsoft login buttons are UI placeholders; only email-code login is functional.
 2. Billing remains in Stripe test mode and card-first. iDEAL/Wero or other payment methods require a separate product and compliance pass.
 3. The deployment/security baseline is production-verified, but real Sandbox purchase, upgrade, refund/dispute, exact-expiry, delayed/duplicate webhook, and legacy-entitlement migration scenarios remain open in the billing test plan.
-4. Production uses the verified customer-managed `airco-tracker.eu` ACS sender. A higher-quota request remains open; keep the current one-worker/13-second limit and gradual domain warm-up until Azure approves it.
-5. Consumer-facing compliance work for real payments—including VAT/tax treatment, withdrawal rights, refund policy, terms/privacy copy, and required checkout disclosures—must be completed before leaving Stripe test mode.
+4. Production uses the verified customer-managed `airco-tracker.eu` ACS sender. A higher-quota request remains open; keep the current one-worker/13-second limit and gradual domain warm-up until Azure approves it. The first real OTP login email under the new `aircontrack-acs-email-sender` role still needs a one-time confirmation.
+5. The four-language legal skeletons (`/privacy.html`, `/terms.html`, `/imprint.html`) ship with visible `[TODO]` placeholders for operator identity, VAT treatment, refund policy, and governing law; the copy must be filled and legally reviewed before real payments. VAT/OSS and withdrawal-right details remain prerequisites for leaving Stripe test mode.
 6. There is no committed Playwright visual/accessibility regression suite or dedicated production alert for repeated frontend/API failures.
+7. Browser visual QA of the new landing-footer and login-consent legal links is recommended.
 
 ## Resume checklist
 

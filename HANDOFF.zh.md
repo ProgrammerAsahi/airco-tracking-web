@@ -25,10 +25,10 @@
 - Container App：`airco-tracking-web`
 - Azure resource group：`airco-tracker-rg`
 - Backend repository：`https://github.com/ProgrammerAsahi/airco-tracking`
-- 已部署 frontend commit/image：`aircotrackertdzvfmmi.azurecr.io/airco-tracking-web:f310690c89b3ed732ccfa9d8f4dec4c91ad7ad6f`
-- 协调部署的 backend commit/image：`6b26c2be27761aea65d8af7bafc574bf6d669b39`
-- Ready revision：`airco-tracking-web--0000057`；provisioning state 为 `Provisioned`；revision health 为 `Healthy`；流量为 100%
-- 成功的 deployment workflow runs：frontend `29582313469`、backend `29567315723`
+- 已部署 frontend commit/image：`aircotrackertdzvfmmi.azurecr.io/airco-tracking-web:ceff82e63d88abde90b7b9e2164a42fb29294d5c`
+- 协调部署的 backend commit/image：`e6d1f3a6d5c6ee782c4459b0eefe9ed7da3a86d9`
+- Ready revision：`airco-tracking-web--0000058`；provisioning state 为 `Provisioned`；revision health 为 `Healthy`；流量为 100%
+- 成功的 deployment workflow runs：frontend `29611600902`、backend `29611560636`
 - Deployment workflow：`.github/workflows/deploy.yml`；纯 Markdown/docs push 不部署
 
 两个自定义 Web hostname 和现有 managed-certificate 名称都已写入 `infra/app.bicep`。不要删除这些 `customDomains`；否则 application Bicep 部署会清空绑定。
@@ -42,6 +42,7 @@
 - `/profile` 支持修改昵称和已验证邮箱、语言偏好、配送国家、登出、查看 Pass 状态/到期日、从 Alerts 升级到 Radar，以及在没有有效权益时注销账户。
 - `/subscribe` 提供两种 Stripe test-mode 产品：Heatwave Alerts Pass（`alerts`，€5）和 Heatwave Radar Pass（`radar`，€10），均有效 90 天。当前 Pass 按钮不可点击；有效 Alerts 用户可支付 €5 立即升级 Radar，原到期日不变。
 - `/ready` 会确认提醒已经启用；Radar 用户还会看到前往库存页面的按钮。
+- `/privacy.html`、`/terms.html` 和 `/imprint.html` 是四语静态 legal 骨架页，采用与 affiliate 披露页相同的模式。页面带有可见的 `[TODO]` 占位（运营主体、VAT 处理、退款政策、管辖法律）；登录同意区和 landing 新 footer 会链接到这些页面。
 - `/deliver-to/nl` 和 `/deliver-to/fr` 按配送范围筛选零售商。匿名、没有有效 Pass 和只有 Alerts 权益的用户都不能读取实时库存。
 - 界面语言（`zh`、`nl`、`en`、`fr`）和配送国家相互独立，可从 header 无刷新切换。明确的 header/query 选择会在普通站内导航中保持；在 Profile 保存偏好会同时更新账户持久化默认、提醒收件人投影、库存提醒邮件语言和 Stripe customer locale。
 
@@ -59,7 +60,7 @@
 
 - 应用自有的网页文字、弹窗、错误、无障碍标签、metadata、日期、价格、验证码邮件和 Stripe Checkout 均支持中文、荷兰语、英语和法语。
 - `test-fixtures/i18n.local.json` 是完整的浏览器 fallback schema。Azure Table 只提供非空 override；混合版本发布时，即使新语言尚未写入 Table，也会安全回退到镜像内置值。
-- 后端 `airco_tracker/i18n_local.json` 的 `web` scope 是生产播种源，必须和前端 JSON map 按值完全等价。当前契约包含 41 个浏览器 key，每个 key 都有四个非空语言值。
+- 后端 `airco_tracker/i18n_local.json` 的 `web` scope 是生产播种源，必须和前端 JSON map 按值完全等价。当前契约包含 45 个浏览器 key，每个 key 都有四个非空语言值；新增的 `legal_privacy_link`、`legal_terms_link`、`legal_imprint_link` 和 `legal_affiliate_link` 四个 key 与后端 `web` map 按值完全同步，并已在发布前播种到生产 Table。
 - 商家名、商品名和商家原始配送说明作为来源证据保留原文，不做可能改变事实含义的机器翻译。
 
 ## 提醒收件人投影契约
@@ -81,8 +82,8 @@
 ## Azure 部署和 sender domain 选择
 
 - 本应用复用后端的 Container Apps Environment、ACR、Storage Account、共享 runtime identity 和 ACS resources。
-- 旧的 storage-account 级 Table contributor 已移除。Shared identity 现在只保留所需的逐表权限；缩权后真实生产 OTP 登录、Profile/投影写入、登出、retention 和 scanner execution 全部通过。
-- GitHub Actions 使用限制到分支的 OIDC 和不可变 commit-SHA images；没有 Azure client secret 或 `AZURE_CREDENTIALS` secret。
+- 旧的 storage-account 级 Table contributor 已移除，shared identity 的 blob data-plane 权限也已收窄到 `airco-tracker` container。两个 ACS sender identity 改用 custom role `aircontrack-acs-email-sender`，取代 `Communication and Email Service Owner`；旧宽泛 assignment 已在验证后删除，随后 backend scanner 执行成功。新 sender role 下的真实 OTP 登录邮件尚待确认（见下一步）。
+- GitHub Actions 使用限制到分支的 OIDC 和不可变 commit-SHA images；没有 Azure client secret 或 `AZURE_CREDENTIALS` secret。`main` 分支要求 `validate` status check，并禁止 force-push 和删除。部署 workflow 通过带 required reviewer 的 `production` GitHub environment 门禁；environment-scoped federated credential `github-airco-tracking-web-env-production` 已加入共享的 `airco-github-deployer` 身份。
 - `scripts/deploy.sh` 通过准确的 `ACS_EMAIL_DOMAIN_NAME` 选择 ACS Email Domain，默认使用 `AzureManagedDomain`；`EMAIL_DOMAIN_ID` 仍可作为明确的应急/管理覆盖。
 - 生产现已在两个仓库使用验证完成的 customer-managed `airco-tracker.eu` ACS sender；Azure-managed domain 仍是明确的 fallback。
 - 用于播种和验证生产四语 rows 的临时 operator Table data 权限已撤销。Runtime 和 deploy identities 只保留各自受限的应用权限。
@@ -106,22 +107,20 @@ Stripe Sandbox destination `airco-tracker-pass-webhook` 继续指向 `https://ai
 
 当前生产 release 已部署并验证：
 
-- Frontend workflow `29582313469` 部署 commit `f310690c89b3ed732ccfa9d8f4dec4c91ad7ad6f`；backend workflow `29567315723` 部署 commit `6b26c2be27761aea65d8af7bafc574bf6d669b39`。
-- 生产运行 ready web revision `airco-tracking-web--0000057`，provisioning state 为 `Provisioned`，revision health 为 `Healthy`，流量为 100%。
-- `https://airco-tracker.eu/health` 和 `www` health 均返回 200，并保持 strict CSP；匿名 `/api/inventory` 返回 401。
-- `/api/auth/subscription/preview-payment`、`/api/auth/subscription/cancel` 和 `/api/billing/cancel-subscription` 均返回 404；未签名 Stripe webhook 返回 400。
-- 生产 i18n Table 在 `web` 和 `email` 两个 scopes 中共有 56 个 translation entries。自动契约确认每个 key 都有四个非空的 `zh`/`nl`/`en`/`fr` 值，且前后端 web maps 一致。
-- 真实法语 OTP 通过自定义 ACS sender 到达已授权 Outlook inbox；法语提醒流水线 canary 通过 Service Bus 到达已授权 Gmail inbox，最终状态为 `delivered`。
-- 语言偏好测试覆盖 Profile 持久化和 `alertrecipients` 同步；测试结束后账户已恢复为 `zh`。Canary 完成后 Service Bus active、scheduled 和 dead-letter 均为零，临时 operator Table 权限也已撤销。
+- Frontend workflow `29611600902` 经新的 `production` environment 门禁批准后部署 commit `ceff82e63d88abde90b7b9e2164a42fb29294d5c`；backend workflow `29611560636` 部署 commit `e6d1f3a6d5c6ee782c4459b0eefe9ed7da3a86d9`。
+- 生产运行 ready web revision `airco-tracking-web--0000058`，provisioning state 为 `Provisioned`，revision health 为 `Healthy`，流量为 100%。
+- `/`、`/privacy.html`、`/terms.html`、`/imprint.html`、`/health`、`www` host 和 `/deliver-to/nl` 均返回 200；匿名 `/api/inventory` 仍返回 401；strict CSP 保持不变；四个新 `legal_*` i18n key 已在内嵌 payload 中下发。
+- 生产 i18n Table 已在发布前重新播种为 `web` 和 `email` 两个 scope 共 64 条；自动契约确认每个 key 都有四个非空的 `zh`/`nl`/`en`/`fr` 值，且前后端 web maps 一致。
 
 ## 已知限制和下一步
 
 1. Google、Apple、Microsoft 登录按钮只是 UI placeholder；当前只有邮箱验证码登录可用。
 2. Billing 仍处于 Stripe test mode，且先支持信用卡。iDEAL/Wero 或其它支付方式需要单独的产品和合规评估。
 3. 部署/安全 baseline 已完成生产验证，但真实 Sandbox 购买、升级、退款/争议、精确到期、延迟/重复 webhook 和 legacy entitlement migration 场景仍列在 billing 测试文档中。
-4. 生产已经使用验证完成的 customer-managed `airco-tracker.eu` ACS sender；更高 quota 申请仍处于 Open。在 Azure 批准前继续保持一 worker/13 秒限制并逐步 warm up 域名。
-5. 真实收款前仍必须完成面向消费者的合规工作，包括 VAT/税务处理、撤回权、退款政策、条款/隐私文案和结账所需披露。
+4. 生产已经使用验证完成的 customer-managed `airco-tracker.eu` ACS sender；更高 quota 申请仍处于 Open。在 Azure 批准前继续保持一 worker/13 秒限制并逐步 warm up 域名。新 custom role `aircontrack-acs-email-sender` 下的首封真实 OTP 登录邮件仍需一次确认。
+5. 四语 legal 骨架页（`/privacy.html`、`/terms.html`、`/imprint.html`）仍带有可见的 `[TODO]` 占位（运营主体、VAT 处理、退款政策、管辖法律），真实收款前必须填好并通过法律审查；VAT/OSS 和撤回权细节仍是退出 Stripe test mode 的前置条件。
 6. 目前没有 committed Playwright 视觉/无障碍回归套件，也没有针对连续 frontend/API 故障的独立生产告警。
+7. 建议对新的 landing footer 和登录同意区的 legal 链接做一次浏览器视觉 QA。
 
 ## 恢复 checklist
 
