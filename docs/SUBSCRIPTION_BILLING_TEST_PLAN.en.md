@@ -104,7 +104,7 @@ Canonical entitlement state is expressed through `tier`, `status`, `purchasedAt`
 | --- | --- | --- | --- |
 | ✅ | Existing test-mode weekly/monthly subscriptions | Set them to cancel at period end and prove no further automatic charge will occur | All three scheduled: two end 2026-08-09 and one ends 2026-08-08 |
 | ✅ | Four old recurring Prices | Archive in Stripe and make them unreachable from the new UI/API | Archived on 2026-07-17 |
-| 🚧 | GitHub/Azure configuration | Runtime uses only three one-time Price variables and legacy weekly/monthly/Portal configuration is ultimately removed | Azure has only the three new variables and GitHub has the three new variables; the account holder must complete GitHub sudo/2FA verification before deleting five legacy variables |
+| ✅ | GitHub/Azure configuration | Runtime uses only three one-time Price variables and legacy weekly/monthly/Portal configuration is ultimately removed | 2026-07-17: Azure and GitHub retain only the three new Price variables; the five legacy variables were deleted after sudo/2FA verification |
 | ⬜ | Legacy user entitlement migration | Preserve only the previously paid legacy period; old subscription webhooks cannot overwrite new Pass receipts | Not tested |
 | ✅ | Retired APIs | `/api/auth/subscription/preview-payment`, `/api/auth/subscription/cancel`, and `/api/billing/cancel-subscription` all return 404 | 2026-07-17 apex production smoke passed |
 
@@ -115,7 +115,7 @@ Canonical entitlement state is expressed through `tier`, `status`, `purchasedAt`
 | ✅ | `/health` and `www` health | Return 200 and preserve the strict CSP | 2026-07-17 apex + www production smoke passed |
 | ✅ | Anonymous `/api/inventory` | Returns 401 `not_authenticated` | 2026-07-17 production smoke passed |
 | ⬜ | Amount/copy for both products and upgrade | Chinese, Dutch, English, and French show €5/€10/€5 and 90 days with no weekly/monthly/renewal/cancel-subscription copy | Pending visual QA |
-| 🚧 | GitHub Actions + Azure environment | Three Price IDs match Stripe test mode; no secret appears in logs/frontend bundle; old variables are cleaned up | Azure retains only the three new variables and deployment passed; five old GitHub variables await account-holder sudo/2FA verification and deletion |
+| ✅ | GitHub Actions + Azure environment | Three Price IDs match Stripe test mode; no secret appears in logs/frontend bundle; old variables are cleaned up | 2026-07-17: Azure and GitHub retain only the three new Price IDs, deployment passed, and all five old variables are deleted |
 | ✅ | Automated test baseline | Web-server and targeted backend suites all pass | 2026-07-17: 113/113 server tests and 62/62 backend target tests |
 | ⬜ | Production test-mode Alerts purchase | Payment, return, Profile, Ready, and alert projection are correct | Not tested |
 | ⬜ | Production test-mode Radar purchase | Payment, return, Profile, Ready, and inventory access are correct | Not tested |
@@ -124,9 +124,8 @@ Canonical entitlement state is expressed through `tier`, `status`, `purchasedAt`
 
 ## Recommended execution order
 
-1. Have the account holder complete GitHub sudo/2FA verification and delete the five obsolete variables without changing the three correctly deployed new variables.
-2. With a fresh test user, buy Alerts, upgrade to Radar, then test refund/dispute fallback.
-3. Clear or expire that test user, buy Radar directly, and verify the 90-day entitlement and realtime inventory.
-4. Test 3D Secure, declined cards, exact expiry, out-of-order webhooks, and concurrency.
-5. Separately verify legacy-entitlement migration when the three old subscriptions expire and prove stale events cannot overwrite Pass receipts.
-6. Complete VAT/tax, withdrawal, refund, terms/privacy, and checkout-disclosure work before evaluating Stripe live mode.
+1. With a fresh test user, buy Alerts, upgrade to Radar, then test refund/dispute fallback.
+2. Clear or expire that test user, buy Radar directly, and verify the 90-day entitlement and realtime inventory.
+3. Test 3D Secure, declined cards, exact expiry, out-of-order webhooks, and concurrency.
+4. Separately verify legacy-entitlement migration when the three old subscriptions expire and prove stale events cannot overwrite Pass receipts.
+5. Complete VAT/tax, withdrawal, refund, terms/privacy, and checkout-disclosure work before evaluating Stripe live mode.

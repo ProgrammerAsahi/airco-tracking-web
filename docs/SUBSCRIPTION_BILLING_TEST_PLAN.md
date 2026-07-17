@@ -104,7 +104,7 @@ Canonical 权益以 `tier`、`status`、`purchasedAt`、`expiresAt` 和最小化
 | --- | --- | --- | --- |
 | ✅ | 现有 test-mode 周/月订阅 | 设置为周期末取消，确认不会再次自动扣费 | 三笔均已设置：两笔 2026-08-09、一笔 2026-08-08 到期 |
 | ✅ | 旧四个 recurring Prices | 在 Stripe 中 archive，不能从新 UI/API 创建订阅 | 2026-07-17 已 archive |
-| 🚧 | GitHub/Azure 配置 | Runtime 只使用三项一次性 Price variables；旧 weekly/monthly/Portal 配置最终删除 | Azure 只剩三项新变量，GitHub 三项新变量已存在；五项旧变量需账户持有人完成 GitHub sudo/2FA verification 后删除 |
+| ✅ | GitHub/Azure 配置 | Runtime 只使用三项一次性 Price variables；旧 weekly/monthly/Portal 配置最终删除 | 2026-07-17：Azure 和 GitHub 均只保留三项新 Price variables；五项旧变量已在 sudo/2FA verification 后删除 |
 | ⬜ | 旧用户权益迁移 | 只保留原已付周期内的 legacy 权益；旧 subscription webhook 不覆盖新 Pass receipt | 待测 |
 | ✅ | 退役 API | `/api/auth/subscription/preview-payment`、`/api/auth/subscription/cancel`、`/api/billing/cancel-subscription` 均返回 404 | 2026-07-17 apex 生产 smoke 通过 |
 
@@ -115,7 +115,7 @@ Canonical 权益以 `tier`、`status`、`purchasedAt`、`expiresAt` 和最小化
 | ✅ | `/health` 和 `www` health | 返回 200，并保留 strict CSP | 2026-07-17 apex + www 生产 smoke 通过 |
 | ✅ | 匿名 `/api/inventory` | 返回 401 `not_authenticated` | 2026-07-17 生产 smoke 通过 |
 | ⬜ | 两种产品与 upgrade 的金额/文案 | 中文、荷兰语、英语、法语均显示 €5/€10/€5 和 90 天，不出现周/月/续费/取消订阅 | 待视觉复核 |
-| 🚧 | GitHub Actions + Azure 环境 | 三个 Price ID 与 Stripe test mode 一致；没有 secret 出现在日志或前端 bundle；清理旧 variables | Azure 只保留三项新变量且部署成功；GitHub 旧五项等待账户持有人完成 sudo/2FA verification 后删除 |
+| ✅ | GitHub Actions + Azure 环境 | 三个 Price ID 与 Stripe test mode 一致；没有 secret 出现在日志或前端 bundle；清理旧 variables | 2026-07-17：Azure 和 GitHub 均只保留三个新 Price IDs，部署成功且旧五项已删除 |
 | ✅ | 自动化测试 baseline | Web server 与 backend targeted suites 全部通过 | 2026-07-17：113/113 server tests、62/62 backend target tests |
 | ⬜ | 生产 test-mode Alerts 购买 | 支付、回跳、Profile、Ready 和邮件投影均正确 | 待测 |
 | ⬜ | 生产 test-mode Radar 购买 | 支付、回跳、Profile、Ready 和库存权限均正确 | 待测 |
@@ -124,9 +124,8 @@ Canonical 权益以 `tier`、`status`、`purchasedAt`、`expiresAt` 和最小化
 
 ## 推荐执行顺序
 
-1. 由账户持有人完成 GitHub sudo/2FA verification，删除五项废弃 variables；不要改动已经正确部署的三项新 variables。
-2. 使用全新测试账户依次购买 Alerts、upgrade 到 Radar，再测试退款/争议回退。
-3. 清空或到期该测试账户后，单独购买 Radar，验证 90 天权益和实时库存。
-4. 执行 3D Secure、失败卡、到期边界、乱序 webhook 与并发场景。
-5. 单独验证三笔 legacy subscription 到期时的 entitlement migration，确认不会被旧事件覆盖。
-6. 完成 VAT/税务、撤回权、退款、条款/隐私和 checkout disclosure 后，才能评估切换 Stripe live mode。
+1. 使用全新测试账户依次购买 Alerts、upgrade 到 Radar，再测试退款/争议回退。
+2. 清空或到期该测试账户后，单独购买 Radar，验证 90 天权益和实时库存。
+3. 执行 3D Secure、失败卡、到期边界、乱序 webhook 与并发场景。
+4. 单独验证三笔 legacy subscription 到期时的 entitlement migration，确认不会被旧事件覆盖。
+5. 完成 VAT/税务、撤回权、退款、条款/隐私和 checkout disclosure 后，才能评估切换 Stripe live mode。

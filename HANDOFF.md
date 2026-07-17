@@ -87,7 +87,7 @@ The backend daily reconciler repairs partial cross-table failures and legacy row
 - Production now uses the verified customer-managed `airco-tracker.eu` ACS sender in both repositories; the Azure-managed domain remains the explicit fallback.
 - The temporary operator Table-data permission used to seed and verify the four-language production rows has been revoked. Runtime and deploy identities retain only their scoped application permissions.
 - Stripe secrets are supplied only by GitHub Actions or an explicitly configured local environment. Do not run a manual production deployment with missing Stripe configuration.
-- Azure now exposes only `STRIPE_PRICE_ALERTS_PASS`, `STRIPE_PRICE_RADAR_PASS`, and `STRIPE_PRICE_RADAR_UPGRADE`. The matching three GitHub variables exist, but deleting `STRIPE_BILLING_PORTAL_CONFIGURATION_ID` and the four legacy weekly/monthly Price variables triggers GitHub `Confirm access` / `Enter the verification code`; before sudo/2FA completion the page reports `Unable to delete variable`. The account holder must complete that verification and cleanup; the deployed workflow does not consume the old variables.
+- Azure and GitHub Actions now use only `STRIPE_PRICE_ALERTS_PASS`, `STRIPE_PRICE_RADAR_PASS`, and `STRIPE_PRICE_RADAR_UPGRADE`. `STRIPE_BILLING_PORTAL_CONFIGURATION_ID` and the four legacy weekly/monthly Price variables were deleted from GitHub on 2026-07-17 after account-holder sudo/2FA verification.
 - Stripe Sandbox uses `price_1TtoNS0XRx7WeBOsNN5xPzlf` for Alerts, `price_1TtoCl0XRx7WeBOs3ATeEv0Y` for Radar, and `price_1TtoG10XRx7WeBOsvsvaarrD` for the upgrade. The four recurring Prices are archived.
 
 ## Current verification state
@@ -120,9 +120,8 @@ The current production release is deployed and verified:
 2. Billing remains in Stripe test mode and card-first. iDEAL/Wero or other payment methods require a separate product and compliance pass.
 3. The deployment/security baseline is production-verified, but real Sandbox purchase, upgrade, refund/dispute, exact-expiry, delayed/duplicate webhook, and legacy-entitlement migration scenarios remain open in the billing test plan.
 4. Production uses the verified customer-managed `airco-tracker.eu` ACS sender. A higher-quota request remains open; keep the current one-worker/13-second limit and gradual domain warm-up until Azure approves it.
-5. The five obsolete GitHub variables still exist because deletion requires account-holder GitHub sudo/2FA verification; Azure and the deployed workflow use only the three new one-time Price variables.
-6. Consumer-facing compliance work for real payments—including VAT/tax treatment, withdrawal rights, refund policy, terms/privacy copy, and required checkout disclosures—must be completed before leaving Stripe test mode.
-7. There is no committed Playwright visual/accessibility regression suite or dedicated production alert for repeated frontend/API failures.
+5. Consumer-facing compliance work for real payments—including VAT/tax treatment, withdrawal rights, refund policy, terms/privacy copy, and required checkout disclosures—must be completed before leaving Stripe test mode.
+6. There is no committed Playwright visual/accessibility regression suite or dedicated production alert for repeated frontend/API failures.
 
 ## Resume checklist
 

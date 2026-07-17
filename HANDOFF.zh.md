@@ -87,7 +87,7 @@
 - 生产现已在两个仓库使用验证完成的 customer-managed `airco-tracker.eu` ACS sender；Azure-managed domain 仍是明确的 fallback。
 - 用于播种和验证生产四语 rows 的临时 operator Table data 权限已撤销。Runtime 和 deploy identities 只保留各自受限的应用权限。
 - Stripe secrets 只能由 GitHub Actions 或明确配置的本地环境提供。缺少 Stripe 配置时，不要手工部署生产。
-- Azure 现在只暴露 `STRIPE_PRICE_ALERTS_PASS`、`STRIPE_PRICE_RADAR_PASS` 和 `STRIPE_PRICE_RADAR_UPGRADE`。GitHub 中对应的三个新 variables 已存在，但删除 `STRIPE_BILLING_PORTAL_CONFIGURATION_ID` 和四个旧 weekly/monthly Price variables 会触发 `Confirm access` / `Enter the verification code`；未完成 sudo/2FA 时页面显示 `Unable to delete variable`。需要账户持有人完成验证和清理，已部署 workflow 不会读取这些旧变量。
+- Azure 和 GitHub Actions 现在都只使用 `STRIPE_PRICE_ALERTS_PASS`、`STRIPE_PRICE_RADAR_PASS` 和 `STRIPE_PRICE_RADAR_UPGRADE`。账户持有人完成 sudo/2FA verification 后，`STRIPE_BILLING_PORTAL_CONFIGURATION_ID` 和四个旧 weekly/monthly Price variables 已于 2026-07-17 从 GitHub 删除。
 - Stripe Sandbox 使用 `price_1TtoNS0XRx7WeBOsNN5xPzlf` 作为 Alerts、`price_1TtoCl0XRx7WeBOs3ATeEv0Y` 作为 Radar、`price_1TtoG10XRx7WeBOsvsvaarrD` 作为 upgrade；四个旧 recurring Prices 已 archive。
 
 ## 当前验证状态
@@ -120,9 +120,8 @@ Stripe Sandbox destination `airco-tracker-pass-webhook` 继续指向 `https://ai
 2. Billing 仍处于 Stripe test mode，且先支持信用卡。iDEAL/Wero 或其它支付方式需要单独的产品和合规评估。
 3. 部署/安全 baseline 已完成生产验证，但真实 Sandbox 购买、升级、退款/争议、精确到期、延迟/重复 webhook 和 legacy entitlement migration 场景仍列在 billing 测试文档中。
 4. 生产已经使用验证完成的 customer-managed `airco-tracker.eu` ACS sender；更高 quota 申请仍处于 Open。在 Azure 批准前继续保持一 worker/13 秒限制并逐步 warm up 域名。
-5. 五个废弃 GitHub variables 仍存在，因为删除操作需要账户持有人完成 GitHub sudo/2FA verification；Azure 和已部署 workflow 只使用三个新的一次性 Price variables。
-6. 真实收款前仍必须完成面向消费者的合规工作，包括 VAT/税务处理、撤回权、退款政策、条款/隐私文案和结账所需披露。
-7. 目前没有 committed Playwright 视觉/无障碍回归套件，也没有针对连续 frontend/API 故障的独立生产告警。
+5. 真实收款前仍必须完成面向消费者的合规工作，包括 VAT/税务处理、撤回权、退款政策、条款/隐私文案和结账所需披露。
+6. 目前没有 committed Playwright 视觉/无障碍回归套件，也没有针对连续 frontend/API 故障的独立生产告警。
 
 ## 恢复 checklist
 
