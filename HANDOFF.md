@@ -25,10 +25,10 @@ The coordinated frontend/backend design uses a stable user UUID and a minimal, 3
 - Container App: `airco-tracking-web`
 - Azure resource group: `airco-tracker-rg`
 - Backend repository: `https://github.com/ProgrammerAsahi/airco-tracking`
-- Deployed frontend commit/image: `aircotrackertdzvfmmi.azurecr.io/airco-tracking-web:ccc3f5e7443b17390528a04202dc475d92f167c7`
+- Deployed frontend commit/image: `aircotrackertdzvfmmi.azurecr.io/airco-tracking-web:3ab34f7c0a71e579e969d9f319e6778e01bdbcba`
 - Coordinated backend commit/image: `e6d1f3a6d5c6ee782c4459b0eefe9ed7da3a86d9`
-- Ready revision: `airco-tracking-web--0000062`; provisioning state `Provisioned`; revision health `Healthy`; traffic 100%
-- Successful deployment workflow runs: frontend `29655140472`, backend `29611560636`
+- Ready revision: `airco-tracking-web--0000063`; provisioning state `Provisioned`; revision health `Healthy`; traffic 100%
+- Successful deployment workflow runs: frontend `29656778319`, backend `29611560636`
 - Deployment workflow: `.github/workflows/deploy.yml`; Markdown/docs-only pushes do not deploy
 
 Both custom web hostnames and their existing managed-certificate names are declared in `infra/app.bicep`. Do not remove those `customDomains` entries: an application Bicep deployment would otherwise clear the bindings.
@@ -107,8 +107,8 @@ All four legacy recurring Prices are archived. Three legacy Sandbox subscription
 
 The current production release is deployed and verified:
 
-- Frontend workflow `29655140472` deployed commit `ccc3f5e7443b17390528a04202dc475d92f167c7` after approval through the `production` environment gate; backend workflow `29611560636` deployed commit `e6d1f3a6d5c6ee782c4459b0eefe9ed7da3a86d9`.
-- Production runs ready web revision `airco-tracking-web--0000062` with provisioning state `Provisioned`, revision health `Healthy`, and 100% traffic.
+- Frontend workflow `29656778319` deployed commit `3ab34f7c0a71e579e969d9f319e6778e01bdbcba` after approval through the `production` environment gate; backend workflow `29611560636` deployed commit `e6d1f3a6d5c6ee782c4459b0eefe9ed7da3a86d9`.
+- Production runs ready web revision `airco-tracking-web--0000063` with provisioning state `Provisioned`, revision health `Healthy`, and 100% traffic.
 - `/`, `/privacy.html`, `/terms.html`, `/imprint.html`, `/health`, the `www` host, and `/deliver-to/nl` all return 200; anonymous `/api/inventory` still returns 401; the strict CSP is intact; and the four `legal_*` i18n keys are served in the embedded payload.
 - The three-beat landing story is live: the served bundle contains the temperature badge, alert chip, beat dots, hero exit wash, tracker entry wash, and the new four-language story/attribution copy. Local checks before release: 113/113 tests, typecheck, build, and a production-mode smoke run.
 - Production i18n Table was reseeded to 64 entries across the `web` and `email` scopes before release; automated contracts confirm every key has exactly four non-empty `zh`/`nl`/`en`/`fr` values and that the frontend/backend web maps match.

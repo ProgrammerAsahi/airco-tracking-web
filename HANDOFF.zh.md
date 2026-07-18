@@ -25,10 +25,10 @@
 - Container App：`airco-tracking-web`
 - Azure resource group：`airco-tracker-rg`
 - Backend repository：`https://github.com/ProgrammerAsahi/airco-tracking`
-- 已部署 frontend commit/image：`aircotrackertdzvfmmi.azurecr.io/airco-tracking-web:ccc3f5e7443b17390528a04202dc475d92f167c7`
+- 已部署 frontend commit/image：`aircotrackertdzvfmmi.azurecr.io/airco-tracking-web:3ab34f7c0a71e579e969d9f319e6778e01bdbcba`
 - 协调部署的 backend commit/image：`e6d1f3a6d5c6ee782c4459b0eefe9ed7da3a86d9`
-- Ready revision：`airco-tracking-web--0000062`；provisioning state 为 `Provisioned`；revision health 为 `Healthy`；流量为 100%
-- 成功的 deployment workflow runs：frontend `29655140472`、backend `29611560636`
+- Ready revision：`airco-tracking-web--0000063`；provisioning state 为 `Provisioned`；revision health 为 `Healthy`；流量为 100%
+- 成功的 deployment workflow runs：frontend `29656778319`、backend `29611560636`
 - Deployment workflow：`.github/workflows/deploy.yml`；纯 Markdown/docs push 不部署
 
 两个自定义 Web hostname 和现有 managed-certificate 名称都已写入 `infra/app.bicep`。不要删除这些 `customDomains`；否则 application Bicep 部署会清空绑定。
@@ -107,8 +107,8 @@ Stripe Sandbox destination `airco-tracker-pass-webhook` 继续指向 `https://ai
 
 当前生产 release 已部署并验证：
 
-- Frontend workflow `29655140472` 经 `production` environment 门禁批准后部署 commit `ccc3f5e7443b17390528a04202dc475d92f167c7`；backend workflow `29611560636` 部署 commit `e6d1f3a6d5c6ee782c4459b0eefe9ed7da3a86d9`。
-- 生产运行 ready web revision `airco-tracking-web--0000062`，provisioning state 为 `Provisioned`，revision health 为 `Healthy`，流量为 100%。
+- Frontend workflow `29656778319` 经 `production` environment 门禁批准后部署 commit `3ab34f7c0a71e579e969d9f319e6778e01bdbcba`；backend workflow `29611560636` 部署 commit `e6d1f3a6d5c6ee782c4459b0eefe9ed7da3a86d9`。
+- 生产运行 ready web revision `airco-tracking-web--0000063`，provisioning state 为 `Provisioned`，revision health 为 `Healthy`，流量为 100%。
 - `/`、`/privacy.html`、`/terms.html`、`/imprint.html`、`/health`、`www` host 和 `/deliver-to/nl` 均返回 200；匿名 `/api/inventory` 仍返回 401；strict CSP 保持不变；四个 `legal_*` i18n key 已在内嵌 payload 中下发。
 - 三拍落地页叙事已上线：生产 bundle 确认包含温度徽章、通知 chip、拍点进度点、hero 离场渐变、tracker 进场渐变以及新的四语叙事/功劳文案。发布前本地验证：113/113 tests、typecheck、build 和生产模式冒烟均通过。
 - 生产 i18n Table 已在发布前重新播种为 `web` 和 `email` 两个 scope 共 64 条；自动契约确认每个 key 都有四个非空的 `zh`/`nl`/`en`/`fr` 值，且前后端 web maps 一致。
