@@ -530,7 +530,7 @@ body.landing-dialog-open {
   inset: -3%;
   display: block;
   transform: translate3d(var(--hero-image-x), var(--hero-image-y), 0) scale(var(--hero-image-scale));
-  transform-origin: 52% 48%;
+  transform-origin: 85% 24%;
   will-change: transform;
 }
 
@@ -1171,9 +1171,12 @@ body.landing-dialog-open .landing-tracker-scene-glints i {
   --room-transition-mist-opacity: 0;
   --room-cool-wave-x: -18px;
   --room-temp-hue: 16;
+  --room-scene-opacity: 1;
+  --room-image-origin: 42% 51%;
   position: absolute;
   inset: 0;
   overflow: hidden;
+  opacity: var(--room-scene-opacity);
   pointer-events: none;
 }
 
@@ -1198,7 +1201,7 @@ body.landing-dialog-open .landing-tracker-scene-glints i {
   inset: -3%;
   display: block;
   transform: translate3d(var(--room-image-x), var(--room-image-y), 0) scale(var(--room-image-scale));
-  transform-origin: 42% 51%;
+  transform-origin: var(--room-image-origin);
   will-change: transform;
 }
 
@@ -1226,7 +1229,7 @@ body.landing-dialog-open .landing-tracker-scene-glints i {
   inset: -3%;
   opacity: var(--room-airflow-opacity);
   transform: translate3d(var(--room-image-x), var(--room-image-y), 0) scale(var(--room-image-scale));
-  transform-origin: 42% 51%;
+  transform-origin: var(--room-image-origin);
   will-change: opacity, transform;
 }
 
@@ -1735,6 +1738,14 @@ body.landing-dialog-open .landing-tracker-scene-glints i {
   pointer-events: none;
 }
 
+.landing-tracker-scene-exit {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(8, 15, 22, 0.55), rgba(6, 13, 20, 0.9));
+  opacity: var(--tracker-exit-opacity, 0);
+  pointer-events: none;
+}
+
 @media (max-width: 900px) {
   .landing-room-temp {
     top: 72px;
@@ -1922,6 +1933,8 @@ body.landing-dialog-open .landing-tracker-scene-glints i {
   --tracker-model-opacity: 0;
   --tracker-price-opacity: 0;
   --tracker-entry-opacity: 0.62;
+  --tracker-image-origin: 54% 52%;
+  --tracker-exit-opacity: 0;
   position: relative;
   isolation: isolate;
   min-height: 200svh;
@@ -1958,7 +1971,7 @@ body.landing-dialog-open .landing-tracker-scene-glints i {
   inset: -3%;
   display: block;
   transform: translate3d(var(--tracker-image-x), var(--tracker-image-y), 0) scale(var(--tracker-image-scale));
-  transform-origin: 54% 52%;
+  transform-origin: var(--tracker-image-origin);
   will-change: transform;
 }
 
@@ -2632,11 +2645,13 @@ body.landing-dialog-open .landing-tracker-scene-glints i {
   --finale-image-x: 0px;
   --finale-image-y: 0px;
   --finale-image-scale: 1.035;
+  --finale-image-origin: 58% 52%;
   --finale-foreground-x: 0px;
   --finale-foreground-y: 0px;
   --finale-light-x: 82%;
   --finale-light-y: 42%;
   --finale-glint-opacity: 0.26;
+  --finale-entry-opacity: 0;
   position: relative;
   isolation: isolate;
   display: grid;
@@ -2652,9 +2667,16 @@ body.landing-dialog-open .landing-tracker-scene-glints i {
 .landing-finale-color-wash,
 .landing-finale-window-glow,
 .landing-finale-scrim,
-.landing-finale-depth {
+.landing-finale-depth,
+.landing-finale-entry-veil {
   position: absolute;
   inset: 0;
+}
+
+.landing-finale-entry-veil {
+  background: #071827;
+  opacity: var(--finale-entry-opacity);
+  pointer-events: none;
 }
 
 .landing-finale-visual {
@@ -2667,7 +2689,7 @@ body.landing-dialog-open .landing-tracker-scene-glints i {
   inset: -2.5%;
   display: block;
   transform: translate3d(var(--finale-image-x), var(--finale-image-y), 0) scale(var(--finale-image-scale));
-  transform-origin: 58% 52%;
+  transform-origin: var(--finale-image-origin);
   will-change: transform;
 }
 

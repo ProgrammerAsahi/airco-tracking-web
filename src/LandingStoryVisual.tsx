@@ -51,6 +51,8 @@ export function LandingStoryVisual({ tempLabel }: LandingStoryVisualProps) {
         "--room-transition-mist-opacity",
         "--room-cool-wave-x",
         "--room-temp-hue",
+        "--room-scene-opacity",
+        "--room-image-origin",
       ].forEach((property) => visual.style.removeProperty(property));
     };
 
@@ -73,6 +75,16 @@ export function LandingStoryVisual({ tempLabel }: LandingStoryVisualProps) {
       currentY += (targetY - currentY) * 0.09;
       currentProgress += (targetProgress - currentProgress) * 0.1;
 
+      // Camera choreography: enter from the room's window (matching the
+      // hero's push into the same window), settle to the room's centre,
+      // then pan right toward the desk for the tracker handoff.
+      const entryLinear = Math.min(1, Math.max(0, currentProgress / 0.13));
+      const entryP = entryLinear * entryLinear * (3 - 2 * entryLinear);
+      const exitLinear = Math.min(1, Math.max(0, (currentProgress - 0.87) / 0.13));
+      const exitP = exitLinear * exitLinear * (3 - 2 * exitLinear);
+      const originX = 17 + entryP * 25 + exitP * 20;
+      const originY = 30 + entryP * 21 + exitP * 3;
+
       // Cooling spans the "snagged it" beat and completes as the relief
       // beat settles in, so the room is fully cool for the emotional payoff.
       const coolLinear = Math.min(1, Math.max(0, (currentProgress - 0.38) / 0.4));
@@ -82,9 +94,11 @@ export function LandingStoryVisual({ tempLabel }: LandingStoryVisualProps) {
       const revealInner = Math.max(0, revealOuter - 32);
       renderTemp(coolProgress);
 
-      visual.style.setProperty("--room-image-x", `${currentX * -12}px`);
-      visual.style.setProperty("--room-image-y", `${currentY * -7 - currentProgress * 15}px`);
-      visual.style.setProperty("--room-image-scale", `${1.075 - currentProgress * 0.038}`);
+      visual.style.setProperty("--room-scene-opacity", `${entryP}`);
+      visual.style.setProperty("--room-image-origin", `${originX}% ${originY}%`);
+      visual.style.setProperty("--room-image-x", `${currentX * -12 - exitP * 56}px`);
+      visual.style.setProperty("--room-image-y", `${currentY * -7 - currentProgress * 15 - exitP * 8}px`);
+      visual.style.setProperty("--room-image-scale", `${1.075 - currentProgress * 0.038 + (1 - entryP) * 0.24 + exitP * 0.07}`);
       visual.style.setProperty("--room-foreground-x", `${currentX * 18}px`);
       visual.style.setProperty("--room-foreground-y", `${currentY * 10 - currentProgress * 12}px`);
       visual.style.setProperty("--room-light-x", `${20 + currentX * 7}%`);

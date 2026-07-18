@@ -15,6 +15,8 @@ const MOTION_PROPERTIES = [
   "--tracker-model-opacity",
   "--tracker-price-opacity",
   "--tracker-entry-opacity",
+  "--tracker-image-origin",
+  "--tracker-exit-opacity",
 ] as const;
 
 function smoothStep(value: number): number {
@@ -61,9 +63,22 @@ export function LandingTrackerVisual() {
       const phoneFocus = 1 - smoothStep((progress - 0.30) / 0.34) * 0.72;
       const alertOpacity = 1 - smoothStep((progress - 0.26) / 0.14);
 
-      story.style.setProperty("--tracker-image-x", `${currentX * -10 - progress * 10}px`);
-      story.style.setProperty("--tracker-image-y", `${currentY * -6 - progress * 8}px`);
-      story.style.setProperty("--tracker-image-scale", `${1.055 - progress * 0.025}`);
+      // Camera choreography: open on the desk (continuing the room's
+      // rightward pan), settle to the scene centre, then drive back toward
+      // the window so the finale can pull out of it.
+      const entryLinear = Math.min(1, Math.max(0, progress / 0.16));
+      const entryP = entryLinear * entryLinear * (3 - 2 * entryLinear);
+      const exitLinear = Math.min(1, Math.max(0, (progress - 0.85) / 0.13));
+      const exitP = exitLinear * exitLinear * (3 - 2 * exitLinear);
+      // Desk (66, 70) → centre (54, 52) on entry, then → window (17, 30).
+      const originX = 66 - entryP * 12 - exitP * 37;
+      const originY = 70 - entryP * 18 - exitP * 22;
+
+      story.style.setProperty("--tracker-image-origin", `${originX}% ${originY}%`);
+      story.style.setProperty("--tracker-image-x", `${currentX * -10 - progress * 10 - exitP * 26}px`);
+      story.style.setProperty("--tracker-image-y", `${currentY * -6 - progress * 8 + exitP * 14}px`);
+      story.style.setProperty("--tracker-image-scale", `${1.055 - progress * 0.025 + (1 - entryP) * 0.11 + exitP * 0.24}`);
+      story.style.setProperty("--tracker-exit-opacity", `${exitP * 0.78}`);
       story.style.setProperty("--tracker-foreground-x", `${currentX * 18}px`);
       story.style.setProperty("--tracker-foreground-y", `${currentY * 10}px`);
       story.style.setProperty("--tracker-phone-focus", `${phoneFocus}`);
@@ -185,6 +200,7 @@ export function LandingTrackerVisual() {
       <div className="landing-tracker-scene-scrim" />
       <div className="landing-tracker-scene-depth" />
       <div className="landing-tracker-scene-entry-wash" />
+      <div className="landing-tracker-scene-exit" />
     </div>
   );
 }

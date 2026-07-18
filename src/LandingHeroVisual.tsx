@@ -31,7 +31,12 @@ export function LandingHeroVisual() {
 
       visual.style.setProperty("--hero-image-x", `${currentX * -14}px`);
       visual.style.setProperty("--hero-image-y", `${currentY * -8 - currentScroll * 18}px`);
-      visual.style.setProperty("--hero-image-scale", `${1.035 + currentScroll * 0.026}`);
+      // Camera push into the open quayside window (top floor of the right
+      // building): as the hero leaves, the frame dives toward the window
+      // instead of merely sliding away.
+      const zoomLinear = Math.min(1, Math.max(0, (currentScroll - 0.26) / 0.62));
+      const zoom = zoomLinear * zoomLinear * (3 - 2 * zoomLinear);
+      visual.style.setProperty("--hero-image-scale", `${1.035 + currentScroll * 0.02 + zoom * 0.85}`);
       visual.style.setProperty("--hero-foreground-x", `${currentX * 22}px`);
       visual.style.setProperty("--hero-foreground-y", `${currentY * 11 - currentScroll * 24}px`);
       visual.style.setProperty("--hero-light-x", `${43 + currentX * 14}%`);

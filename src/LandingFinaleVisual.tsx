@@ -4,11 +4,13 @@ const MOTION_PROPERTIES = [
   "--finale-image-x",
   "--finale-image-y",
   "--finale-image-scale",
+  "--finale-image-origin",
   "--finale-foreground-x",
   "--finale-foreground-y",
   "--finale-light-x",
   "--finale-light-y",
   "--finale-glint-opacity",
+  "--finale-entry-opacity",
 ] as const;
 
 export function LandingFinaleVisual() {
@@ -45,9 +47,19 @@ export function LandingFinaleVisual() {
       currentY += (targetY - currentY) * 0.085;
       currentProgress += (targetProgress - currentProgress) * 0.08;
 
+      // Camera pull-back: open inside the lit apartment window (continuing
+      // the tracker scene's push toward it) and drift out to the full
+      // blue-hour panorama as the section scrolls in.
+      const entryLinear = Math.min(1, Math.max(0, currentProgress / 0.22));
+      const entryP = entryLinear * entryLinear * (3 - 2 * entryLinear);
+      const originX = 86 - entryP * 36;
+      const originY = 44 + entryP * 6;
+
+      finale.style.setProperty("--finale-image-origin", `${originX}% ${originY}%`);
       finale.style.setProperty("--finale-image-x", `${currentX * -12}px`);
       finale.style.setProperty("--finale-image-y", `${currentY * -7 - currentProgress * 9}px`);
-      finale.style.setProperty("--finale-image-scale", `${1.035 + currentProgress * 0.012}`);
+      finale.style.setProperty("--finale-image-scale", `${1.035 + currentProgress * 0.012 + (1 - entryP) * 0.5}`);
+      finale.style.setProperty("--finale-entry-opacity", `${(1 - entryP) * 0.88}`);
       finale.style.setProperty("--finale-foreground-x", `${currentX * 18}px`);
       finale.style.setProperty("--finale-foreground-y", `${currentY * 9}px`);
       finale.style.setProperty("--finale-light-x", `${82 + currentX * 5}%`);
@@ -158,6 +170,7 @@ export function LandingFinaleVisual() {
       <div className="landing-finale-river-glints"><i /><i /><i /><i /></div>
       <div className="landing-finale-scrim" />
       <div className="landing-finale-depth" />
+      <div className="landing-finale-entry-veil" />
     </div>
   );
 }
