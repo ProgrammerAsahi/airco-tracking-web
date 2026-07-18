@@ -531,6 +531,7 @@ body.landing-dialog-open {
   display: block;
   transform: translate3d(var(--hero-image-x), var(--hero-image-y), 0) scale(var(--hero-image-scale));
   transform-origin: 85% 24%;
+  filter: brightness(var(--hero-dim, 1));
   will-change: transform;
 }
 
@@ -5228,7 +5229,7 @@ h1 {
 .landing-cinema-chip {
   position: absolute;
   top: max(96px, 18svh);
-  left: max(26px, 5vw);
+  right: max(26px, 5vw);
   z-index: 4;
   display: flex;
   align-items: center;
@@ -5242,7 +5243,7 @@ h1 {
   backdrop-filter: blur(12px) saturate(1.05);
   color: #ecf7fb;
   opacity: var(--cinema-chip-opacity, 0);
-  transform: translate3d(calc((1 - var(--cinema-chip-opacity, 0)) * -14px), calc((1 - var(--cinema-chip-opacity, 0)) * 16px), 0) scale(calc(0.94 + var(--cinema-chip-opacity, 0) * 0.06));
+  transform: translate3d(calc((1 - var(--cinema-chip-opacity, 0)) * 14px), calc((1 - var(--cinema-chip-opacity, 0)) * 16px), 0) scale(calc(0.94 + var(--cinema-chip-opacity, 0) * 0.06));
 }
 
 .landing-cinema-chip span:not(.landing-story-alert-chip-icon) {
@@ -5501,7 +5502,7 @@ h1 {
     --room-scene-opacity: 1;
   }
 
-  .landing-cinema-stage[data-act="alert"] .landing-cinema-chip {
+  .landing-cinema-stage[data-act="tracker"] .landing-cinema-chip {
     opacity: 1;
     transform: none;
   }

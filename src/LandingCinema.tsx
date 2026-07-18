@@ -113,21 +113,24 @@ export function LandingCinema({ copy, showSubscribeNotice, onCta }: LandingCinem
       currentProgress += (targetProgress - currentProgress) * 0.09;
       const p = currentProgress;
 
-      // ── Hero: push into the open quayside window ──────────────────────
-      const heroZoom = smoothStep(seg(p, 0.06, 0.22));
+      // ── Hero: dive into the open quayside window, fading to darkness ──
+      const heroZoomRaw = smoothStep(seg(p, 0.06, 0.22));
+      const heroZoom = Math.pow(heroZoomRaw, 1.35);
       stage.style.setProperty("--hero-scene-opacity", `${1 - smoothStep(seg(p, 0.19, 0.235))}`);
+      stage.style.setProperty("--hero-dim", `${1 - smoothStep(seg(p, 0.17, 0.23)) * 0.62}`);
       stage.style.setProperty("--hero-image-x", `${currentX * -14}px`);
       stage.style.setProperty("--hero-image-y", `${currentY * -8 - p * 12}px`);
-      stage.style.setProperty("--hero-image-scale", `${1.035 + heroZoom * 2.2}`);
+      stage.style.setProperty("--hero-image-scale", `${1.035 + heroZoom * 3.4}`);
       stage.style.setProperty("--hero-foreground-x", `${currentX * 22}px`);
       stage.style.setProperty("--hero-foreground-y", `${currentY * 11 - p * 16}px`);
       stage.style.setProperty("--hero-light-x", `${43 + currentX * 14}%`);
       stage.style.setProperty("--hero-light-y", `${28 + currentY * 10}%`);
 
-      // ── Room: emerge from the same window, cool down, pan to the desk ──
-      const roomEnter = smoothStep(seg(p, 0.13, 0.24));
-      const roomExit = smoothStep(seg(p, 0.60, 0.70));
-      const roomGone = smoothStep(seg(p, 0.665, 0.715));
+      // ── Room: emerge from the same window, cool down, hold on the man ──
+      const roomEnter = smoothStep(seg(p, 0.15, 0.26));
+      const roomSettle = smoothStep(seg(p, 0.15, 0.28));
+      const roomExit = smoothStep(seg(p, 0.62, 0.72));
+      const roomGone = smoothStep(seg(p, 0.665, 0.72));
       const coolProgress = smoothStep(seg(p, 0.30, 0.50));
       const transitionMist = Math.sin(coolProgress * Math.PI) * 0.30;
       const revealOuter = coolProgress === 0 ? 0 : coolProgress * 150 + 10;
@@ -135,10 +138,10 @@ export function LandingCinema({ copy, showSubscribeNotice, onCta }: LandingCinem
       renderTemp(coolProgress);
 
       stage.style.setProperty("--room-scene-opacity", `${roomEnter * (1 - roomGone)}`);
-      stage.style.setProperty("--room-image-origin", `${17 + smoothStep(seg(p, 0.13, 0.26)) * 25 + roomExit * 20}% ${30 + smoothStep(seg(p, 0.13, 0.26)) * 21 + roomExit * 3}%`);
-      stage.style.setProperty("--room-image-x", `${currentX * -12 - roomExit * 56}px`);
-      stage.style.setProperty("--room-image-y", `${currentY * -7 - p * 9 - roomExit * 8}px`);
-      stage.style.setProperty("--room-image-scale", `${1.075 + (1 - roomEnter) * 0.45 - p * 0.02 + roomExit * 0.07}`);
+      stage.style.setProperty("--room-image-origin", `${17 + roomSettle * 25 - roomExit * 2}% ${30 + roomSettle * 21 + roomExit * 4}%`);
+      stage.style.setProperty("--room-image-x", `${currentX * -12 - roomExit * 8}px`);
+      stage.style.setProperty("--room-image-y", `${currentY * -7 - p * 9 - roomExit * 4}px`);
+      stage.style.setProperty("--room-image-scale", `${1.075 + (1 - roomEnter) * 0.45 - p * 0.02 + roomExit * 0.1}`);
       stage.style.setProperty("--room-foreground-x", `${currentX * 18 - roomExit * 40}px`);
       stage.style.setProperty("--room-foreground-y", `${currentY * 10 - p * 7}px`);
       stage.style.setProperty("--room-light-x", `${20 + currentX * 7}%`);
@@ -157,48 +160,48 @@ export function LandingCinema({ copy, showSubscribeNotice, onCta }: LandingCinem
       stage.style.setProperty("--room-transition-mist-opacity", `${transitionMist}`);
       stage.style.setProperty("--room-cool-wave-x", `${(1 - coolProgress) * -18}px`);
 
-      // ── Tracker: open on the desk, then drive back toward the window ──
-      const trackerEnter = smoothStep(seg(p, 0.665, 0.735));
-      const trackerExit = smoothStep(seg(p, 0.84, 0.94));
-      const trackerGone = smoothStep(seg(p, 0.90, 0.95));
-      const local = seg(p, 0.72, 0.86);
+      // ── Tracker: dissolve in tight on the man, zoom out to reveal the
+      // desk (laptop + phone), then push hard at the window to leave ─────
+      const trackerEnter = smoothStep(seg(p, 0.66, 0.72));
+      const trackerReveal = smoothStep(seg(p, 0.72, 0.85));
+      const trackerExit = smoothStep(seg(p, 0.86, 0.95));
+      const trackerGone = smoothStep(seg(p, 0.91, 0.96));
+      const local = seg(p, 0.76, 0.88);
       const laptopFocus = smoothStep((local - 0.18) / 0.54);
       const phoneFocus = 1 - smoothStep((local - 0.30) / 0.34) * 0.72;
-      const alertOpacity = 1 - smoothStep((local - 0.26) / 0.14);
 
       stage.style.setProperty("--tracker-scene-opacity", `${trackerEnter * (1 - trackerGone)}`);
-      stage.style.setProperty("--tracker-image-origin", `${66 - smoothStep(seg(p, 0.66, 0.78)) * 12 - trackerExit * 37}% ${70 - smoothStep(seg(p, 0.66, 0.78)) * 18 - trackerExit * 22}%`);
-      stage.style.setProperty("--tracker-image-x", `${currentX * -10 - local * 10 - trackerExit * 26}px`);
-      stage.style.setProperty("--tracker-image-y", `${currentY * -6 - local * 8 + trackerExit * 14}px`);
-      stage.style.setProperty("--tracker-image-scale", `${1.055 + (1 - trackerEnter) * 0.11 - local * 0.025 + trackerExit * 0.55}`);
+      stage.style.setProperty("--tracker-image-origin", `${40 + trackerReveal * 14 - trackerExit * 37}% ${52 - trackerExit * 22}%`);
+      stage.style.setProperty("--tracker-image-x", `${currentX * -10 - local * 6 - trackerExit * 30}px`);
+      stage.style.setProperty("--tracker-image-y", `${currentY * -6 - local * 4 + trackerExit * 18}px`);
+      stage.style.setProperty("--tracker-image-scale", `${1.55 - trackerReveal * 0.495 + trackerExit * 0.8}`);
       stage.style.setProperty("--tracker-foreground-x", `${currentX * 18}px`);
       stage.style.setProperty("--tracker-foreground-y", `${currentY * 10}px`);
       stage.style.setProperty("--tracker-phone-focus", `${phoneFocus * trackerEnter}`);
       stage.style.setProperty("--tracker-laptop-focus", `${laptopFocus * trackerEnter}`);
-      stage.style.setProperty("--tracker-alert-opacity", `${alertOpacity}`);
       stage.style.setProperty("--tracker-country-opacity", `${smoothStep((local - 0.48) / 0.10)}`);
       stage.style.setProperty("--tracker-stock-opacity", `${smoothStep((local - 0.56) / 0.10)}`);
       stage.style.setProperty("--tracker-retailer-opacity", `${smoothStep((local - 0.64) / 0.10)}`);
       stage.style.setProperty("--tracker-model-opacity", `${smoothStep((local - 0.72) / 0.10)}`);
       stage.style.setProperty("--tracker-price-opacity", `${smoothStep((local - 0.80) / 0.10)}`);
-      stage.style.setProperty("--tracker-exit-opacity", `${trackerExit * 0.78}`);
+      stage.style.setProperty("--tracker-exit-opacity", `${trackerExit * 0.9}`);
 
       // ── Finale: pull out of the lit window into the blue hour ─────────
-      const finaleEnter = smoothStep(seg(p, 0.90, 0.95));
-      const finalePull = smoothStep(seg(p, 0.90, 0.99));
+      const finaleEnter = smoothStep(seg(p, 0.91, 0.96));
+      const finalePull = smoothStep(seg(p, 0.91, 0.995));
       stage.style.setProperty("--finale-scene-opacity", `${finaleEnter}`);
       stage.style.setProperty("--finale-image-origin", `${86 - finalePull * 28}% ${44 + finalePull * 8}%`);
       stage.style.setProperty("--finale-image-x", `${currentX * -12}px`);
       stage.style.setProperty("--finale-image-y", `${currentY * -7 - finalePull * 6}px`);
-      stage.style.setProperty("--finale-image-scale", `${1.035 + (1 - finalePull) * 0.9 + finalePull * 0.012}`);
+      stage.style.setProperty("--finale-image-scale", `${1.035 + (1 - finalePull) * 1.2 + finalePull * 0.012}`);
       stage.style.setProperty("--finale-foreground-x", `${currentX * 18}px`);
       stage.style.setProperty("--finale-foreground-y", `${currentY * 9}px`);
       stage.style.setProperty("--finale-light-x", `${82 + currentX * 5}%`);
       stage.style.setProperty("--finale-light-y", `${42 + currentY * 5}%`);
       stage.style.setProperty("--finale-glint-opacity", `${0.26 + finalePull * 0.38}`);
 
-      // ── HUD: alert chip, beat dots, temperature badge ─────────────────
-      stage.style.setProperty("--cinema-chip-opacity", `${smoothStep(seg(p, 0.355, 0.395)) * (1 - smoothStep(seg(p, 0.46, 0.50)))}`);
+      // ── HUD: alert chip (tracker screen only), beat dots, temperature ──
+      stage.style.setProperty("--cinema-chip-opacity", `${smoothStep(seg(p, 0.72, 0.76)) * (1 - smoothStep(seg(p, 0.84, 0.88)))}`);
       const dot = p < 0.16 ? 0 : p < 0.30 ? 1 : p < 0.60 ? 2 : p < 0.90 ? 3 : 4;
       if (stage.dataset.dot !== String(dot)) stage.dataset.dot = String(dot);
 
@@ -383,14 +386,6 @@ export function LandingCinema({ copy, showSubscribeNotice, onCta }: LandingCinem
             <div className="landing-tracker-scene-scrim" />
             <div className="landing-tracker-scene-depth" />
             <div className="landing-tracker-scene-exit" />
-          </div>
-          <div className="landing-tracker-alert-card" aria-hidden="true">
-            <span className="landing-tracker-alert-icon" aria-hidden="true">✦</span>
-            <div>
-              <span>{copy.trackerAlertStatus}</span>
-              <strong>{copy.trackerAlertSubject}</strong>
-              <small>Rue du Commerce · {copy.trackerPriceValue}</small>
-            </div>
           </div>
           <div className="landing-tracker-data-rail" aria-hidden="true">
             <span className="landing-tracker-data-label">{copy.trackerOverviewLabel}</span>
