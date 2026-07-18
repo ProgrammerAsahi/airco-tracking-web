@@ -4925,6 +4925,7 @@ h1 {
 .brand-theme--klimaatshop { --brand: #00779c; --brand-tint: #e7f4f8; }
 .brand-theme--aircowebwinkel { --brand: #2b74a8; --brand-tint: #eaf3f9; }
 .brand-theme--bostools { --brand: #176b58; --brand-tint: #e8f4f0; }
+.brand-theme--aliexpress { --brand: #e43225; --brand-tint: #fff0ed; }
 
 .store-card {
   position: relative;
@@ -5084,6 +5085,54 @@ h1 {
   padding: 25px 5px 0;
   color: #78929f;
   font-size: 10px;
+}
+
+/* The landing footer continues the blue-hour finale scene instead of
+   cutting to the light page background: a full-bleed deep-navy strip whose
+   top edge dissolves into the photograph above it. */
+.landing-footer {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px 24px;
+  padding: 26px max(28px, calc((100vw - 1180px) / 2)) 30px;
+  background: #040b16;
+  color: #7d97a8;
+  font-size: 11.5px;
+  letter-spacing: 0.02em;
+}
+
+.landing-footer::before {
+  position: absolute;
+  top: -132px;
+  right: 0;
+  left: 0;
+  height: 132px;
+  background: linear-gradient(180deg, transparent, rgba(4, 11, 22, 0.55) 48%, #040b16 100%);
+  content: "";
+  pointer-events: none;
+}
+
+.landing-footer a {
+  color: #c2d9e5;
+  text-decoration: none;
+  transition: color 180ms ease;
+}
+
+.landing-footer a:hover {
+  color: #ffffff;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+@media (max-width: 560px) {
+  .landing-footer {
+    flex-direction: column;
+    gap: 8px;
+  }
 }
 
 @media (max-width: 1180px) {

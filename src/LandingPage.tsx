@@ -882,7 +882,7 @@ export function LandingPage({ lang, setLang, t }: LandingPageProps) {
         </div>
       </section>
 
-      <footer className="page-footer">
+      <footer className="landing-footer">
         <span>
           <a href={`/privacy.html?lang=${lang}`} target="_blank" rel="noopener noreferrer">{t("legal_privacy_link")}</a>
           {" · "}
