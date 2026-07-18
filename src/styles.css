@@ -1147,32 +1147,6 @@ body.landing-dialog-open .landing-tracker-scene-glints i {
 }
 
 .landing-room-scene {
-  --room-image-x: 0px;
-  --room-image-y: 0px;
-  --room-image-scale: 1.075;
-  --room-foreground-x: 0px;
-  --room-foreground-y: 0px;
-  --room-light-x: 20%;
-  --room-light-y: 33%;
-  --room-entry-opacity: 1;
-  --room-cool-layer-opacity: 0;
-  --room-cool-reveal-inner: 0%;
-  --room-cool-reveal-outer: 0%;
-  --room-cool-origin-x: 20%;
-  --room-cool-origin-y: 62%;
-  --room-hot-opacity: 1;
-  --room-warmth-opacity: 0.94;
-  --room-refraction-high-opacity: 0.075;
-  --room-refraction-low-opacity: 0.055;
-  --room-dust-opacity: 0.76;
-  --room-still-opacity: 0.34;
-  --room-airflow-opacity: 0;
-  --room-cooling-opacity: 0;
-  --room-transition-mist-opacity: 0;
-  --room-cool-wave-x: -18px;
-  --room-temp-hue: 16;
-  --room-scene-opacity: 1;
-  --room-image-origin: 42% 51%;
   position: absolute;
   inset: 0;
   overflow: hidden;
@@ -5174,6 +5148,31 @@ h1 {
   --hero-light-x: 43%;
   --hero-light-y: 28%;
   --hero-scene-opacity: 1;
+  --room-image-x: 0px;
+  --room-image-y: 0px;
+  --room-image-scale: 1.075;
+  --room-image-origin: 42% 51%;
+  --room-foreground-x: 0px;
+  --room-foreground-y: 0px;
+  --room-light-x: 20%;
+  --room-light-y: 33%;
+  --room-hot-opacity: 1;
+  --room-warmth-opacity: 0.94;
+  --room-cool-layer-opacity: 0;
+  --room-cool-reveal-inner: 0%;
+  --room-cool-reveal-outer: 0%;
+  --room-cool-origin-x: 20%;
+  --room-cool-origin-y: 62%;
+  --room-refraction-high-opacity: 0.075;
+  --room-refraction-low-opacity: 0.055;
+  --room-dust-opacity: 0.76;
+  --room-still-opacity: 0.34;
+  --room-airflow-opacity: 0;
+  --room-cooling-opacity: 0;
+  --room-transition-mist-opacity: 0;
+  --room-cool-wave-x: -18px;
+  --room-temp-hue: 16;
+  --room-scene-opacity: 0;
   --tracker-image-x: 0px;
   --tracker-image-y: 0px;
   --tracker-image-scale: 1.055;
@@ -5215,10 +5214,6 @@ h1 {
 
 .landing-cinema .landing-hero-visual {
   opacity: var(--hero-scene-opacity, 1);
-}
-
-.landing-cinema .landing-room-scene {
-  --room-scene-opacity: 0;
 }
 
 .landing-cinema .landing-tracker-scene {
