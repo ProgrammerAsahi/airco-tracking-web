@@ -13,12 +13,9 @@ import { LanguageSwitcher } from "./LanguageSwitcher";
 import { entitlementIsActive } from "../shared/auth";
 import type { Lang } from "./i18n";
 import { AircoLogoMark } from "./AircoLogoMark";
-import { LandingHeroVisual } from "./LandingHeroVisual";
-import { LandingStoryVisual } from "./LandingStoryVisual";
-import { LandingTrackerVisual } from "./LandingTrackerVisual";
-import { LandingFinaleVisual } from "./LandingFinaleVisual";
+import { LandingCinema } from "./LandingCinema";
 
-type LandingCopy = {
+export type LandingCopy = {
   productName: string;
   pageTitle: string;
   pageDescription: string;
@@ -478,43 +475,8 @@ type LandingPageProps = {
   t: (key: string, params?: Record<string, string | number>) => string;
 };
 
-function useStoryStepObserver(stepCount: number) {
-  const [activeStep, setActiveStep] = useState(0);
-  const stepElements = useRef<Array<HTMLElement | null>>([]);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-        if (!visible) return;
-        const next = Number((visible.target as HTMLElement).dataset.step ?? 0);
-        setActiveStep(Number.isFinite(next) ? next : 0);
-      },
-      {
-        root: null,
-        rootMargin: "-20% 0px -28% 0px",
-        threshold: [0.2, 0.4, 0.6, 0.8],
-      },
-    );
-
-    const elements = stepElements.current.slice(0, stepCount).filter(Boolean) as HTMLElement[];
-    elements.forEach((element) => observer.observe(element));
-    return () => observer.disconnect();
-  }, [stepCount]);
-
-  const setStepRef = (index: number) => (element: HTMLElement | null) => {
-    stepElements.current[index] = element;
-  };
-
-  return { activeStep, setStepRef };
-}
-
 export function LandingPage({ lang, setLang, t }: LandingPageProps) {
   const copy = LANDING_COPY[lang];
-  const { activeStep, setStepRef } = useStoryStepObserver(3);
-  const { activeStep: activeTrackerStep, setStepRef: setTrackerStepRef } = useStoryStepObserver(2);
   const [coolingPreview, setCoolingPreview] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -693,7 +655,7 @@ export function LandingPage({ lang, setLang, t }: LandingPageProps) {
   };
 
   return (
-    <main data-lang={lang} className={`landing-shell landing-story--step-${activeStep}${coolingPreview ? " landing-story--cooling" : ""}`}>
+    <main data-lang={lang} className="landing-shell">
       <header className="landing-nav" aria-label={copy.navigationLabel}>
         <a className="landing-logo" href={`/?lang=${lang}`} aria-label={copy.productName}>
           <AircoLogoMark className="landing-logo-mark" />
@@ -731,156 +693,7 @@ export function LandingPage({ lang, setLang, t }: LandingPageProps) {
         </div>
       </header>
 
-      <section className="landing-hero" aria-labelledby="landing-title">
-        <LandingHeroVisual />
-        <div className="landing-hero-copy">
-          <p className="landing-kicker">{copy.heroEyebrow}</p>
-          <h1 id="landing-title">{renderLandingLines(copy.heroTitle)}</h1>
-          <p>{copy.heroLead}</p>
-          <div className="landing-hero-actions">
-            <button className="landing-primary-button" type="button" onClick={openLogin}>
-              {copy.primaryCta}
-            </button>
-          </div>
-          <div className="landing-hero-meta" aria-label={copy.statusLabel}>
-            <span>{copy.statSites}</span>
-            <span>{copy.statCountries}</span>
-            <span>{copy.statRefresh}</span>
-          </div>
-        </div>
-        <a className="landing-scroll-cue" href="#heatwave">
-          <span aria-hidden="true" />
-          {copy.scrollCue}
-        </a>
-      </section>
-
-      <section id="heatwave" className="landing-story" aria-label={copy.navStory}>
-        <div className="landing-stage" aria-hidden="true">
-          <LandingStoryVisual tempLabel={copy.roomTempLabel} />
-          <div className="landing-story-alert-chip">
-            <span className="landing-story-alert-chip-icon" aria-hidden="true">✦</span>
-            <div>
-              <span>{copy.trackerAlertStatus}</span>
-              <strong>{copy.trackerAlertSubject}</strong>
-              <small>Rue du Commerce · {copy.trackerPriceValue}</small>
-            </div>
-          </div>
-          <div className="landing-story-dots">
-            <i /><i /><i />
-          </div>
-        </div>
-        <div className="landing-story-copy">
-          <article className="landing-story-step landing-story-step--room landing-story-step--right" data-step="0" ref={setStepRef(0)}>
-            <div className="landing-story-card">
-              <p className="landing-kicker">{copy.storyHeatKicker}</p>
-              <h2>{renderLandingLines(copy.storyHeatTitle)}</h2>
-              <p>{copy.storyHeatBody}</p>
-            </div>
-          </article>
-          <article className="landing-story-step landing-story-step--alert landing-story-step--right" data-step="1" ref={setStepRef(1)}>
-            <div className="landing-story-card">
-              <p className="landing-kicker">{copy.storyAlertKicker}</p>
-              <h2>{renderLandingLines(copy.storyAlertTitle)}</h2>
-              <p>{copy.storyAlertBody}</p>
-            </div>
-          </article>
-          <article className="landing-story-step landing-story-step--solution landing-story-step--right" data-step="2" ref={setStepRef(2)}>
-            <div className="landing-story-card">
-              <p className="landing-kicker">{copy.storyReliefKicker}</p>
-              <h2>{renderLandingLines(copy.storyReliefTitle)}</h2>
-              <p>{renderLandingLines(copy.storyReliefBody)}</p>
-              <button className="landing-primary-button" type="button" onClick={openLogin}>
-                {copy.primaryCta}
-              </button>
-            </div>
-          </article>
-        </div>
-      </section>
-
-      <section
-        id="product"
-        className={`landing-product-story landing-product-story--step-${activeTrackerStep}`}
-        aria-label={copy.navProduct}
-      >
-        <div className="landing-product-stage">
-          <LandingTrackerVisual />
-          <div className="landing-tracker-alert-card" aria-hidden="true">
-            <span className="landing-tracker-alert-icon" aria-hidden="true">✦</span>
-            <div>
-              <span>{copy.trackerAlertStatus}</span>
-              <strong>{copy.trackerAlertSubject}</strong>
-              <small>Rue du Commerce · {copy.trackerPriceValue}</small>
-            </div>
-          </div>
-          <div className="landing-tracker-data-rail" aria-hidden="true">
-            <span className="landing-tracker-data-label">{copy.trackerOverviewLabel}</span>
-            <div className="landing-tracker-data-card landing-tracker-data-card--country">
-              <span>{copy.trackerCountryLabel}</span>
-              <strong><i aria-hidden="true">FR</i>{copy.trackerCountryValue}</strong>
-            </div>
-            <div className="landing-tracker-data-card landing-tracker-data-card--stock">
-              <span>{copy.trackerAvailabilityLabel}</span>
-              <strong>{copy.trackerAvailabilityValue}</strong>
-            </div>
-            <div className="landing-tracker-data-card landing-tracker-data-card--retailer">
-              <span>{copy.trackerRetailerLabel}</span>
-              <strong>{copy.trackerRetailerValue}</strong>
-            </div>
-            <div className="landing-tracker-data-card landing-tracker-data-card--model">
-              <span>{copy.trackerModelLabel}</span>
-              <strong>{copy.trackerModelValue}</strong>
-            </div>
-            <div className="landing-tracker-data-card landing-tracker-data-card--price">
-              <span>{copy.trackerPriceLabel}</span>
-              <strong>{copy.trackerPriceValue}</strong>
-            </div>
-          </div>
-        </div>
-        <div className="landing-product-story-copy">
-          <article
-            className="landing-product-story-step landing-product-story-step--alert"
-            data-step="0"
-            ref={setTrackerStepRef(0)}
-            aria-hidden={activeTrackerStep !== 0}
-            inert={activeTrackerStep !== 0}
-          >
-            <div className="landing-product-story-card">
-              <p className="landing-kicker">{copy.stepFourAlertKicker}</p>
-              <h2>{renderLandingLines(copy.stepFourAlertTitle)}</h2>
-              <p>{copy.stepFourAlertBody}</p>
-            </div>
-          </article>
-          <article
-            className="landing-product-story-step landing-product-story-step--radar"
-            data-step="1"
-            ref={setTrackerStepRef(1)}
-            aria-hidden={activeTrackerStep !== 1}
-            inert={activeTrackerStep !== 1}
-          >
-            <div className="landing-product-story-card">
-              <p className="landing-kicker">{copy.productKicker}</p>
-              <h2>{renderLandingLines(copy.productTitle)}</h2>
-              <p>{copy.productBody}</p>
-              <button className="landing-primary-button" type="button" onClick={openLogin}>
-                {copy.primaryCta}
-              </button>
-            </div>
-          </article>
-        </div>
-      </section>
-
-      <section className="landing-finale" aria-live="polite">
-        <LandingFinaleVisual />
-        <div className="landing-finale-copy">
-          <p className="landing-kicker">{copy.finaleKicker}</p>
-          <h2>{renderLandingLines(copy.subscribeTitle)}</h2>
-          <p>{copy.subscribeBody}</p>
-          {coolingPreview && <p className="landing-subscribe-note">{copy.subscribeNotice}</p>}
-          <button className="landing-primary-button landing-primary-button--large" type="button" onClick={openLogin}>
-            {copy.primaryCta}
-          </button>
-        </div>
-      </section>
+      <LandingCinema copy={copy} showSubscribeNotice={coolingPreview} onCta={openLogin} />
 
       <footer className="landing-footer">
         <span>
@@ -1013,14 +826,6 @@ export function LandingPage({ lang, setLang, t }: LandingPageProps) {
       )}
     </main>
   );
-}
-
-function renderLandingLines(value: string) {
-  return value.split(/<br\s*\/?>/i).map((line, index) => (
-    <span className="landing-title-line" key={`${index}-${line}`}>
-      {line}
-    </span>
-  ));
 }
 
 function navigationLanguage(current: Lang, preference: Lang): Lang {
