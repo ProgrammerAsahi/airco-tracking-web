@@ -25,10 +25,10 @@ The coordinated frontend/backend design uses a stable user UUID and a minimal, 3
 - Container App: `airco-tracking-web`
 - Azure resource group: `airco-tracker-rg`
 - Backend repository: `https://github.com/ProgrammerAsahi/airco-tracking`
-- Deployed frontend commit/image: `aircotrackertdzvfmmi.azurecr.io/airco-tracking-web:58684eb170ddd6842fc3249737281aa519a4ee60`
+- Deployed frontend commit/image: `aircotrackertdzvfmmi.azurecr.io/airco-tracking-web:ccc3f5e7443b17390528a04202dc475d92f167c7`
 - Coordinated backend commit/image: `e6d1f3a6d5c6ee782c4459b0eefe9ed7da3a86d9`
-- Ready revision: `airco-tracking-web--0000061`; provisioning state `Provisioned`; revision health `Healthy`; traffic 100%
-- Successful deployment workflow runs: frontend `29651766126`, backend `29611560636`
+- Ready revision: `airco-tracking-web--0000062`; provisioning state `Provisioned`; revision health `Healthy`; traffic 100%
+- Successful deployment workflow runs: frontend `29655140472`, backend `29611560636`
 - Deployment workflow: `.github/workflows/deploy.yml`; Markdown/docs-only pushes do not deploy
 
 Both custom web hostnames and their existing managed-certificate names are declared in `infra/app.bicep`. Do not remove those `customDomains` entries: an application Bicep deployment would otherwise clear the bindings.
@@ -37,7 +37,7 @@ Both custom web hostnames and their existing managed-certificate names are decla
 
 ### Browser UI and routing
 
-- `/` is the public heatwave-themed landing portal. Its sticky-scroll narrative now plays as three explicit story beats between the Seine heatwave hero and the blue-hour finale: the sweltering Paris apartment, the "snagged it" beat where a stock-alert notification chip appears in the scene while the cool-layer reveal begins, and the relief beat where the cooled room is fully revealed as the emotional payoff with the Pass CTA. The four photographs are choreographed as one continuous camera take: the hero pushes into the open quayside window as it leaves, the room scene emerges from that same window and later pans right toward the desk, the tracker scene opens on the desk and drives back toward the window behind a dark veil, and the finale pulls out of the lit apartment window into the blue-hour panorama. A live temperature badge counts down 34→24 °C alongside the cool-layer reveal (text via `textContent`, hue via a custom property, both CSP-safe), three beat dots mark the narrative position, and the tracker scene copy credits the radar instead of luck ("Not luck. Radar."). The finale keeps restrained pointer/scroll parallax, warm window light, river glints, dark-background typography tuned per language, a Pass CTA, and an optimized 1672×941 background. All scenes share responsive four-language copy and reduced-motion fallbacks. Logged-in users with an active Pass are directed to the cool Ready experience instead of being shown the acquisition portal again.
+- `/` is the public heatwave-themed landing portal. The narrative now runs inside a single pinned-cinema stage (`LandingCinema`, 650svh): all five photographs are layers in one sticky viewport, so the scroll position only drives camera moves and crossfades — the frame never slides away. The hero pushes into the quayside window as the room emerges from that same window and later pans right to the desk; the tracker scene opens on the desk (laptop and phone) and drives back toward the window behind a dark veil; the finale pulls out of the lit apartment window into the blue-hour panorama. Copy beats are progress-driven overlays on the same stage: sweltering apartment, the "snagged it" stock-alert beat (notification chip), the cooled-room relief with the Pass CTA, the radar attribution, and the finale CTA. A live temperature badge counts down 34→24 °C, five beat dots mark the narrative position, and the tracker alert card and data rail ride the same timeline. Reduced-motion users get staged act cuts without camera moves. The retired per-section scenes (`LandingHeroVisual`, `LandingStoryVisual`, `LandingTrackerVisual`, `LandingFinaleVisual`) are deleted. Logged-in users with an active Pass are directed to the cool Ready experience instead of being shown the acquisition portal again.
 - Email-code login is implemented. First-time users choose a nickname; Google, Apple, and Microsoft buttons remain explicit placeholders and do not start OAuth.
 - `/profile` supports nickname and verified-email changes, language preference, delivery country, logout, Pass status/expiry, Alerts-to-Radar upgrade, and account deletion when no active entitlement remains.
 - `/subscribe` offers two Stripe test-mode products: Heatwave Alerts Pass (`alerts`, €5) and Heatwave Radar Pass (`radar`, €10), each valid for 90 days. The active Pass is disabled in the UI; active Alerts users receive a dedicated €5 Radar upgrade that takes effect immediately and preserves the original expiry.
@@ -107,8 +107,8 @@ All four legacy recurring Prices are archived. Three legacy Sandbox subscription
 
 The current production release is deployed and verified:
 
-- Frontend workflow `29651766126` deployed commit `58684eb170ddd6842fc3249737281aa519a4ee60` after approval through the `production` environment gate; backend workflow `29611560636` deployed commit `e6d1f3a6d5c6ee782c4459b0eefe9ed7da3a86d9`.
-- Production runs ready web revision `airco-tracking-web--0000061` with provisioning state `Provisioned`, revision health `Healthy`, and 100% traffic.
+- Frontend workflow `29655140472` deployed commit `ccc3f5e7443b17390528a04202dc475d92f167c7` after approval through the `production` environment gate; backend workflow `29611560636` deployed commit `e6d1f3a6d5c6ee782c4459b0eefe9ed7da3a86d9`.
+- Production runs ready web revision `airco-tracking-web--0000062` with provisioning state `Provisioned`, revision health `Healthy`, and 100% traffic.
 - `/`, `/privacy.html`, `/terms.html`, `/imprint.html`, `/health`, the `www` host, and `/deliver-to/nl` all return 200; anonymous `/api/inventory` still returns 401; the strict CSP is intact; and the four `legal_*` i18n keys are served in the embedded payload.
 - The three-beat landing story is live: the served bundle contains the temperature badge, alert chip, beat dots, hero exit wash, tracker entry wash, and the new four-language story/attribution copy. Local checks before release: 113/113 tests, typecheck, build, and a production-mode smoke run.
 - Production i18n Table was reseeded to 64 entries across the `web` and `email` scopes before release; automated contracts confirm every key has exactly four non-empty `zh`/`nl`/`en`/`fr` values and that the frontend/backend web maps match.

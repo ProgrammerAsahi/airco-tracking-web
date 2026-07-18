@@ -25,10 +25,10 @@
 - Container App：`airco-tracking-web`
 - Azure resource group：`airco-tracker-rg`
 - Backend repository：`https://github.com/ProgrammerAsahi/airco-tracking`
-- 已部署 frontend commit/image：`aircotrackertdzvfmmi.azurecr.io/airco-tracking-web:58684eb170ddd6842fc3249737281aa519a4ee60`
+- 已部署 frontend commit/image：`aircotrackertdzvfmmi.azurecr.io/airco-tracking-web:ccc3f5e7443b17390528a04202dc475d92f167c7`
 - 协调部署的 backend commit/image：`e6d1f3a6d5c6ee782c4459b0eefe9ed7da3a86d9`
-- Ready revision：`airco-tracking-web--0000061`；provisioning state 为 `Provisioned`；revision health 为 `Healthy`；流量为 100%
-- 成功的 deployment workflow runs：frontend `29651766126`、backend `29611560636`
+- Ready revision：`airco-tracking-web--0000062`；provisioning state 为 `Provisioned`；revision health 为 `Healthy`；流量为 100%
+- 成功的 deployment workflow runs：frontend `29655140472`、backend `29611560636`
 - Deployment workflow：`.github/workflows/deploy.yml`；纯 Markdown/docs push 不部署
 
 两个自定义 Web hostname 和现有 managed-certificate 名称都已写入 `infra/app.bicep`。不要删除这些 `customDomains`；否则 application Bicep 部署会清空绑定。
@@ -37,7 +37,7 @@
 
 ### Browser UI 和 routing
 
-- `/` 是公开热浪主题门户。sticky-scroll 叙事在塞纳河畔热浪 hero 与蓝调 finale 之间重构为三拍：闷热的巴黎老宅、"抢到了"一拍（房间内浮现库存提醒通知 chip，同时冷却渐变开始）、以及"凉快了人也舒服了"的情感高潮一拍（冷房间完全显现并给出 Pass CTA)。四张照片被编排成一个连续运镜：hero 向河畔楼上开着的窗户推进离场，房间从同一扇窗户缩放着落、末段向右平移推向桌面，tracker 场景以桌面接镜并在暗色纱幕中向窗户回推，finale 再从外景亮灯的窗户缓缓拉出到蓝调全景。室内温度徽章随冷却渐变从 34°C 倒数到 24°C（数字走 `textContent`、色相走自定义属性，均符合 CSP)，三颗拍点进度指示标记叙事位置，tracker 场景文案改为"不是运气，是雷达"的功劳叙事。finale 保持克制的鼠标/滚动视差、暖色窗光、河面微光、按语言调整的暗色背景字体、Pass CTA 和优化后的 1672×941 背景。所有场景均包含四语响应式文案和 reduced-motion fallback。已经登录且有有效 Pass 的用户会进入凉爽的 Ready 体验，不会再次看到拉新门户。
+- `/` 是公开热浪主题门户。叙事现在运行在单一定格影院舞台（`LandingCinema`,650svh）中：五张照片全部是同一个钉在视口的舞台内的图层，滚动只驱动相机运动与图层叠化，画面本身不再滑动。hero 向河畔楼上开着的窗户推进，房间从同一扇窗户浮现并在末段向右平移推向桌面；tracker 场景以桌面（笔记本+手机）接镜并在暗色纱幕中向窗户回推；finale 从外景亮灯的窗户缓缓拉出到蓝调全景。文案拍点以进度驱动的叠加层呈现在同一舞台上：闷热老宅、"抢到了"库存提醒拍（通知 chip)、凉爽房间的情感高潮（含 Pass CTA)、雷达功劳拍和 finale CTA。室内温度徽章从 34°C 倒数到 24°C，五颗拍点进度指示标记叙事位置，tracker 的提醒卡片与库存数据栏共用同一时间线。reduced-motion 用户得到无运镜的静态分幕切换。旧的四个分段场景组件（`LandingHeroVisual`、`LandingStoryVisual`、`LandingTrackerVisual`、`LandingFinaleVisual`）已删除。已经登录且有有效 Pass 的用户会进入凉爽的 Ready 体验，不会再次看到拉新门户。
 - 邮箱验证码登录已经实现。首次注册用户需要设置昵称；Google、Apple、Microsoft 按钮仍是明确的 placeholder，不会启动 OAuth。
 - `/profile` 支持修改昵称和已验证邮箱、语言偏好、配送国家、登出、查看 Pass 状态/到期日、从 Alerts 升级到 Radar，以及在没有有效权益时注销账户。
 - `/subscribe` 提供两种 Stripe test-mode 产品：Heatwave Alerts Pass（`alerts`，€5）和 Heatwave Radar Pass（`radar`，€10），均有效 90 天。当前 Pass 按钮不可点击；有效 Alerts 用户可支付 €5 立即升级 Radar，原到期日不变。
@@ -107,8 +107,8 @@ Stripe Sandbox destination `airco-tracker-pass-webhook` 继续指向 `https://ai
 
 当前生产 release 已部署并验证：
 
-- Frontend workflow `29651766126` 经 `production` environment 门禁批准后部署 commit `58684eb170ddd6842fc3249737281aa519a4ee60`；backend workflow `29611560636` 部署 commit `e6d1f3a6d5c6ee782c4459b0eefe9ed7da3a86d9`。
-- 生产运行 ready web revision `airco-tracking-web--0000061`，provisioning state 为 `Provisioned`，revision health 为 `Healthy`，流量为 100%。
+- Frontend workflow `29655140472` 经 `production` environment 门禁批准后部署 commit `ccc3f5e7443b17390528a04202dc475d92f167c7`；backend workflow `29611560636` 部署 commit `e6d1f3a6d5c6ee782c4459b0eefe9ed7da3a86d9`。
+- 生产运行 ready web revision `airco-tracking-web--0000062`，provisioning state 为 `Provisioned`，revision health 为 `Healthy`，流量为 100%。
 - `/`、`/privacy.html`、`/terms.html`、`/imprint.html`、`/health`、`www` host 和 `/deliver-to/nl` 均返回 200；匿名 `/api/inventory` 仍返回 401；strict CSP 保持不变；四个 `legal_*` i18n key 已在内嵌 payload 中下发。
 - 三拍落地页叙事已上线：生产 bundle 确认包含温度徽章、通知 chip、拍点进度点、hero 离场渐变、tracker 进场渐变以及新的四语叙事/功劳文案。发布前本地验证：113/113 tests、typecheck、build 和生产模式冒烟均通过。
 - 生产 i18n Table 已在发布前重新播种为 `web` 和 `email` 两个 scope 共 64 条；自动契约确认每个 key 都有四个非空的 `zh`/`nl`/`en`/`fr` 值，且前后端 web maps 一致。
