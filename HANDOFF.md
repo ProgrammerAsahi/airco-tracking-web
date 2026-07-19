@@ -25,10 +25,10 @@ The coordinated frontend/backend design uses a stable user UUID and a minimal, 3
 - Container App: `airco-tracking-web`
 - Azure resource group: `airco-tracker-rg`
 - Backend repository: `https://github.com/ProgrammerAsahi/airco-tracking`
-- Deployed frontend commit/image: `aircotrackertdzvfmmi.azurecr.io/airco-tracking-web:4187d9dc14deefa906fde76a0ca4f17730fc8591`
+- Deployed frontend commit/image: `aircotrackertdzvfmmi.azurecr.io/airco-tracking-web:e33b3826e5e1c77451688d3a8f738d134e3101a3`
 - Coordinated backend commit/image: `e6d1f3a6d5c6ee782c4459b0eefe9ed7da3a86d9`
-- Ready revision: `airco-tracking-web--0000064`; provisioning state `Provisioned`; revision health `Healthy`; traffic 100%
-- Successful deployment workflow runs: frontend `29658435420`, backend `29611560636`
+- Ready revision: `airco-tracking-web--0000065`; provisioning state `Provisioned`; revision health `Healthy`; traffic 100%
+- Successful deployment workflow runs: frontend `29691574367`, backend `29611560636`
 - Deployment workflow: `.github/workflows/deploy.yml`; Markdown/docs-only pushes do not deploy
 
 Both custom web hostnames and their existing managed-certificate names are declared in `infra/app.bicep`. Do not remove those `customDomains` entries: an application Bicep deployment would otherwise clear the bindings.
@@ -42,7 +42,7 @@ Both custom web hostnames and their existing managed-certificate names are decla
 - `/profile` supports nickname and verified-email changes, language preference, delivery country, logout, Pass status/expiry, Alerts-to-Radar upgrade, and account deletion when no active entitlement remains.
 - `/subscribe` offers two Stripe test-mode products: Heatwave Alerts Pass (`alerts`, €5) and Heatwave Radar Pass (`radar`, €10), each valid for 90 days. The active Pass is disabled in the UI; active Alerts users receive a dedicated €5 Radar upgrade that takes effect immediately and preserves the original expiry.
 - `/ready` confirms that alerting is active. Radar users also receive a button to the inventory page.
-- `/privacy.html`, `/terms.html`, and `/imprint.html` are four-language static legal skeletons following the same pattern as the affiliate disclosure page. They ship with visible `[TODO]` placeholders for operator identity, VAT treatment, refund policy, and governing law; the login consent area and a new landing footer link to them.
+- `/privacy.html`, `/terms.html`, and `/imprint.html` are four-language static legal pages following the same pattern as the affiliate disclosure page. The system-specific GDPR content is now written: data categories (including IP used only in memory for rate limiting and ten-minute verification codes), purposes and legal bases, processors with Stripe US transfers under standard contractual clauses, retention (30-day outbox, 90-day delivery rows, fingerprint-only bounce suppression), data-subject rights with no automated decision-making, a not-a-seller clarification, the Alerts→Radar upgrade path, a voluntary 14-day refund policy (marked for operator confirmation), the affiliate-link disclosure, and full liability wording. Still visible `[TODO]` placeholders for the operator: legal name, registered address, privacy/contact emails, KvK number, VAT number, responsible person, VAT treatment, refund-policy confirmation, governing law, and dispute forum. The login consent area and the landing footer link to them.
 - `/deliver-to/nl` and `/deliver-to/fr` filter retailers by delivery coverage. Anonymous users, users without an active Pass, and Alerts-only users cannot read realtime inventory.
 - Interface language (`zh`, `nl`, `en`, or `fr`) is independent from delivery country and can be switched in the header without a reload. An explicit header/query choice survives normal in-app navigation. Saving the Profile preference changes the persisted account default, the alert-recipient projection, stock-alert email language, and the Stripe customer locale.
 
@@ -107,10 +107,10 @@ All four legacy recurring Prices are archived. Three legacy Sandbox subscription
 
 The current production release is deployed and verified:
 
-- Frontend workflow `29658435420` deployed commit `4187d9dc14deefa906fde76a0ca4f17730fc8591` after approval through the `production` environment gate; backend workflow `29611560636` deployed commit `e6d1f3a6d5c6ee782c4459b0eefe9ed7da3a86d9`.
-- Production runs ready web revision `airco-tracking-web--0000064` with provisioning state `Provisioned`, revision health `Healthy`, and 100% traffic.
+- Frontend workflow `29691574367` deployed commit `e33b3826e5e1c77451688d3a8f738d134e3101a3` after approval through the `production` environment gate; backend workflow `29611560636` deployed commit `e6d1f3a6d5c6ee782c4459b0eefe9ed7da3a86d9`.
+- Production runs ready web revision `airco-tracking-web--0000065` with provisioning state `Provisioned`, revision health `Healthy`, and 100% traffic.
 - `/`, `/privacy.html`, `/terms.html`, `/imprint.html`, `/health`, the `www` host, and `/deliver-to/nl` all return 200; anonymous `/api/inventory` still returns 401; the strict CSP is intact; and the four `legal_*` i18n keys are served in the embedded payload.
-- The three-beat landing story is live: the served bundle contains the temperature badge, alert chip, beat dots, hero exit wash, tracker entry wash, and the new four-language story/attribution copy. Local checks before release: 113/113 tests, typecheck, build, and a production-mode smoke run.
+- The pinned-cinema landing is live: the served bundle contains the unified stage, window dives, desk reveal, temperature badge, tracker-screen alert chip, beat dots, and the four-language story/attribution copy. The legal pages now serve the filled GDPR content (transfers, refund policy, liability) with operator `[TODO]` placeholders intact. Local checks before release: 113/113 tests, typecheck, build, and a production-mode smoke run.
 - Production i18n Table was reseeded to 64 entries across the `web` and `email` scopes before release; automated contracts confirm every key has exactly four non-empty `zh`/`nl`/`en`/`fr` values and that the frontend/backend web maps match.
 
 ## Known limitations and next work
@@ -119,9 +119,11 @@ The current production release is deployed and verified:
 2. Billing remains in Stripe test mode and card-first. iDEAL/Wero or other payment methods require a separate product and compliance pass.
 3. The deployment/security baseline is production-verified, but real Sandbox purchase, upgrade, refund/dispute, exact-expiry, delayed/duplicate webhook, and legacy-entitlement migration scenarios remain open in the billing test plan.
 4. Production uses the verified customer-managed `airco-tracker.eu` ACS sender. A higher-quota request remains open; keep the current one-worker/13-second limit and gradual domain warm-up until Azure approves it. The first real OTP login email under the new `aircontrack-acs-email-sender` role still needs a one-time confirmation.
-5. The four-language legal skeletons (`/privacy.html`, `/terms.html`, `/imprint.html`) ship with visible `[TODO]` placeholders for operator identity, VAT treatment, refund policy, and governing law; the copy must be filled and legally reviewed before real payments. VAT/OSS and withdrawal-right details remain prerequisites for leaving Stripe test mode.
+5. Legal pages: the GDPR content is written, but the `[TODO]` operator fields (legal name, address, privacy/contact emails, KvK, VAT number, responsible person, VAT treatment, refund-policy confirmation, governing law, dispute forum) must be filled and the pages legally reviewed before real payments. Compliance notes so they are not re-derived: no cookie-consent banner is needed while the site only uses the strictly necessary session cookie and the localStorage language preference (reassess if analytics, Impact tracking, or any marketing pixel is added); cross-border B2C digital sales below €10,000/year can use home-country VAT without OSS registration, and Stripe Tax can automate VAT-inclusive pricing; the drafted withdrawal clause uses the digital-content exception while the refund section offers a voluntary 14-day full refund pending operator confirmation; Het Juridisch Loket offers free legal advice for individuals in the Netherlands. VAT/OSS and withdrawal decisions remain prerequisites for leaving Stripe test mode.
 6. There is no committed Playwright visual/accessibility regression suite or dedicated production alert for repeated frontend/API failures.
-7. Browser visual QA of the new landing-footer and login-consent legal links is recommended. The rebuilt three-beat landing story (temperature badge, alert chip, beat dots, scene washes, new four-language copy) likewise needs fresh desktop and narrow-viewport visual QA.
+7. Browser visual QA of the landing-footer and login-consent legal links is recommended. The pinned-cinema landing (window dives, desk reveal, temperature badge, tracker-screen alert chip, beat dots) needs fresh desktop and narrow-viewport visual QA in all four languages.
+8. `src/brands.ts` contains the owner's uncommitted in-progress AliExpress brand entry — do not revert or commit it on their behalf; the matching `brand-theme--aliexpress` class in `src/styles.css` is already committed.
+9. A batch of Dependabot PRs (actions and npm bumps) is open in both repositories; they now run through the required `validate` status check before merge.
 
 ## Resume checklist
 

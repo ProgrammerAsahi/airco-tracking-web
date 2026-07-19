@@ -25,10 +25,10 @@
 - Container App：`airco-tracking-web`
 - Azure resource group：`airco-tracker-rg`
 - Backend repository：`https://github.com/ProgrammerAsahi/airco-tracking`
-- 已部署 frontend commit/image：`aircotrackertdzvfmmi.azurecr.io/airco-tracking-web:4187d9dc14deefa906fde76a0ca4f17730fc8591`
+- 已部署 frontend commit/image：`aircotrackertdzvfmmi.azurecr.io/airco-tracking-web:e33b3826e5e1c77451688d3a8f738d134e3101a3`
 - 协调部署的 backend commit/image：`e6d1f3a6d5c6ee782c4459b0eefe9ed7da3a86d9`
-- Ready revision：`airco-tracking-web--0000064`；provisioning state 为 `Provisioned`；revision health 为 `Healthy`；流量为 100%
-- 成功的 deployment workflow runs：frontend `29658435420`、backend `29611560636`
+- Ready revision：`airco-tracking-web--0000065`；provisioning state 为 `Provisioned`；revision health 为 `Healthy`；流量为 100%
+- 成功的 deployment workflow runs：frontend `29691574367`、backend `29611560636`
 - Deployment workflow：`.github/workflows/deploy.yml`；纯 Markdown/docs push 不部署
 
 两个自定义 Web hostname 和现有 managed-certificate 名称都已写入 `infra/app.bicep`。不要删除这些 `customDomains`；否则 application Bicep 部署会清空绑定。
@@ -42,7 +42,7 @@
 - `/profile` 支持修改昵称和已验证邮箱、语言偏好、配送国家、登出、查看 Pass 状态/到期日、从 Alerts 升级到 Radar，以及在没有有效权益时注销账户。
 - `/subscribe` 提供两种 Stripe test-mode 产品：Heatwave Alerts Pass（`alerts`，€5）和 Heatwave Radar Pass（`radar`，€10），均有效 90 天。当前 Pass 按钮不可点击；有效 Alerts 用户可支付 €5 立即升级 Radar，原到期日不变。
 - `/ready` 会确认提醒已经启用；Radar 用户还会看到前往库存页面的按钮。
-- `/privacy.html`、`/terms.html` 和 `/imprint.html` 是四语静态 legal 骨架页，采用与 affiliate 披露页相同的模式。页面带有可见的 `[TODO]` 占位（运营主体、VAT 处理、退款政策、管辖法律）；登录同意区和 landing 新 footer 会链接到这些页面。
+- `/privacy.html`、`/terms.html` 和 `/imprint.html` 是四语静态 legal 页面，采用与 affiliate 披露页相同的模式。系统相关的 GDPR 实体内容已写好：数据类别（含仅用于内存速率限制的 IP、十分钟过期的验证码）、处理目的与法律依据、处理者及 Stripe 美国传输（欧盟标准合同条款）、保存期限（outbox 30 天、投递行 90 天、退信抑制仅存指纹）、用户权利（无自动化决策）、"不销售空调"澄清、Alerts→Radar 升级路径、自愿 14 天全额退款政策（带经营者确认标记）、联盟链接披露和完整责任条款。仍保留给经营者的可见 `[TODO]` 占位：法定名称、注册地址、隐私/联系邮箱、KvK 号、VAT 号、内容负责人、VAT 处理、退款政策确认、适用法律和争议管辖。登录同意区和 landing footer 会链接到这些页面。
 - `/deliver-to/nl` 和 `/deliver-to/fr` 按配送范围筛选零售商。匿名、没有有效 Pass 和只有 Alerts 权益的用户都不能读取实时库存。
 - 界面语言（`zh`、`nl`、`en`、`fr`）和配送国家相互独立，可从 header 无刷新切换。明确的 header/query 选择会在普通站内导航中保持；在 Profile 保存偏好会同时更新账户持久化默认、提醒收件人投影、库存提醒邮件语言和 Stripe customer locale。
 
@@ -107,10 +107,10 @@ Stripe Sandbox destination `airco-tracker-pass-webhook` 继续指向 `https://ai
 
 当前生产 release 已部署并验证：
 
-- Frontend workflow `29658435420` 经 `production` environment 门禁批准后部署 commit `4187d9dc14deefa906fde76a0ca4f17730fc8591`；backend workflow `29611560636` 部署 commit `e6d1f3a6d5c6ee782c4459b0eefe9ed7da3a86d9`。
-- 生产运行 ready web revision `airco-tracking-web--0000064`，provisioning state 为 `Provisioned`，revision health 为 `Healthy`，流量为 100%。
+- Frontend workflow `29691574367` 经 `production` environment 门禁批准后部署 commit `e33b3826e5e1c77451688d3a8f738d134e3101a3`；backend workflow `29611560636` 部署 commit `e6d1f3a6d5c6ee782c4459b0eefe9ed7da3a86d9`。
+- 生产运行 ready web revision `airco-tracking-web--0000065`，provisioning state 为 `Provisioned`，revision health 为 `Healthy`，流量为 100%。
 - `/`、`/privacy.html`、`/terms.html`、`/imprint.html`、`/health`、`www` host 和 `/deliver-to/nl` 均返回 200；匿名 `/api/inventory` 仍返回 401；strict CSP 保持不变；四个 `legal_*` i18n key 已在内嵌 payload 中下发。
-- 三拍落地页叙事已上线：生产 bundle 确认包含温度徽章、通知 chip、拍点进度点、hero 离场渐变、tracker 进场渐变以及新的四语叙事/功劳文案。发布前本地验证：113/113 tests、typecheck、build 和生产模式冒烟均通过。
+- 定格影院落地页已上线：生产 bundle 确认包含统一舞台、进窗/出窗变焦、桌面渐显、温度徽章、tracker 屏通知 chip、拍点进度点和四语叙事/功劳文案。Legal 页面现已提供填好的 GDPR 内容（国际传输、退款政策、责任条款）并保留经营者 `[TODO]` 占位。发布前本地验证：113/113 tests、typecheck、build 和生产模式冒烟均通过。
 - 生产 i18n Table 已在发布前重新播种为 `web` 和 `email` 两个 scope 共 64 条；自动契约确认每个 key 都有四个非空的 `zh`/`nl`/`en`/`fr` 值，且前后端 web maps 一致。
 
 ## 已知限制和下一步
@@ -119,9 +119,11 @@ Stripe Sandbox destination `airco-tracker-pass-webhook` 继续指向 `https://ai
 2. Billing 仍处于 Stripe test mode，且先支持信用卡。iDEAL/Wero 或其它支付方式需要单独的产品和合规评估。
 3. 部署/安全 baseline 已完成生产验证，但真实 Sandbox 购买、升级、退款/争议、精确到期、延迟/重复 webhook 和 legacy entitlement migration 场景仍列在 billing 测试文档中。
 4. 生产已经使用验证完成的 customer-managed `airco-tracker.eu` ACS sender；更高 quota 申请仍处于 Open。在 Azure 批准前继续保持一 worker/13 秒限制并逐步 warm up 域名。新 custom role `aircontrack-acs-email-sender` 下的首封真实 OTP 登录邮件仍需一次确认。
-5. 四语 legal 骨架页（`/privacy.html`、`/terms.html`、`/imprint.html`）仍带有可见的 `[TODO]` 占位（运营主体、VAT 处理、退款政策、管辖法律），真实收款前必须填好并通过法律审查；VAT/OSS 和撤回权细节仍是退出 Stripe test mode 的前置条件。
+5. Legal 页面：GDPR 内容已写好，但 `[TODO]` 经营者字段（法定名称、地址、隐私/联系邮箱、KvK、VAT 号、内容负责人、VAT 处理、退款政策确认、适用法律、争议管辖）必须在真实收款前填好并通过法律审查。合规备忘（避免重新推导）：在仅有严格必要会话 Cookie 和 localStorage 语言偏好的现状下不需要 cookie 同意横幅（若以后接入分析、Impact 追踪或任何营销像素需重新评估）；跨境 B2C 数字服务年销售额低于 €10,000 可按本国 VAT 申报、无需注册 OSS，Stripe Tax 可自动处理含税价；撤销权条款采用数字内容例外写法，退款条款为自愿 14 天全额退款（待经营者确认）；荷兰个人可通过 Het Juridisch Loket 获得免费法律咨询。VAT/OSS 与撤回权决策仍是退出 Stripe test mode 的前置条件。
 6. 目前没有 committed Playwright 视觉/无障碍回归套件，也没有针对连续 frontend/API 故障的独立生产告警。
-7. 建议对新的 landing footer 和登录同意区的 legal 链接做一次浏览器视觉 QA。重构后的三拍落地页叙事（温度徽章、通知 chip、拍点进度点、场景渐变、四语新文案）同样需要在桌面和窄屏下各做一次视觉 QA。
+7. 建议对 landing footer 和登录同意区的 legal 链接做一次浏览器视觉 QA。定格影院落地页（进窗/出窗变焦、桌面渐显、温度徽章、tracker 屏通知 chip、拍点进度点）需要在桌面和窄屏、四种语言下各做一次视觉 QA。
+8. `src/brands.ts` 中有所有者未提交的进行中的 AliExpress 品牌条目——不要代为还原或提交；`src/styles.css` 中对应的 `brand-theme--aliexpress` 类已提交。
+9. 两个仓库都有一批待处理的 Dependabot PR（actions 与 npm 升级）；现在合并前会先经过强制的 `validate` 状态检查。
 
 ## 恢复 checklist
 
