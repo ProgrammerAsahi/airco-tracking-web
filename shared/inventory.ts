@@ -31,6 +31,12 @@ export function productExternalUrl(product: Pick<InventoryProduct, "url" | "affi
 export interface SiteInventory {
   status: "ok" | "error";
   stale: boolean;
+  /** Fresh sites are verified by the current scan; stale sites are diagnostic only. */
+  freshness?: "verified" | "stale";
+  /** False means retained products must not be presented or included in stock totals. */
+  counts_toward_totals?: boolean;
+  stale_age_seconds?: number | null;
+  stale_too_old?: boolean;
   country?: string;
   site?: string;
   site_id?: string;
@@ -48,9 +54,12 @@ export interface InventorySnapshot {
   updated_at: string | null;
   refresh_interval_seconds: number;
   site_count: number;
+  verified_site_count?: number;
   stale_site_count: number;
   available_product_count: number;
   immediate_product_count?: number;
   presale_product_count?: number;
+  inventory_confidence?: "verified" | "partial" | "unavailable";
+  stale_diagnostic_max_age_seconds?: number;
   sites: Record<string, SiteInventory>;
 }

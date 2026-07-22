@@ -17,5 +17,6 @@
     "noEmit": true,
     "jsx": "react-jsx"
   },
-  "include": ["src", "shared"]
+  "include": ["src", "shared"],
+  "exclude": ["shared/**/*.test.ts"]
 }

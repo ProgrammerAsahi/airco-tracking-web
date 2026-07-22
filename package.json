@@ -9,12 +9,14 @@
     "build:server": "tsc -p tsconfig.server.json",
     "build:web": "tsc -b && vite build",
     "typecheck": "tsc -b --pretty false && tsc -p tsconfig.server.json --noEmit --pretty false",
-    "test": "pnpm build:server && node --test server-dist/server/*.test.js",
+    "test": "pnpm build:server && node --test server-dist/server/*.test.js server-dist/shared/*.test.js",
+    "test:e2e": "playwright test",
     "start": "node server-dist/server/server.js",
+    "retention:cleanup": "node server-dist/server/retention-cleanup.js",
     "preview": "vite preview"
   },
   "dependencies": {
-    "@azure/communication-email": "^1.0.0",
+    "@azure/communication-email": "^1.1.0",
     "@azure/data-tables": "^13.3.2",
     "@azure/identity": "4.13.1",
     "@azure/storage-blob": "12.33.0",
@@ -23,6 +25,8 @@
     "stripe": "^22.3.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.12.1",
+    "@playwright/test": "1.61.1",
     "@types/node": "24.10.13",
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",

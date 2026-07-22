@@ -30,6 +30,7 @@ const brands: Record<string, Omit<BrandDefinition, "name">> = {
   Klimaatshop: { shortMark: "KS", url: "https://www.klimaatshop.nl", themeClass: "brand-theme--klimaatshop" },
   "Airco-Webwinkel": { shortMark: "AW", url: "https://www.airco-webwinkel.nl", themeClass: "brand-theme--aircowebwinkel" },
   Bostools: { shortMark: "B", url: "https://www.bostools.nl", themeClass: "brand-theme--bostools" },
+  AliExpress: { shortMark: "Ali", url: "https://www.aliexpress.com/", themeClass: "brand-theme--aliexpress" },
 };
 
 export function getBrand(name: string): BrandDefinition {

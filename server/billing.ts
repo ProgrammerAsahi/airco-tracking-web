@@ -1,3 +1,4 @@
+import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import type { IncomingMessage } from "node:http";
 import Stripe from "stripe";
 import {
@@ -8,12 +9,26 @@ import {
 } from "../shared/auth.js";
 import type { Lang } from "../shared/i18n.js";
 import {
+  PASS_WITHDRAWAL_DAYS,
+  isCurrentCheckoutLegalAcceptance,
+  type CheckoutLegalAcceptance,
+} from "../shared/legal.js";
+import {
   AuthHttpError,
   activePassBaseReceiptId,
   type AuthService,
   type StoredUserProfile,
   type StripePassPurchase,
 } from "./auth.js";
+import {
+  legalConfigurationFromEnvironment,
+  type LegalRuntimeConfiguration,
+} from "./legal.js";
+import {
+  hashProviderIdentifier,
+  logError,
+  logWarn,
+} from "./safe-logger.js";
 
 type StripeBillingOptions = {
   appBaseUrl?: string;
@@ -21,10 +36,28 @@ type StripeBillingOptions = {
   webhookSecret?: string;
   priceIds: Partial<Record<PaidSubscriptionPlan, string>>;
   radarUpgradePriceId?: string;
+  legalConfiguration?: LegalRuntimeConfiguration;
+  withdrawalSigningKey?: string;
 };
 
 type CheckoutSessionResult = { url: string };
 type PassPurchaseKind = "purchase" | "upgrade";
+export type WithdrawalPreviewResult = {
+  token: string;
+  confirmationEmail: string;
+  orderReference: string;
+  tier: PaidSubscriptionPlan;
+  amountEurCents: number;
+  purchasedAt: string;
+  withdrawalDeadline: string;
+};
+type WithdrawalClaims = {
+  expiresAt: number;
+  paymentIntentId: string;
+  userId: string;
+  consumerName: string;
+  electronicConfirmationAcceptedAt: string;
+};
 
 const PRICE_ENV_BY_PLAN: Record<PaidSubscriptionPlan, string> = {
   alerts: "STRIPE_PRICE_ALERTS_PASS",
@@ -41,6 +74,9 @@ export class StripeBillingService {
   private readonly appBaseUrl: string | undefined;
   private readonly priceIds: Partial<Record<PaidSubscriptionPlan, string>>;
   private readonly radarUpgradePriceId: string | undefined;
+  private readonly legalConfiguration: LegalRuntimeConfiguration;
+  private readonly withdrawalSigningKey: string | undefined;
+  private readonly liveMode: boolean;
 
   constructor(
     private readonly auth: AuthService,
@@ -51,15 +87,30 @@ export class StripeBillingService {
     this.appBaseUrl = options.appBaseUrl;
     this.priceIds = options.priceIds;
     this.radarUpgradePriceId = options.radarUpgradePriceId;
+    this.legalConfiguration = options.legalConfiguration ?? legalConfigurationFromEnvironment();
+    this.withdrawalSigningKey = options.withdrawalSigningKey?.trim() || undefined;
+    // Restricted keys can use rk_live_. Treat every configured key that is
+    // not explicitly a Stripe test key as live/unknown and therefore require
+    // complete production compliance configuration (fail closed).
+    this.liveMode = Boolean(options.secretKey && !/^(?:sk|rk)_test_/.test(options.secretKey));
+    if (this.withdrawalSigningKey && this.withdrawalSigningKey.length < 32) {
+      throw new Error("Withdrawal signing key must be at least 32 characters");
+    }
   }
 
   async createCheckoutSession(
     request: IncomingMessage,
-    values: { plan?: unknown; lang: Lang },
+    values: { plan?: unknown; lang: Lang; legal?: unknown },
   ): Promise<CheckoutSessionResult> {
     const user = await this.auth.requireUser(request);
     if (!isPaidSubscriptionPlan(values.plan)) throw new AuthHttpError(400, "invalid_pass");
+    if (!isCurrentCheckoutLegalAcceptance(values.legal)) {
+      throw new AuthHttpError(400, "legal_acceptance_required");
+    }
     const stripe = this.requireStripe();
+    if (this.liveMode && (!this.legalConfiguration.readyForLivePayments || !this.withdrawalSigningKey)) {
+      throw new AuthHttpError(503, "live_checkout_legal_configuration_incomplete");
+    }
     const selection = selectPassCheckout(user, values.plan, {
       priceIds: this.priceIds,
       radarUpgradePriceId: this.radarUpgradePriceId,
@@ -67,12 +118,21 @@ export class StripeBillingService {
     const customerId = await this.ensureStripeCustomer(request, user, values.lang);
     const baseUrl = this.publicBaseUrl(request);
     const checkoutNow = Date.now();
+    const acceptedAt = new Date(checkoutNow).toISOString();
+    const expectedAmount = expectedPassAmount(selection.kind, values.plan);
     const metadata: Stripe.MetadataParam = {
       airco_user_id: user.userId,
       airco_entitlement_tier: values.plan,
       airco_purchase_kind: selection.kind,
       airco_entitlement_expires_at: selection.expiresAt ?? "",
       airco_base_receipt_id: selection.baseReceiptId ?? "",
+      airco_terms_version: values.legal.termsVersion,
+      airco_privacy_version: values.legal.privacyVersion,
+      airco_checkout_locale: values.lang,
+      airco_accepted_at: acceptedAt,
+      airco_immediate_performance: "true",
+      airco_amount_eur_cents: String(expectedAmount),
+      airco_duration_days: selection.kind === "purchase" ? String(SUBSCRIPTION_PLAN_DETAILS[values.plan].intervalDays) : "upgrade",
     };
 
     const session = await stripe.checkout.sessions.create({
@@ -90,7 +150,14 @@ export class StripeBillingService {
       payment_intent_data: { metadata },
       metadata,
     }, {
-      idempotencyKey: checkoutIdempotencyKey(user, values.plan, selection.kind, values.lang, checkoutNow),
+      idempotencyKey: checkoutIdempotencyKey(
+        user,
+        values.plan,
+        selection.kind,
+        values.lang,
+        values.legal,
+        checkoutNow,
+      ),
     });
 
     if (!session.url) throw new AuthHttpError(502, "stripe_checkout_unavailable");
@@ -131,6 +198,181 @@ export class StripeBillingService {
     }
   }
 
+  async requestWithdrawalCode(values: { email?: unknown; lang: Lang; clientIp?: string }): Promise<{
+    ok: true;
+    retryAfterSeconds: number;
+    devCode?: string;
+  }> {
+    return this.auth.requestCode(values.email, values.lang, values.clientIp);
+  }
+
+  async previewWithdrawal(
+    request: IncomingMessage,
+    values: {
+      email?: unknown;
+      code?: unknown;
+      orderReference?: unknown;
+      consumerName?: unknown;
+      electronicConfirmationAccepted?: unknown;
+    },
+  ): Promise<WithdrawalPreviewResult> {
+    const consumerName = normalizeConsumerName(values.consumerName);
+    if (!consumerName || values.electronicConfirmationAccepted !== true) {
+      throw new AuthHttpError(400, "withdrawal_confirmation_required");
+    }
+    const user = await this.withdrawalUser(request, values);
+    const requestedReference = normalizeOrderReference(values.orderReference);
+    const candidates = user.passReceipts
+      .filter((receipt) => receipt.kind !== "legacy" && receipt.amountEurCents !== null)
+      .sort((left, right) => Date.parse(right.purchasedAt) - Date.parse(left.purchasedAt));
+    const receipt = requestedReference
+      ? candidates.find((candidate) => (
+          candidate.id === requestedReference || candidate.checkoutSessionId === requestedReference
+        ))
+      : candidates.find((candidate) => candidate.status === "active");
+    if (!receipt) throw new AuthHttpError(404, "withdrawal_order_not_found");
+    assertWithdrawalEligible(receipt);
+    const token = this.createWithdrawalToken({
+      userId: user.userId,
+      paymentIntentId: receipt.id,
+      expiresAt: Date.now() + 10 * 60 * 1000,
+      consumerName,
+      electronicConfirmationAcceptedAt: new Date().toISOString(),
+    });
+    const linkedUpgradeAmount = receipt.kind === "purchase"
+      ? user.passReceipts
+          .filter((candidate) => (
+            candidate.kind === "upgrade"
+            && candidate.baseReceiptId === receipt.id
+            && candidate.status === "active"
+            && candidate.amountEurCents !== null
+          ))
+          .reduce((total, candidate) => total + candidate.amountEurCents!, 0)
+      : 0;
+    return {
+      token,
+      confirmationEmail: user.email,
+      orderReference: receipt.checkoutSessionId ?? receipt.id,
+      tier: receipt.tier,
+      amountEurCents: receipt.amountEurCents! + linkedUpgradeAmount,
+      purchasedAt: receipt.purchasedAt,
+      withdrawalDeadline: withdrawalDeadline(receipt.purchasedAt),
+    };
+  }
+
+  async confirmWithdrawal(values: { token?: unknown }): Promise<{
+    ok: true;
+    refundStatus: string;
+    withdrawalReference: string;
+  }> {
+    const claims = this.verifyWithdrawalToken(values.token);
+    let user = await this.auth.findUserById(claims.userId);
+    let receipt = user?.passReceipts.find((candidate) => candidate.id === claims.paymentIntentId);
+    if (!user || !receipt) throw new AuthHttpError(404, "withdrawal_order_not_found");
+    if (
+      receipt.withdrawalReference
+      && receipt.stripeRefundId
+      && receipt.stripeRefundStatus
+      && !refundStatusAllowsRetry(receipt.stripeRefundStatus)
+    ) {
+      if (receipt.stripeRefundStatus === "pending" || receipt.stripeRefundStatus === "requested") {
+        const refreshed = await this.refreshPersistedConsumerWithdrawal(
+          user.stripeCustomerId,
+          receipt.id,
+          receipt.stripeRefundId,
+        );
+        user = refreshed.user;
+        receipt = user.passReceipts.find((candidate) => candidate.id === claims.paymentIntentId);
+        if (!receipt?.withdrawalReference) throw new AuthHttpError(404, "withdrawal_order_not_found");
+        if (refundStatusAllowsRetry(refreshed.refundStatus)) {
+          // The original attempt failed after its pending result was stored.
+          // Continue below with a fresh Stripe idempotency key.
+        } else {
+          if (!refundStatusIsAccepted(refreshed.refundStatus)) {
+            throw new AuthHttpError(502, "automatic_refund_failed");
+          }
+          await this.completeWithdrawalSideEffects(user.userId, receipt.id);
+          return {
+            ok: true,
+            refundStatus: refreshed.refundStatus,
+            withdrawalReference: receipt.withdrawalReference,
+          };
+        }
+      } else {
+        if (!refundStatusIsAccepted(receipt.stripeRefundStatus)) {
+          throw new AuthHttpError(502, "automatic_refund_failed");
+        }
+        await this.completeWithdrawalSideEffects(user.userId, receipt.id);
+        return {
+          ok: true,
+          refundStatus: receipt.stripeRefundStatus,
+          withdrawalReference: receipt.withdrawalReference,
+        };
+      }
+    }
+    if (!user.stripeCustomerId) throw new AuthHttpError(409, "withdrawal_order_not_refundable");
+    if (!receipt.withdrawalReference) {
+      assertWithdrawalEligible(receipt);
+      const initiated = await this.auth.initiatePassWithdrawal(user.userId, receipt.id, {
+        requestedAt: new Date().toISOString(),
+        reference: `WD-${randomUUID().slice(0, 8).toUpperCase()}`,
+        consumerName: claims.consumerName,
+        electronicConfirmationAcceptedAt: claims.electronicConfirmationAcceptedAt,
+      });
+      receipt = initiated?.passReceipts.find((candidate) => candidate.id === claims.paymentIntentId);
+      user = initiated;
+      if (!user || !receipt?.withdrawalReference || !receipt.withdrawalRequestedAt) {
+        throw new AuthHttpError(404, "withdrawal_order_not_found");
+      }
+    }
+    const withdrawalReference = receipt.withdrawalReference;
+    const requestedAt = receipt.withdrawalRequestedAt;
+    if (!withdrawalReference || !requestedAt) {
+      throw new AuthHttpError(409, "withdrawal_order_not_refundable");
+    }
+    const stripeCustomerId = user.stripeCustomerId;
+    if (!stripeCustomerId) throw new AuthHttpError(409, "withdrawal_order_not_refundable");
+    const retryAfterRefundId = receipt.stripeRefundId
+      && refundStatusAllowsRetry(receipt.stripeRefundStatus)
+      ? receipt.stripeRefundId
+      : null;
+    const refund = await this.createAutomaticRefund(
+      receipt.id,
+      retryAfterRefundId
+        ? `airco-consumer-withdrawal-retry-${retryAfterRefundId}`
+        : `airco-consumer-withdrawal-${receipt.id}`,
+    );
+    const status = refund.status === "succeeded" ? "refunded" : "revoked";
+    const updated = await this.auth.recordPassWithdrawal(stripeCustomerId, receipt.id, {
+      requestedAt,
+      reference: withdrawalReference,
+      stripeRefundId: refund.id,
+      stripeRefundStatus: refund.status ?? "pending",
+      receiptStatus: status,
+    });
+    if (!updated) throw new AuthHttpError(404, "withdrawal_order_not_found");
+    const refreshed = await this.refreshPersistedConsumerWithdrawal(
+      stripeCustomerId,
+      receipt.id,
+      refund.id,
+    );
+    if (refundStatusAllowsRetry(refreshed.refundStatus)) {
+      // A terminal refund webhook won the race with this request. Preserve
+      // the restored entitlement and surface the failure instead of reporting
+      // the stale create response as successful.
+      throw new AuthHttpError(502, "automatic_refund_failed");
+    }
+    if (!refundStatusIsAccepted(refreshed.refundStatus)) {
+      throw new AuthHttpError(502, "automatic_refund_failed");
+    }
+    await this.completeWithdrawalSideEffects(refreshed.user.userId, receipt.id);
+    return {
+      ok: true,
+      refundStatus: refreshed.refundStatus,
+      withdrawalReference,
+    };
+  }
+
   async handleWebhook(request: IncomingMessage): Promise<{ received: true }> {
     const stripe = this.requireStripe();
     if (!this.webhookSecret) throw new AuthHttpError(503, "stripe_webhook_not_configured");
@@ -144,7 +386,7 @@ export class StripeBillingService {
     try {
       event = stripe.webhooks.constructEvent(rawBody, signature, this.webhookSecret);
     } catch (error) {
-      console.error("Stripe webhook signature verification failed", error);
+      logWarn("stripe_webhook_signature_verification_failed", error);
       throw new AuthHttpError(400, "invalid_stripe_signature");
     }
 
@@ -167,25 +409,40 @@ export class StripeBillingService {
 
     if (event.type === "refund.created" || event.type === "refund.updated" || event.type === "refund.failed") {
       const refund = event.data.object as Stripe.Refund;
-      if (refund.status === "failed" || event.type === "refund.failed") {
-        console.error("automatic_refund_failed", {
-          refundId: refund.id,
-          paymentIntentId: stripeObjectId(refund.payment_intent),
-          failureReason: refund.failure_reason ?? "unknown",
+      if (refundStatusAllowsRetry(refund.status) || event.type === "refund.failed") {
+        let charge: Stripe.Charge | null = null;
+        try {
+          charge = await this.chargeForRefund(refund);
+        } catch (error) {
+          logError("automatic_refund_reconciliation_lookup_failed", error, {
+            refundHash: hashProviderIdentifier(refund.id),
+            paymentIntentHash: hashProviderIdentifier(stripeObjectId(refund.payment_intent)),
+          });
+        }
+        const reconciliation = charge
+          ? await this.reconcileRetryableConsumerWithdrawal(refund, charge)
+          : "unrelated";
+        logError("automatic_refund_failed", undefined, {
+          refundHash: hashProviderIdentifier(refund.id),
+          paymentIntentHash: hashProviderIdentifier(stripeObjectId(refund.payment_intent)),
+          status: refund.status ?? "unknown",
         });
+        // A delayed failure for an older refund can arrive after a retry has
+        // already compensated the customer. Acknowledge that stale event so
+        // it cannot overwrite the newer attempt or retry forever.
+        if (reconciliation === "stale") return { received: true };
         // Keep retrying and surface a durable operational signal. Never report
         // a failed refund as successfully compensated.
         throw new AuthHttpError(502, "automatic_refund_failed");
       }
-      if (refund.status === "succeeded") {
-        const chargeId = stripeObjectId(refund.charge);
-        if (chargeId) {
-          const charge = await stripe.charges.retrieve(chargeId);
-          if (charge.refunded) {
-            await this.revokeFromCharge(charge, "refunded");
-            await this.refundLinkedUpgrades(charge);
-          }
+      const chargeId = stripeObjectId(refund.charge);
+      if (chargeId) {
+        const charge = await stripe.charges.retrieve(chargeId);
+        if (refund.status === "succeeded" && charge.refunded) {
+          await this.revokeFromCharge(charge, "refunded");
+          await this.refundLinkedUpgrades(charge);
         }
+        await this.reconcileConsumerWithdrawal(refund, charge);
       }
       return { received: true };
     }
@@ -216,6 +473,139 @@ export class StripeBillingService {
     return this.stripe;
   }
 
+  private async withdrawalUser(
+    request: IncomingMessage,
+    values: { email?: unknown; code?: unknown },
+  ): Promise<StoredUserProfile> {
+    const current = await this.auth.currentUser(request);
+    if (current) return current;
+    return this.auth.verifyExistingEmailCode(values.email, values.code);
+  }
+
+  private createWithdrawalToken(claims: WithdrawalClaims): string {
+    if (!this.withdrawalSigningKey) throw new AuthHttpError(503, "withdrawal_unavailable");
+    const body = Buffer.from(JSON.stringify(claims)).toString("base64url");
+    const signature = createHmac("sha256", this.withdrawalSigningKey).update(body).digest("base64url");
+    return `${body}.${signature}`;
+  }
+
+  private verifyWithdrawalToken(rawToken: unknown): WithdrawalClaims {
+    if (!this.withdrawalSigningKey) throw new AuthHttpError(503, "withdrawal_unavailable");
+    const token = typeof rawToken === "string" ? rawToken.trim() : "";
+    const [body, signature, extra] = token.split(".");
+    if (!body || !signature || extra) throw new AuthHttpError(400, "invalid_withdrawal_token");
+    const expected = createHmac("sha256", this.withdrawalSigningKey).update(body).digest();
+    let actual: Buffer;
+    try {
+      actual = Buffer.from(signature, "base64url");
+    } catch {
+      throw new AuthHttpError(400, "invalid_withdrawal_token");
+    }
+    if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) {
+      throw new AuthHttpError(400, "invalid_withdrawal_token");
+    }
+    try {
+      const claims = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as Partial<WithdrawalClaims>;
+      if (
+        typeof claims.userId !== "string"
+        || typeof claims.paymentIntentId !== "string"
+        || typeof claims.expiresAt !== "number"
+        || claims.expiresAt <= Date.now()
+        || !normalizeConsumerName(claims.consumerName)
+        || typeof claims.electronicConfirmationAcceptedAt !== "string"
+        || !Number.isFinite(Date.parse(claims.electronicConfirmationAcceptedAt))
+      ) throw new Error("invalid claims");
+      return claims as WithdrawalClaims;
+    } catch {
+      throw new AuthHttpError(400, "invalid_withdrawal_token");
+    }
+  }
+
+  private async sendPurchaseConfirmationIfNeeded(
+    user: StoredUserProfile,
+    paymentIntentId: string,
+  ): Promise<void> {
+    const receipt = user.passReceipts.find((candidate) => candidate.id === paymentIntentId);
+    if (!receipt || receipt.purchaseConfirmationSentAt || receipt.amountEurCents === null) return;
+    const baseUrl = (this.appBaseUrl ?? "https://airco-tracker.eu").replace(/\/+$/, "");
+    await this.auth.sendPassPurchaseConfirmation(user, {
+      orderReference: receipt.checkoutSessionId ?? receipt.id,
+      tier: receipt.tier,
+      amountEurCents: receipt.amountEurCents,
+      purchasedAt: receipt.purchasedAt,
+      expiresAt: receipt.expiresAt,
+      termsVersion: receipt.termsVersion ?? this.legalConfiguration.termsVersion,
+      privacyVersion: receipt.privacyVersion ?? this.legalConfiguration.privacyVersion,
+      immediatePerformanceRequested: receipt.immediatePerformanceRequested === true,
+      withdrawalDeadline: withdrawalDeadline(receipt.purchasedAt),
+      withdrawalUrl: `${baseUrl}/withdrawal.html?lang=${receipt.checkoutLocale ?? user.languagePreference}`,
+      termsUrl: `${baseUrl}/terms.html?lang=${receipt.checkoutLocale ?? user.languagePreference}`,
+      privacyUrl: `${baseUrl}/privacy.html?lang=${receipt.checkoutLocale ?? user.languagePreference}`,
+      operatorName: this.legalConfiguration.operatorName ?? "Airco Tracker",
+      operatorAddress: this.legalConfiguration.operatorAddress ?? "Address available on the website imprint",
+      contactEmail: this.legalConfiguration.contactEmail ?? "support@airco-tracker.eu",
+      withdrawalEmail: this.legalConfiguration.withdrawalEmail
+        ?? this.legalConfiguration.contactEmail
+        ?? "support@airco-tracker.eu",
+      vatStatus: this.legalConfiguration.vatStatus ?? "not_registered",
+      vatId: this.legalConfiguration.vatId,
+    });
+    await this.auth.markPassPurchaseConfirmationSent(user.stripeCustomerId!, receipt.id);
+  }
+
+  private async completeWithdrawalSideEffects(userId: string, basePaymentIntentId: string): Promise<void> {
+    let user = await this.auth.findUserById(userId);
+    let receipt = user?.passReceipts.find((candidate) => candidate.id === basePaymentIntentId);
+    if (!user || !receipt || !receipt.withdrawalReference || !receipt.withdrawalRequestedAt) return;
+    if (receipt.kind === "purchase") {
+      const paymentIntent = await this.requireStripe().paymentIntents.retrieve(receipt.id, { expand: ["latest_charge"] });
+      const charge = typeof paymentIntent.latest_charge === "object" && paymentIntent.latest_charge
+        ? paymentIntent.latest_charge as Stripe.Charge
+        : paymentIntent.latest_charge
+          ? await this.requireStripe().charges.retrieve(paymentIntent.latest_charge)
+          : null;
+      if (charge) await this.refundLinkedUpgrades(charge);
+      user = await this.auth.findUserById(userId);
+      receipt = user?.passReceipts.find((candidate) => candidate.id === basePaymentIntentId);
+      if (!user || !receipt) return;
+    }
+    if (!receipt.withdrawalReference || !receipt.withdrawalRequestedAt) return;
+    if (receipt.withdrawalConfirmationSentAt) return;
+    if (!receipt.withdrawalConsumerName) return;
+    const refundedReceipts = [
+      receipt,
+      ...user.passReceipts.filter((candidate) => (
+        receipt.kind === "purchase"
+        && candidate.kind === "upgrade"
+        && candidate.baseReceiptId === receipt.id
+        && (candidate.status === "refunded" || candidate.status === "revoked")
+      )),
+    ].filter((candidate) => candidate.amountEurCents !== null);
+    const refundedItems = refundedReceipts.map((candidate) => ({
+      orderReference: candidate.checkoutSessionId ?? candidate.id,
+      kind: candidate.kind as "purchase" | "upgrade",
+      amountEurCents: candidate.amountEurCents!,
+    }));
+    const amountEurCents = refundedItems.reduce((sum, item) => sum + item.amountEurCents, 0);
+    await this.auth.sendWithdrawalConfirmation(user, {
+      orderReference: receipt.checkoutSessionId ?? receipt.id,
+      refundReference: receipt.withdrawalReference,
+      requestedAt: receipt.withdrawalRequestedAt,
+      amountEurCents,
+      refundedItems,
+      status: receipt.stripeRefundStatus ?? "pending",
+      operatorName: this.legalConfiguration.operatorName ?? "Airco Tracker",
+      consumerName: receipt.withdrawalConsumerName,
+      confirmationEmail: user.email,
+      contactEmail: this.legalConfiguration.withdrawalEmail
+        ?? this.legalConfiguration.contactEmail
+        ?? "support@airco-tracker.eu",
+    });
+    if (user.stripeCustomerId) {
+      await this.auth.markWithdrawalConfirmationSent(user.stripeCustomerId, receipt.id);
+    }
+  }
+
   private async ensureStripeCustomer(request: IncomingMessage, user: StoredUserProfile, lang: Lang): Promise<string> {
     const stripe = this.requireStripe();
     if (user.stripeCustomerId) {
@@ -228,7 +618,7 @@ export class StripeBillingService {
         return user.stripeCustomerId;
       } catch (error) {
         if (!isStripeResourceMissing(error)) throw error;
-        console.warn("Stored Stripe customer no longer exists; creating a replacement");
+        logWarn("stored_stripe_customer_missing_replacement_created", error);
       }
     }
 
@@ -260,6 +650,13 @@ export class StripeBillingService {
     const tier = session.metadata?.airco_entitlement_tier;
     const kind = session.metadata?.airco_purchase_kind;
     const baseReceiptId = session.metadata?.airco_base_receipt_id?.trim() || null;
+    const checkoutLocale = session.metadata?.airco_checkout_locale;
+    const termsVersion = session.metadata?.airco_terms_version;
+    const privacyVersion = session.metadata?.airco_privacy_version;
+    const acceptedAt = session.metadata?.airco_accepted_at;
+    const acceptedAtMillis = typeof acceptedAt === "string" ? Date.parse(acceptedAt) : NaN;
+    const metadataAmount = Number.parseInt(session.metadata?.airco_amount_eur_cents ?? "", 10);
+    const immediatePerformanceRequested = session.metadata?.airco_immediate_performance === "true";
     const expectedPriceId = kind === "upgrade" ? this.radarUpgradePriceId : (
       isPaidSubscriptionPlan(tier) ? this.priceIds[tier] : undefined
     );
@@ -269,6 +666,12 @@ export class StripeBillingService {
       || !isPaidSubscriptionPlan(tier)
       || !isPassPurchaseKind(kind)
       || !expectedPriceId
+      || !isCheckoutLocale(checkoutLocale)
+      || termsVersion !== this.legalConfiguration.termsVersion
+      || privacyVersion !== this.legalConfiguration.privacyVersion
+      || !Number.isFinite(acceptedAtMillis)
+      || acceptedAtMillis > Date.now() + 5 * 60 * 1000
+      || !immediatePerformanceRequested
       || (kind === "upgrade" && (!baseReceiptId || tier !== "radar"))
     ) {
       if (paymentIntentId) {
@@ -293,6 +696,7 @@ export class StripeBillingService {
       || onlyLine.amount_total !== expectedAmount
       || session.currency !== "eur"
       || session.amount_total !== expectedAmount
+      || metadataAmount !== expectedAmount
     ) {
       await this.refundInvalidPassPayment(paymentIntentId, "invalid-price");
       return null;
@@ -349,11 +753,18 @@ export class StripeBillingService {
       userId,
       stripeCustomerId: customerId,
       stripePaymentIntentId: paymentIntentId,
+      checkoutSessionId: session.id,
       kind,
       baseReceiptId,
       tier,
       expiresAt,
       purchasedAt,
+      amountEurCents: expectedAmount,
+      checkoutLocale,
+      termsVersion,
+      privacyVersion,
+      acceptedAt: new Date(acceptedAtMillis).toISOString(),
+      immediatePerformanceRequested: true,
       paymentBrand: paymentDetails.paymentBrand,
       paymentLast4: paymentDetails.paymentLast4,
     };
@@ -363,6 +774,7 @@ export class StripeBillingService {
         await this.refundInvalidPassPayment(paymentIntentId, "missing-owner");
         return null;
       }
+      await this.sendPurchaseConfirmationIfNeeded(updated, paymentIntentId);
       await this.expireOtherOpenCheckoutSessions(customerId, session.id);
       return updated;
     } catch (error) {
@@ -384,14 +796,12 @@ export class StripeBillingService {
   private async refundInvalidPassPayment(paymentIntentId: string, reason: string): Promise<Stripe.Refund> {
     return this.createAutomaticRefund(
       paymentIntentId,
-      reason,
       `airco-pass-refund-${reason}-${paymentIntentId}`,
     );
   }
 
   private async createAutomaticRefund(
     paymentIntentId: string,
-    reason: string,
     idempotencyKey: string,
   ): Promise<Stripe.Refund> {
     const refund = await this.requireStripe().refunds.create(
@@ -400,13 +810,16 @@ export class StripeBillingService {
     );
     if (refund.status === "succeeded") return refund;
     if (refund.status === "pending") {
-      console.warn("automatic_refund_pending", { refundId: refund.id, paymentIntentId, reason });
+      logWarn("automatic_refund_pending", undefined, {
+        refundHash: hashProviderIdentifier(refund.id),
+        paymentIntentHash: hashProviderIdentifier(paymentIntentId),
+        status: refund.status ?? "pending",
+      });
       return refund;
     }
-    console.error("automatic_refund_not_accepted", {
-      refundId: refund.id,
-      paymentIntentId,
-      reason,
+    logError("automatic_refund_not_accepted", undefined, {
+      refundHash: hashProviderIdentifier(refund.id),
+      paymentIntentHash: hashProviderIdentifier(paymentIntentId),
       status: refund.status ?? "unknown",
     });
     throw new AuthHttpError(502, "automatic_refund_failed");
@@ -430,6 +843,89 @@ export class StripeBillingService {
     const paymentIntentId = stripeObjectId(charge.payment_intent);
     if (!customerId || !paymentIntentId) return;
     await this.auth.revokeStripePassEntitlement(customerId, paymentIntentId, status);
+  }
+
+  private async reconcileConsumerWithdrawal(refund: Stripe.Refund, charge: Stripe.Charge): Promise<void> {
+    const customerId = stripeObjectId(charge.customer);
+    const paymentIntentId = stripeObjectId(refund.payment_intent) || stripeObjectId(charge.payment_intent);
+    if (!customerId || !paymentIntentId) return;
+    const user = await this.auth.findUserByStripeCustomerId(customerId);
+    const receipt = user?.passReceipts.find((candidate) => candidate.id === paymentIntentId);
+    if (!user || !receipt?.withdrawalReference || !receipt.withdrawalRequestedAt) return;
+    const updated = await this.auth.recordPassWithdrawal(customerId, paymentIntentId, {
+      requestedAt: receipt.withdrawalRequestedAt,
+      reference: receipt.withdrawalReference,
+      stripeRefundId: refund.id,
+      stripeRefundStatus: refund.status ?? "pending",
+      receiptStatus: refund.status === "succeeded" ? "refunded" : "revoked",
+    });
+    if (updated) await this.completeWithdrawalSideEffects(updated.userId, paymentIntentId);
+  }
+
+  private async refreshPersistedConsumerWithdrawal(
+    customerId: string | null,
+    paymentIntentId: string,
+    refundId: string,
+  ): Promise<{ refundStatus: string; user: StoredUserProfile }> {
+    if (!customerId) throw new AuthHttpError(409, "withdrawal_order_not_refundable");
+    const refund = await this.requireStripe().refunds.retrieve(refundId);
+    const current = await this.auth.findUserByStripeCustomerId(customerId);
+    const receipt = current?.passReceipts.find((candidate) => candidate.id === paymentIntentId);
+    if (!current || !receipt?.withdrawalReference || !receipt.withdrawalRequestedAt) {
+      throw new AuthHttpError(404, "withdrawal_order_not_found");
+    }
+    const refundStatus = refund.status ?? "pending";
+    const receiptStatus = refundStatus === "succeeded"
+      ? "refunded"
+      : refundStatusAllowsRetry(refundStatus)
+        ? "active"
+        : "revoked";
+    const updated = await this.auth.recordPassWithdrawal(customerId, paymentIntentId, {
+      requestedAt: receipt.withdrawalRequestedAt,
+      reference: receipt.withdrawalReference,
+      stripeRefundId: refund.id,
+      stripeRefundStatus: refundStatus,
+      receiptStatus,
+    });
+    if (!updated) throw new AuthHttpError(404, "withdrawal_order_not_found");
+    return { refundStatus, user: updated };
+  }
+
+  private async chargeForRefund(refund: Stripe.Refund): Promise<Stripe.Charge | null> {
+    const chargeId = stripeObjectId(refund.charge);
+    if (chargeId) return this.requireStripe().charges.retrieve(chargeId);
+    const paymentIntentId = stripeObjectId(refund.payment_intent);
+    if (!paymentIntentId) return null;
+    const paymentIntent = await this.requireStripe().paymentIntents.retrieve(paymentIntentId, {
+      expand: ["latest_charge"],
+    });
+    if (typeof paymentIntent.latest_charge === "object" && paymentIntent.latest_charge) {
+      return paymentIntent.latest_charge as Stripe.Charge;
+    }
+    return paymentIntent.latest_charge
+      ? this.requireStripe().charges.retrieve(paymentIntent.latest_charge)
+      : null;
+  }
+
+  private async reconcileRetryableConsumerWithdrawal(
+    refund: Stripe.Refund,
+    charge: Stripe.Charge,
+  ): Promise<"reconciled" | "stale" | "unrelated"> {
+    const customerId = stripeObjectId(charge.customer);
+    const paymentIntentId = stripeObjectId(refund.payment_intent) || stripeObjectId(charge.payment_intent);
+    if (!customerId || !paymentIntentId) return "unrelated";
+    const user = await this.auth.findUserByStripeCustomerId(customerId);
+    const receipt = user?.passReceipts.find((candidate) => candidate.id === paymentIntentId);
+    if (!user || !receipt?.withdrawalReference || !receipt.withdrawalRequestedAt) return "unrelated";
+    if (receipt.stripeRefundId && receipt.stripeRefundId !== refund.id) return "stale";
+    await this.auth.recordPassWithdrawal(customerId, paymentIntentId, {
+      requestedAt: receipt.withdrawalRequestedAt,
+      reference: receipt.withdrawalReference,
+      stripeRefundId: refund.id,
+      stripeRefundStatus: refund.status ?? "failed",
+      receiptStatus: "active",
+    });
+    return "reconciled";
   }
 
   private async restoreFromCharge(charge: Stripe.Charge): Promise<void> {
@@ -525,7 +1021,6 @@ export class StripeBillingService {
       if (!charge?.refunded) {
         const refund = await this.createAutomaticRefund(
           upgradePaymentIntentId,
-          "base-payment-reversed",
           `airco-linked-upgrade-refund-${basePaymentIntentId}-${upgradePaymentIntentId}`,
         );
         await this.auth.revokeStripePassEntitlement(
@@ -550,7 +1045,7 @@ export class StripeBillingService {
         .filter((candidate) => candidate.id !== completedSessionId)
         .map((candidate) => this.requireStripe().checkout.sessions.expire(candidate.id)));
     } catch (error) {
-      console.warn("Unable to expire superseded Stripe Checkout sessions", error);
+      logWarn("superseded_checkout_expiry_failed", error);
     }
   }
 
@@ -590,6 +1085,8 @@ export function stripeBillingFromEnvironment(auth: AuthService): StripeBillingSe
       radar: process.env[PRICE_ENV_BY_PLAN.radar]?.trim() || undefined,
     },
     radarUpgradePriceId: process.env[RADAR_UPGRADE_PRICE_ENV]?.trim() || undefined,
+    legalConfiguration: legalConfigurationFromEnvironment(),
+    withdrawalSigningKey: process.env.WITHDRAWAL_SIGNING_KEY?.trim() || undefined,
   });
 }
 
@@ -682,13 +1179,14 @@ function checkoutIdempotencyKey(
   plan: PaidSubscriptionPlan,
   kind: PassPurchaseKind,
   lang: Lang,
+  legal: CheckoutLegalAcceptance,
   now = Date.now(),
 ): string {
   const bucket = Math.floor(now / CHECKOUT_SESSION_TTL_SECONDS / 1000);
   const entitlementVersion = user.entitlementPurchasedAt
     ? Buffer.from(user.entitlementPurchasedAt).toString("base64url")
     : "new";
-  return `airco-pass-${user.userId}-${plan}-${kind}-${lang}-${entitlementVersion}-${bucket}`;
+  return `airco-pass-${user.userId}-${plan}-${kind}-${lang}-${legal.termsVersion}-${legal.privacyVersion}-${entitlementVersion}-${bucket}`;
 }
 
 function checkoutSessionExpiresAt(now = Date.now()): number {
@@ -699,4 +1197,50 @@ function checkoutSessionExpiresAt(now = Date.now()): number {
 function isStripeResourceMissing(error: unknown): boolean {
   return error instanceof Stripe.errors.StripeInvalidRequestError
     && error.code === "resource_missing";
+}
+
+function isCheckoutLocale(value: unknown): value is Lang {
+  return value === "zh" || value === "nl" || value === "en" || value === "fr";
+}
+
+function normalizeOrderReference(value: unknown): string {
+  const reference = typeof value === "string" ? value.trim() : "";
+  if (!reference) return "";
+  if (!/^(?:cs_(?:test|live)_|pi_)[A-Za-z0-9_]+$/.test(reference) || reference.length > 255) {
+    throw new AuthHttpError(400, "invalid_order_reference");
+  }
+  return reference;
+}
+
+function normalizeConsumerName(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().replace(/\s+/g, " ");
+  if (!normalized || normalized.length > 200 || !/[\p{L}\p{N}]/u.test(normalized)) return null;
+  return normalized;
+}
+
+function withdrawalDeadline(purchasedAt: string): string {
+  const purchasedAtMillis = Date.parse(purchasedAt);
+  if (!Number.isFinite(purchasedAtMillis)) throw new AuthHttpError(409, "withdrawal_order_not_eligible");
+  return new Date(purchasedAtMillis + PASS_WITHDRAWAL_DAYS * 24 * 60 * 60 * 1000).toISOString();
+}
+
+function assertWithdrawalEligible(receipt: StoredUserProfile["passReceipts"][number]): void {
+  if (
+    receipt.kind === "legacy"
+    || receipt.amountEurCents === null
+    || receipt.status !== "active"
+    || (receipt.stripeRefundId && !refundStatusAllowsRetry(receipt.stripeRefundStatus))
+    || Date.parse(withdrawalDeadline(receipt.purchasedAt)) <= Date.now()
+  ) {
+    throw new AuthHttpError(409, "withdrawal_order_not_eligible");
+  }
+}
+
+function refundStatusAllowsRetry(status: string | null): boolean {
+  return status === "failed" || status === "canceled";
+}
+
+function refundStatusIsAccepted(status: string | null): boolean {
+  return status === "pending" || status === "succeeded";
 }

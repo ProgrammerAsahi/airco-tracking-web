@@ -5,7 +5,7 @@
   <a href="./SUBSCRIPTION_BILLING_TEST_PLAN.en.md"><img alt="English" src="https://img.shields.io/badge/TEST_PLAN-English-0969da"></a>
 </p>
 
-最后更新：2026-07-17
+最后更新：2026-07-22
 
 本文件跟踪门户、登录、一次性 Stripe 支付、90 天权益和实时库存访问控制的端到端测试。任何场景、状态或测试记录变化时，都必须同步更新中英文版本。
 
@@ -20,7 +20,7 @@
 - Webhook：Stripe destination `airco-tracker-pass-webhook` → `https://airco-tracker.eu/api/billing/webhook`
 - Webhook 只订阅八个 events：`checkout.session.completed`、`checkout.session.async_payment_succeeded`、`charge.refunded`、`refund.created`、`refund.updated`、`refund.failed`、`charge.dispute.created`、`charge.dispute.closed`
 - 支付方式：第一阶段只启用信用卡；卡号由 Stripe Checkout 托管，Airco Tracker 不读取或保存完整卡号。
-- 当前仍是 Sandbox/test mode。切换真实收款前必须完成 VAT/税务、消费者撤回权、退款政策、条款/隐私文案和结账披露的合规确认。
+- 当前仍是 Sandbox/test mode。结账证据、购买确认邮件、在线撤回、全额退款和真实收款 fail-closed 闸门已经实现；经营者身份、注册/VAT、地址和联系信息完成核实并明确批准生产上线前，真实收款保持关闭。
 
 | 产品 | 权益 | 价格 | 有效期 | Stripe test Price ID |
 | --- | --- | ---: | ---: | --- |
@@ -29,6 +29,8 @@
 | Alerts → Radar upgrade | 增加实时库存；沿用原到期日 | €5 一次性 | 原 Alerts 到期日 | `price_1TtoG10XRx7WeBOsvsvaarrD` |
 
 Canonical 权益以 `tier`、`status`、`purchasedAt`、`expiresAt` 和最小化的支付 receipt ledger 表达。Stripe Customer、Checkout Session 和 PaymentIntent 标识只能保存在私有服务端数据中，不能出现在 public profile 或 `alertrecipients` 投影中。
+
+购买与撤回确认把同一 receipt ledger 用作持久 aggregate outbox：未写入的 `*ConfirmationSentAt` 即为待投递；只有邮件服务商确认接收后才写 marker。因此重放可实现 at-least-once 投递（仅在服务商已接收、但随后的 CAS marker 写入失败时可能重复）。每封邮件带稳定的 `X-Airco-Delivery-Key` 便于关联。消费者撤回采用两阶段状态机：先持久化请求/参考号，再用固定 idempotency key 调用 Stripe；若远端成功后本地写入失败，refund webhook 可自动对账恢复。
 
 ## P0：首次购买与返回站内
 
@@ -55,7 +57,9 @@ Canonical 权益以 `tier`、`status`、`purchasedAt`、`expiresAt` 和最小化
 | ⬜ | 到期边界 | `expiresAt` 前最后一刻仍有权益；到点后邮件投影和实时库存权限立即关闭 | 待测 |
 | ⬜ | 到期后重新购买 | 可购买任一 Pass；从新支付时间获得新的 90 天有效期 | 待测 |
 | ⬜ | 有效 Pass 时注销账户 | 服务端拒绝注销，并明确显示到期日 | 待测 |
-| ⬜ | 无 Pass 或 Pass 到期后注销 | 账户、session 和提醒投影被删除；Stripe 支付记录不被伪造删除 | 待测 |
+| ✅ | 无 Pass 且从未产生付费订单证据时注销 | 删除登录 profile、各索引、session 和提醒收件人投影 | 2026-07-22 服务端自动化测试 |
+| ✅ | 付费 Pass 到期或退款后注销 | 删除前先持久化独立的去标识化法律账本并写明 `retentionUntil`；仅保留必要合同、付款、退款与撤回证据，不含邮箱、昵称、偏好、提醒设置、卡品牌或后四位 | 2026-07-22 服务端自动化测试 |
+| ✅ | Stripe 客户删除成功但本地删除短暂失败 | 重试保持幂等：复用已持久化法律账本、容忍 Stripe 客户已不存在，并可继续完成本地账户删除且不丢失审计证据 | 2026-07-22 服务端自动化测试 |
 
 ## P0：访问控制与偏好
 
@@ -68,6 +72,8 @@ Canonical 权益以 `tier`、`status`、`purchasedAt`、`expiresAt` 和最小化
 | ⬜ | Radar 用户切换国家 | 权益不变，库存路由和站点列表随国家变化 | 待测 |
 | ⬜ | Header 临时切换语言 | 当前页面即时切换；不覆盖 Profile 持久化偏好 | 待测 |
 | ⬜ | Profile 保存语言 | Profile、Ready、库存、验证码邮件、提醒邮件与 Stripe locale 一致 | 待测 |
+| ✅ | 浏览器对认证写接口发送缺少 `Origin`、同站不同源或跨站 `Origin` 的请求 | 默认拒绝；只有与当前站点完全一致的 `Origin` 才可通过 | 2026-07-22 request-security 自动化测试 |
+| ✅ | 可信非浏览器客户端调用认证写接口 | 仅在没有浏览器 Fetch Metadata 且携带 `X-Airco-Api-Client: trusted-non-browser-v1` 时通过 | 2026-07-22 request-security 自动化测试 |
 
 ## P0：Webhook、退款和争议
 
@@ -87,6 +93,22 @@ Canonical 权益以 `tier`、`status`、`purchasedAt`、`expiresAt` 和最小化
 | ⬜ | `charge.dispute.closed` 胜诉 | 仅恢复仍有效、归属正确的 receipt；不重复延长到期日 | 待测 |
 | ⬜ | 失败/成功/退款事件乱序到达 | 最终状态由 receipt ledger 收敛，不被旧事件覆盖 | 待测 |
 | ⏸️ | 多标签页并发支付 | 最终仅保留合法 receipt，重复购买被退款或拒绝 | 边界测试暂缓 |
+
+## P0：消费者信息、购买确认与撤回
+
+| 状态 | 场景 | 预期结果 | 记录 |
+| --- | --- | --- | --- |
+| ✅ | Test/未知 live key 闸门 | test key 可使用沙盒配置；受限 live key 和未知格式 key 必须同时具备全部已核实法律字段、生产批准和撤回签名密钥，否则 fail closed | 2026-07-22 自动化 server test |
+| ✅ | 结账同意证据 | Terms/Privacy 版本、接受时间、立即履行请求、用户 UUID、产品、金额和期限写入 Checkout 与 PaymentIntent metadata，且不写用户邮箱 | 2026-07-22 自动化 server test |
+| ✅ | 持久购买确认 | 邮件自包含准确产品、一次性金额、90 天/upgrade 期限、到期日、VAT 状态、经营者/联系方式、法律版本、服务限制、撤回期限、在线入口和欧盟示范表格 | 2026-07-22 四语邮件测试 |
+| ✅ | 退出登录后的撤回验证 | 未登录用户必须先用 OTP 验证账户邮箱，才能预览符合条件的订单；验证前响应不暴露账户或订单详情 | 2026-07-22 自动化 server test |
+| ✅ | 签名撤回 token | preview 返回绑定用户和 PaymentIntent 的短时 HMAC token；篡改或过期 token 不能发起退款 | 2026-07-22 自动化 server test |
+| ⬜ | 生产 test-mode 在线撤回 | 14 天内退出登录，通过公开表格提交；指定订单退款、权益立即重算，并收到确认邮件 | 待部署后验证 |
+| ⬜ | Radar upgrade 后撤回基础 Alerts | 基础购买和关联 upgrade 均全额退款；确认邮件逐项列出并显示总额；不留下孤立 Radar 权益 | 待部署后验证 |
+| ⬜ | 仅撤回 upgrade | upgrade 退款、Radar 权限移除，仍已付款且未到期的 Alerts 权益保留 | 待部署后验证 |
+| ✅ | 重复确认同一撤回 | 相同 token/请求保持幂等，不产生第二笔 Stripe refund 或重复权益变更 | 2026-07-22 故障注入 server test；生产 smoke 仍待验证 |
+| ⬜ | 超过 14 天提交 | 自动撤回流程拒绝，并提供客服/联系渠道，不修改权益 | 待部署后验证 |
+| ✅ | 购买/撤回邮件故障 | Stripe webhook 或回站同步会重试未发送确认；权益/退款状态不依赖误导性的成功邮件 | 2026-07-22 邮件/marker 与退款审计故障注入 server test |
 
 ## P1：支付失败与 3D Secure
 
@@ -128,4 +150,4 @@ Canonical 权益以 `tier`、`status`、`purchasedAt`、`expiresAt` 和最小化
 2. 清空或到期该测试账户后，单独购买 Radar，验证 90 天权益和实时库存。
 3. 执行 3D Secure、失败卡、到期边界、乱序 webhook 与并发场景。
 4. 单独验证三笔 legacy subscription 到期时的 entitlement migration，确认不会被旧事件覆盖。
-5. 完成 VAT/税务、撤回权、退款、条款/隐私和 checkout disclosure 后，才能评估切换 Stripe live mode。
+5. 核实最终经营者、注册/VAT、地址和联系方式，必要时取得法律审阅，写入生产环境并明确批准 live-payment 闸门后，才能评估切换 Stripe live mode。

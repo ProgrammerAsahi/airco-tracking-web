@@ -1,0 +1,70 @@
+:root {
+  color: #10293f;
+  background: #edf8fc;
+  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-synthesis: none;
+}
+
+* { box-sizing: border-box; }
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  background:
+    radial-gradient(circle at 10% 8%, rgba(45, 212, 239, .2), transparent 28rem),
+    radial-gradient(circle at 92% 88%, rgba(14, 130, 186, .15), transparent 30rem),
+    linear-gradient(145deg, #f8fdff, #e6f4f9);
+}
+a { color: #075b8d; }
+.legal-shell { width: min(100% - 32px, 980px); margin: 0 auto; padding: 24px 0 56px; }
+.legal-header {
+  display: flex; align-items: center; justify-content: space-between; gap: 20px;
+  padding: 10px 14px; border: 1px solid rgba(7, 59, 90, .1); border-radius: 22px;
+  background: rgba(255, 255, 255, .86); box-shadow: 0 14px 40px rgba(7, 59, 90, .08);
+}
+.legal-brand { display: inline-flex; align-items: center; gap: 10px; color: #10293f; font-weight: 830; text-decoration: none; }
+.legal-brand img { width: 42px; height: 42px; padding: 6px; border-radius: 14px; background: #f8fdff; }
+.legal-languages { display: flex; flex-wrap: wrap; gap: 4px; }
+.legal-languages a { padding: 8px 10px; border-radius: 10px; color: #416173; font-size: .78rem; font-weight: 760; text-decoration: none; text-transform: uppercase; }
+.legal-languages a[aria-current="page"] { color: #fff; background: #073b5a; }
+.legal-card {
+  margin-top: 34px; padding: clamp(26px, 6vw, 62px); border: 1px solid rgba(7, 59, 90, .1);
+  border-radius: 34px; background: rgba(255, 255, 255, .92); box-shadow: 0 24px 70px rgba(7, 59, 90, .12);
+}
+.legal-eyebrow { margin: 0 0 14px; color: #0d78ad; font-size: .77rem; font-weight: 840; letter-spacing: .12em; text-transform: uppercase; }
+h1 { max-width: 760px; margin: 0; color: #073b5a; font-family: ui-serif, Georgia, serif; font-size: clamp(2.3rem, 6vw, 4.8rem); line-height: 1; letter-spacing: -.045em; }
+.legal-lead { max-width: 760px; margin: 22px 0 0; color: #315268; font-size: 1.12rem; line-height: 1.65; }
+.legal-version { margin: 14px 0 0; color: #6d8798; font-size: .88rem; font-weight: 700; }
+.legal-warning { margin: 22px 0 0; padding: 14px 16px; border: 1px solid #e8a82b; border-radius: 15px; color: #704b00; background: #fff8e8; line-height: 1.55; }
+.legal-sections { display: grid; gap: 28px; margin-top: 38px; }
+.legal-section { padding-top: 26px; border-top: 1px solid rgba(7, 59, 90, .1); }
+.legal-section h2 { margin: 0 0 10px; color: #073b5a; font-size: 1.3rem; }
+.legal-section p { margin: 0; color: #4d6879; line-height: 1.75; white-space: pre-line; }
+.legal-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 34px; }
+.legal-button { display: inline-flex; min-height: 48px; align-items: center; justify-content: center; padding: 0 18px; border: 1px solid rgba(7, 59, 90, .14); border-radius: 15px; color: #075b8d; background: #f8fdff; font-weight: 780; text-decoration: none; }
+.legal-button--primary { color: #fff; border: 0; background: linear-gradient(135deg, #10293f, #0e82ba 60%, #2dd4ef); }
+.legal-footer { margin: 28px 0 0; color: #718897; font-size: .85rem; text-align: center; }
+.withdrawal-form { display: grid; gap: 16px; margin-top: 30px; }
+.withdrawal-form label { display: grid; gap: 7px; color: #315268; font-weight: 730; }
+.withdrawal-form input:not([type="checkbox"]) { width: 100%; min-height: 50px; padding: 0 14px; border: 1px solid rgba(7, 59, 90, .18); border-radius: 14px; color: #10293f; background: #fff; font: inherit; }
+.withdrawal-confirmation-consent { display: grid !important; grid-template-columns: auto 1fr; align-items: start; gap: 10px; font-weight: 600 !important; line-height: 1.45; }
+.withdrawal-confirmation-consent input { width: 20px; height: 20px; margin-top: 1px; accent-color: #075b8d; }
+.withdrawal-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; }
+.withdrawal-row button, .withdrawal-form > button { min-height: 50px; padding: 0 18px; border: 0; border-radius: 14px; color: #fff; background: #075b8d; font: inherit; font-weight: 790; cursor: pointer; }
+.withdrawal-row button:disabled, .withdrawal-form > button:disabled { opacity: .5; cursor: not-allowed; }
+.withdrawal-summary { padding: 18px; border-radius: 18px; background: #edf9fc; color: #294b60; line-height: 1.7; }
+.withdrawal-message { min-height: 24px; color: #315268; font-weight: 680; }
+.withdrawal-message--error { color: #b4233c; }
+.withdrawal-noscript { display: none; }
+.withdrawal-noscript-copy { display: none; }
+.no-js .legal-card > :not(noscript) { display: none; }
+.no-js .withdrawal-noscript { display: block; }
+.withdrawal-noscript-copy h1 { font-size: clamp(2rem, 6vw, 3.8rem); }
+html[lang="en"] .withdrawal-noscript-copy[lang="en"],
+html[lang="nl"] .withdrawal-noscript-copy[lang="nl"],
+html[lang="fr"] .withdrawal-noscript-copy[lang="fr"],
+html[lang="zh-CN"] .withdrawal-noscript-copy[lang="zh"] { display: block; }
+@media (max-width: 620px) {
+  .legal-header { align-items: flex-start; flex-direction: column; }
+  .withdrawal-row { grid-template-columns: 1fr; }
+}

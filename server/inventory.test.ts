@@ -28,14 +28,21 @@ const validSnapshot = {
   updated_at: "2026-07-03T15:51:05+00:00",
   refresh_interval_seconds: 600,
   site_count: 1,
+  verified_site_count: 1,
   stale_site_count: 0,
   available_product_count: 2,
   immediate_product_count: 1,
   presale_product_count: 1,
+  inventory_confidence: "verified",
+  stale_diagnostic_max_age_seconds: 86400,
   sites: {
     "nl:Shop": {
       status: "ok",
       stale: false,
+      freshness: "verified",
+      counts_toward_totals: true,
+      stale_age_seconds: 0,
+      stale_too_old: false,
       country: "nl",
       site: "Shop",
       site_id: "nl:Shop",
@@ -207,6 +214,47 @@ test("rejects stale site count mismatches", () => {
   const mismatched = structuredClone(validSnapshot);
   Reflect.set(mismatched, "stale_site_count", 1);
   assert.throws(() => parseInventory(JSON.stringify(mismatched)), /stale_site_count mismatch/);
+});
+
+test("accepts retained stale diagnostics while excluding them from verified totals", () => {
+  const withStale = structuredClone(validSnapshot);
+  Reflect.set(withStale, "site_count", 2);
+  Reflect.set(withStale, "stale_site_count", 1);
+  Reflect.set(withStale, "inventory_confidence", "partial");
+  Reflect.set(withStale.sites, "nl:Stale shop", {
+    ...structuredClone(validSnapshot.sites["nl:Shop"]),
+    status: "error",
+    stale: true,
+    freshness: "stale",
+    counts_toward_totals: false,
+    stale_age_seconds: 1200,
+    stale_too_old: false,
+    site: "Stale shop",
+    site_id: "nl:Stale shop",
+    products: [
+      { ...validProduct, site: "Stale shop", site_id: "nl:Stale shop", url: "https://stale-shop.test/airco" },
+    ],
+    available_product_count: 1,
+    immediate_product_count: 1,
+    presale_product_count: 0,
+  });
+
+  const snapshot = parseInventory(JSON.stringify(withStale));
+  assert.equal(snapshot.available_product_count, 2);
+  assert.equal(snapshot.verified_site_count, 1);
+  assert.equal(snapshot.sites["nl:Stale shop"].counts_toward_totals, false);
+});
+
+test("rejects totals that include stale diagnostic products", () => {
+  const malformed = structuredClone(validSnapshot);
+  Reflect.set(malformed.sites["nl:Shop"], "stale", true);
+  Reflect.set(malformed.sites["nl:Shop"], "status", "error");
+  Reflect.set(malformed.sites["nl:Shop"], "freshness", "stale");
+  Reflect.set(malformed.sites["nl:Shop"], "counts_toward_totals", false);
+  Reflect.set(malformed, "verified_site_count", 0);
+  Reflect.set(malformed, "stale_site_count", 1);
+  Reflect.set(malformed, "inventory_confidence", "unavailable");
+  assert.throws(() => parseInventory(JSON.stringify(malformed)), /available_product_count mismatch/);
 });
 
 test("rejects product site mismatches", () => {

@@ -47,8 +47,12 @@ jobs:
           bash -n scripts/*.sh
 
       - name: Audit npm dependencies
-        continue-on-error: true
-        run: pnpm audit --prod
+        run: pnpm audit --prod --audit-level high
+
+      - name: Run browser accessibility smoke tests
+        run: |
+          pnpm exec playwright install --with-deps chromium
+          pnpm test:e2e
 
       - name: Compile Bicep templates
         run: |
@@ -69,12 +73,37 @@ jobs:
           AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
           IMAGE_TAG: ${{ github.sha }}
           APP_BASE_URL: ${{ vars.APP_BASE_URL || 'https://airco-tracker.eu' }}
+          AUTH_EMAIL_CODE_BUDGET_PER_HOUR: ${{ vars.AUTH_EMAIL_CODE_BUDGET_PER_HOUR || '5' }}
+          AUTH_IP_CODE_BUDGET_PER_HOUR: ${{ vars.AUTH_IP_CODE_BUDGET_PER_HOUR || '20' }}
+          AUTH_GLOBAL_CODE_BUDGET_PER_HOUR: ${{ vars.AUTH_GLOBAL_CODE_BUDGET_PER_HOUR || '1000' }}
+          AUTH_CODE_HMAC_PEPPER_VERSION: ${{ vars.AUTH_CODE_HMAC_PEPPER_VERSION || 'v1' }}
           ACS_EMAIL_DOMAIN_NAME: ${{ vars.ACS_EMAIL_DOMAIN_NAME || 'AzureManagedDomain' }}
           STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
           STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
           STRIPE_PRICE_ALERTS_PASS: ${{ vars.STRIPE_PRICE_ALERTS_PASS }}
           STRIPE_PRICE_RADAR_PASS: ${{ vars.STRIPE_PRICE_RADAR_PASS }}
           STRIPE_PRICE_RADAR_UPGRADE: ${{ vars.STRIPE_PRICE_RADAR_UPGRADE }}
+          LEGAL_OPERATOR_NAME: ${{ secrets.LEGAL_OPERATOR_NAME }}
+          LEGAL_OPERATOR_ADDRESS: ${{ secrets.LEGAL_OPERATOR_ADDRESS }}
+          LEGAL_PUBLICATION_DIRECTOR: ${{ secrets.LEGAL_PUBLICATION_DIRECTOR }}
+          LEGAL_HOST_NAME: ${{ secrets.LEGAL_HOST_NAME }}
+          LEGAL_HOST_ADDRESS: ${{ secrets.LEGAL_HOST_ADDRESS }}
+          LEGAL_HOST_PHONE: ${{ secrets.LEGAL_HOST_PHONE }}
+          LEGAL_CONTACT_EMAIL: ${{ secrets.LEGAL_CONTACT_EMAIL }}
+          LEGAL_CONTACT_PHONE: ${{ secrets.LEGAL_CONTACT_PHONE }}
+          LEGAL_PRIVACY_EMAIL: ${{ secrets.LEGAL_PRIVACY_EMAIL }}
+          LEGAL_WITHDRAWAL_EMAIL: ${{ secrets.LEGAL_WITHDRAWAL_EMAIL }}
+          LEGAL_FR_MEDIATOR_NAME: ${{ secrets.LEGAL_FR_MEDIATOR_NAME }}
+          LEGAL_FR_MEDIATOR_ADDRESS: ${{ secrets.LEGAL_FR_MEDIATOR_ADDRESS }}
+          LEGAL_FR_MEDIATOR_URL: ${{ secrets.LEGAL_FR_MEDIATOR_URL }}
+          LEGAL_BUSINESS_REGISTRATION_STATUS: ${{ secrets.LEGAL_BUSINESS_REGISTRATION_STATUS }}
+          LEGAL_BUSINESS_REGISTRATION_LEGAL_CONFIRMATION: ${{ vars.LEGAL_BUSINESS_REGISTRATION_LEGAL_CONFIRMATION || 'false' }}
+          LEGAL_KVK_NUMBER: ${{ secrets.LEGAL_KVK_NUMBER }}
+          LEGAL_VAT_STATUS: ${{ secrets.LEGAL_VAT_STATUS }}
+          LEGAL_VAT_ID: ${{ secrets.LEGAL_VAT_ID }}
+          LEGAL_PRODUCTION_READY: ${{ vars.LEGAL_PRODUCTION_READY || 'false' }}
+          LEGAL_RECORD_RETENTION_YEARS: ${{ vars.LEGAL_RECORD_RETENTION_YEARS || '7' }}
+          LEGAL_RECORD_RETENTION_BASIS_CONFIRMED: ${{ vars.LEGAL_RECORD_RETENTION_BASIS_CONFIRMED || 'false' }}
         run: ./scripts/deploy.sh
 
       - name: Write deployment summary

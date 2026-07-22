@@ -3,14 +3,20 @@ if (!appUrl) {
   console.error("Usage: node scripts/verify-deployment.mjs <app-url>");
   process.exit(2);
 }
+const appOrigin = new URL(appUrl).origin;
 
 const deadline = Date.now() + 8 * 60 * 1000;
 let lastError;
 
 while (Date.now() < deadline) {
   try {
-    const health = await fetch(`${appUrl}/health`);
+    const health = await fetch(`${appUrl}/health`, { signal: AbortSignal.timeout(15_000) });
     if (!health.ok) throw new Error(`health returned ${health.status}`);
+
+    const readiness = await fetch(`${appUrl}/ready`, { signal: AbortSignal.timeout(15_000) });
+    if (!readiness.ok) throw new Error(`readiness returned ${readiness.status}`);
+    const readinessBody = await readiness.json();
+    if (readinessBody?.status !== "ready") throw new Error("readiness did not confirm the inventory dependency");
 
     const homepage = await fetch(`${appUrl}/`, { signal: AbortSignal.timeout(15_000) });
     if (!homepage.ok) throw new Error(`homepage returned ${homepage.status}`);
@@ -59,7 +65,7 @@ while (Date.now() < deadline) {
     ]) {
       const retiredResponse = await fetch(`${appUrl}${retiredEndpoint.path}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Origin: appOrigin },
         body: "{}",
         signal: AbortSignal.timeout(15_000),
       });

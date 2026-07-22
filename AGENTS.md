@@ -7,7 +7,7 @@
 
 ## Mission
 
-Maintain a fast, low-cost, public inventory dashboard for portable air conditioners deliverable in the Netherlands. Present the private `airco-tracking` live snapshot clearly without exposing Azure credentials or making Blob Storage public.
+Maintain the multilingual Airco Tracker service for portable air conditioners deliverable to supported countries, currently France and the Netherlands. The public portal and legal pages remain broadly accessible, while live inventory is restricted to authenticated subscribers with the required entitlement. Present the private `airco-tracking` snapshot without exposing Azure credentials or making Blob Storage public.
 
 ## Read first
 
@@ -28,7 +28,7 @@ Maintain a fast, low-cost, public inventory dashboard for portable air condition
 - Keep the Blob container private. The Node service reads `inventory.json` with a user-assigned Managed Identity.
 - GitHub Actions authenticates to Azure with OIDC. Do not add `AZURE_CREDENTIALS` or a service-principal password.
 - Only non-secret identifiers belong in GitHub Actions Variables: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, and `AZURE_RESOURCE_GROUP`.
-- Reuse the existing least-privilege runtime identity and infrastructure where possible. Do not broaden Azure roles without a concrete need and explicit authorization.
+- Keep runtime identities separated by workload. The web app may read inventory and user/session data needed by the request path; the retention job uses its own identity and only receives the table permissions needed for cleanup. Do not broaden Azure roles without a concrete need and explicit authorization.
 - Preserve the strict `script-src 'self'; style-src 'self'` CSP. Do not add `unsafe-inline` to make runtime data injection work.
 - Treat translations loaded from Table Storage as data, not trusted markup. Embed them only as escaped `application/json`, validate their shape, and never render them with `dangerouslySetInnerHTML`.
 - Preserve unrelated user changes. Never overwrite a dirty worktree or rewrite shared history casually.
@@ -43,7 +43,7 @@ Maintain a fast, low-cost, public inventory dashboard for portable air condition
 - The current brand marks are color-coded initials, not downloaded official logos. Do not introduce remote logo dependencies or copyrighted asset bundles without checking the trade-off with the user.
 - Do not hard-code inventory totals in rendering logic. Counts and site status come from the snapshot. If marketing copy mentions the number of tracked sites, update it when backend coverage changes.
 - Maintain keyboard semantics, readable contrast, reduced-motion support, and no horizontal overflow at supported breakpoints.
-- Chinese, Dutch, and English must switch without a reload. Keep visible copy, errors, document metadata, locale-sensitive dates/numbers, and accessible labels synchronized with the selected language.
+- Chinese, Dutch, English, and French must switch without a reload. Keep visible copy, errors, legal content, emails, document metadata, locale-sensitive dates/numbers, and accessible labels synchronized with the selected language.
 
 ## Architecture
 
@@ -51,9 +51,14 @@ Maintain a fast, low-cost, public inventory dashboard for portable air condition
 Browser
   └─ HTTPS → Azure Container Apps (`airco-tracking-web`, scale 0–2)
                  ├─ serves `dist/` from the Vite build
-                 └─ GET `/api/inventory`
+                 ├─ authentication/profile/subscription APIs
+                 ├─ Stripe Checkout and signed webhook handling
+                 └─ authorized GET `/api/inventory`
                         └─ Managed Identity → private Blob
                            `airco-tracker/inventory.json`
+
+Scheduled retention cleanup
+  └─ dedicated Managed Identity → only the user/auth tables it is allowed to clean
 ```
 
 - React entry and UI: `src/App.tsx`
@@ -74,7 +79,7 @@ Browser
 - Deployment and verification: `scripts/deploy.sh`, `scripts/verify-deployment.mjs`
 - CI/CD: `.github/workflows/ci.yml`, `.github/workflows/deploy.yml`
 
-The frontend repo reuses the backend project's resource group, Container Apps Environment, ACR, Storage Account, and runtime user-assigned identity. It owns only the `airco-tracking-web` Container App and its repository-specific GitHub OIDC trust.
+The frontend repo reuses the backend project's resource group, Container Apps Environment, ACR, and Storage Account. It owns the `airco-tracking-web` Container App, its dedicated web-retention job, and its repository-specific GitHub OIDC trust. Runtime identities are deliberately distinct from backend scanner and alert-worker identities.
 
 ## Inventory data contract
 

@@ -7,7 +7,7 @@
 
 ## 使命
 
-维护一个快速、低成本的公开库存 dashboard，用于展示可配送至荷兰/法国等目标国家的便携空调库存。清晰展示私有 `airco-tracking` 实时快照，同时不暴露 Azure 凭据，也不公开 Blob Storage。
+维护多语言 Airco Tracker 服务，追踪可配送到当前支持国家（法国和荷兰）的便携空调。公开门户和法律页面可广泛访问；实时库存仅对已登录且拥有相应权益的订阅用户开放。展示私有 `airco-tracking` 快照时不得暴露 Azure 凭据，也不得公开 Blob Storage。
 
 ## 先读
 
@@ -28,7 +28,7 @@
 - Blob container 必须保持私有。Node service 使用 user-assigned Managed Identity 读取 `inventory.json`。
 - GitHub Actions 使用 OIDC 登录 Azure。不要添加 `AZURE_CREDENTIALS` 或 service-principal password。
 - GitHub Actions Variables 只允许存放非秘密标识符：`AZURE_CLIENT_ID`、`AZURE_TENANT_ID`、`AZURE_SUBSCRIPTION_ID` 和 `AZURE_RESOURCE_GROUP`。
-- 尽量复用现有 least-privilege runtime identity 和基础设施。没有具体需求和明确授权，不要扩大 Azure 角色。
+- 按 workload 隔离 runtime identity。Web app 只能读取请求路径所需的库存及用户/session 数据；retention job 使用独立身份，并且只获得清理所需的 Table 权限。没有具体需求和明确授权，不要扩大 Azure 角色。
 - 保持严格的 `script-src 'self'; style-src 'self'` CSP。不要为了运行时数据注入而添加 `unsafe-inline`。
 - 将 Table Storage 加载的翻译视为数据，而不是可信 markup。只能作为已转义的 `application/json` 嵌入，验证 shape，绝不要用 `dangerouslySetInnerHTML` 渲染。
 - 保留用户无关改动。不要覆盖 dirty worktree，也不要随意重写共享历史。
@@ -43,7 +43,7 @@
 - 当前品牌标识是彩色首字母，不是下载的官方 logo。未经用户权衡许可，不要引入远程 logo 依赖或版权 asset bundle。
 - 不要在渲染逻辑中硬编码库存总数。count 和站点状态来自 snapshot。如果营销文案提到追踪网站数量，后端覆盖范围变化时要更新。
 - 保持键盘语义、可读对比度、reduced-motion 支持，并在支持断点无横向溢出。
-- 中文、荷兰语和英语必须无需刷新即可切换。可见文案、错误、document metadata、本地化日期/数字和无障碍标签要与所选语言同步。
+- 中文、荷兰语、英语和法语必须无需刷新即可切换。可见文案、错误、法律内容、邮件、document metadata、本地化日期/数字和无障碍标签要与所选语言同步。
 
 ## 架构
 
@@ -51,9 +51,14 @@
 Browser
   └─ HTTPS → Azure Container Apps (`airco-tracking-web`, scale 0–2)
                  ├─ serves `dist/` from the Vite build
-                 └─ GET `/api/inventory`
+                 ├─ authentication/profile/subscription APIs
+                 ├─ Stripe Checkout 和签名 webhook 处理
+                 └─ 已授权的 GET `/api/inventory`
                         └─ Managed Identity → private Blob
                            `airco-tracker/inventory.json`
+
+定时 retention cleanup
+  └─ 独立 Managed Identity → 仅访问允许清理的 user/auth tables
 ```
 
 - React 入口和 UI：`src/App.tsx`
@@ -74,7 +79,7 @@ Browser
 - 部署和验证：`scripts/deploy.sh`、`scripts/verify-deployment.mjs`
 - CI/CD：`.github/workflows/ci.yml`、`.github/workflows/deploy.yml`
 
-前端 repo 复用后端项目的 resource group、Container Apps Environment、ACR、Storage Account 和 runtime user-assigned identity。它只拥有 `airco-tracking-web` Container App 和该仓库专属的 GitHub OIDC trust。
+前端 repo 复用后端项目的 resource group、Container Apps Environment、ACR 和 Storage Account。它拥有 `airco-tracking-web` Container App、独立的 web-retention job，以及该仓库专属的 GitHub OIDC trust。它的 runtime identities 与后端 scanner 和 alert-worker identities 明确分离。
 
 ## 库存数据契约
 

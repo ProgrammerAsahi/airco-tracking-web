@@ -71,7 +71,9 @@ export function LandingCinema({ copy, showSubscribeNotice, onCta }: LandingCinem
     const pointerEnabled = () => finePointer.matches && motionEnabled();
 
     const copyWindows: CopyWindow[] = [
-      { ref: heroCopyRef, fadeIn: [0, 0.005], fadeOut: [0.085, 0.135] },
+      // The first frame is already the hero. Starting the fade at exactly
+      // zero made the copy fully transparent until the visitor scrolled.
+      { ref: heroCopyRef, fadeIn: [-0.01, 0], fadeOut: [0.085, 0.135] },
       { ref: heatCopyRef, fadeIn: [0.20, 0.24], fadeOut: [0.285, 0.325] },
       { ref: alertCopyRef, fadeIn: [0.355, 0.395], fadeOut: [0.455, 0.495] },
       { ref: reliefCopyRef, fadeIn: [0.515, 0.555], fadeOut: [0.595, 0.635] },
@@ -306,7 +308,13 @@ export function LandingCinema({ copy, showSubscribeNotice, onCta }: LandingCinem
     document.addEventListener("visibilitychange", updateScrollTarget);
     finePointer.addEventListener("change", handlePreferenceChange);
     reducedMotion.addEventListener("change", handlePreferenceChange);
+    // Paint the copy for the restored scroll position synchronously. The
+    // IntersectionObserver callback is asynchronous, so relying on its first
+    // notification can leave the zero-scroll hero at opacity 0 for a frame (or
+    // indefinitely in constrained/test environments).
     updateScrollTarget();
+    currentProgress = targetProgress;
+    if (motionEnabled()) setCopyWindow(currentProgress, true);
 
     return () => {
       if (frame) window.cancelAnimationFrame(frame);

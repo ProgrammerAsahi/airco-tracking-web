@@ -9,6 +9,7 @@ import {
   type TranslationBundle,
   type TranslationMap,
 } from "../shared/i18n.js";
+import { logError, logWarn } from "./safe-logger.js";
 
 const currentDirectory = dirname(fileURLToPath(import.meta.url));
 const projectDirectory = resolve(currentDirectory, "..", "..");
@@ -50,7 +51,7 @@ async function readI18nSource(): Promise<TranslationMap> {
   try {
     return await readFromTable(accountUrl, localTranslations);
   } catch (error) {
-    console.error("i18n table read failed, falling back to local file:", error);
+    logError("i18n_table_read_failed_local_fallback", error);
     return localTranslations;
   }
 }
@@ -81,7 +82,7 @@ async function readFromTable(url: string, localTranslations: TranslationMap): Pr
     tableEntityCount += 1;
   }
   if (tableEntityCount === 0) {
-    console.warn("i18n table returned no entities; falling back to local file");
+    logWarn("i18n_table_empty_local_fallback");
   }
   return translations;
 }

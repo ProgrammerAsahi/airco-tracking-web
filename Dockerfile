@@ -1,4 +1,6 @@
-FROM node:22-alpine AS build
+# Docker Official Image, pinned to the multi-architecture manifest digest so
+# builds cannot silently pick up a different base image.
+FROM node:22.23.1-alpine3.24@sha256:16e22a550f3863206a3f701448c45f7912c6896a62de43add43bb9c86130c3e2 AS build
 
 WORKDIR /app
 RUN corepack enable
@@ -15,7 +17,7 @@ COPY test-fixtures/i18n.local.json ./test-fixtures/i18n.local.json
 
 RUN pnpm build && pnpm prune --prod
 
-FROM node:22-alpine AS runtime
+FROM node:22.23.1-alpine3.24@sha256:16e22a550f3863206a3f701448c45f7912c6896a62de43add43bb9c86130c3e2 AS runtime
 
 ENV NODE_ENV=production
 ENV PORT=3000

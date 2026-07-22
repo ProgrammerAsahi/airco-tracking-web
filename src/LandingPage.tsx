@@ -2,10 +2,8 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   AuthApiError,
   getCurrentUser,
-  logout,
   requestAuthCode,
   updateNickname,
-  userInitials,
   verifyAuthCode,
   type UserProfile,
 } from "./authClient";
@@ -14,6 +12,10 @@ import { entitlementIsActive } from "../shared/auth";
 import type { Lang } from "./i18n";
 import { AircoLogoMark } from "./AircoLogoMark";
 import { LandingCinema } from "./LandingCinema";
+import { setPageMetadata } from "./metadata";
+import { AccountMenu } from "./AccountMenu";
+import { LegalFooter } from "./LegalFooter";
+import { AccessibleDialog } from "./AccessibleDialog";
 
 export type LandingCopy = {
   productName: string;
@@ -88,6 +90,7 @@ export type LandingCopy = {
   authErrorTooMany: string;
   authErrorEmailFailed: string;
   authErrorGeneric: string;
+  authRestoreError: string;
   nicknameTitle: string;
   nicknameSubtitle: string;
   nicknameLabel: string;
@@ -125,19 +128,19 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     storyHeatKicker: "巴黎老宅 · 室内 34°C",
     storyHeatTitle: "窗户开着，<br />热气却散不出去。",
     storyHeatBody: "风扇只能搅动闷热的空气，厚重的石墙到了夜里仍在释放白天积下的热。这样的热浪里，空调不再是奢侈品，而是能让人好好休息的必需品。",
-    storyAlertKicker: "库存提醒 · 抢先一步",
-    storyAlertTitle: "别人还在刷新，<br />你已经下单了。",
-    storyAlertBody: "那条「恢复现货」的邮件比所有人早到一步。点进去、下单、付款——两天后，这台便携空调就站到了窗边。",
+    storyAlertKicker: "库存提醒 · 尽快发现",
+    storyAlertTitle: "不用反复刷新，<br />发现现货就能行动。",
+    storyAlertBody: "扫描发现商品恢复现货后，提醒邮件会尽快发到你的邮箱。点进去、下单、付款——两天后，这台便携空调就站到了窗边。",
     storyReliefKicker: "空调到家 · 室内 24°C",
     storyReliefTitle: "凉下来的，<br />不只是屋子。",
     storyReliefBody: "冷气漫过地板的那一刻，紧绷了一天的肩膀松了下来。风扇退休了，窗还开着——但这一次，是因为夜里凉快。",
     roomTempLabel: "室内温度",
     stepFourAlertKicker: "这台空调的背后 · Airco Tracker",
     stepFourAlertTitle: "不是运气。<br />是雷达。",
-    stepFourAlertBody: "46 家欧洲零售商、每 10 分钟一轮扫描、只推真正能配送到你所在国家的现货——预售和多周交期都不算数。你收到的那封邮件，就是别人还没看到的库存。",
+    stepFourAlertBody: "46 家欧洲零售商、通常约每 10 分钟一轮扫描，并按配送国家筛选结果。预售和长交期会单独显示，不计入现货；提醒来自最近一次成功扫描。",
     trackerAlertStatus: "刚刚收到",
     trackerAlertSubject: "1 台便携空调恢复库存",
-    trackerOverviewLabel: "实时库存预览",
+    trackerOverviewLabel: "近实时库存预览 · 通常约每 10 分钟刷新",
     trackerCountryLabel: "配送国家",
     trackerCountryValue: "法国",
     trackerAvailabilityLabel: "库存状态",
@@ -148,7 +151,7 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     trackerModelValue: "Tristar AT-5468",
     trackerPriceLabel: "价格",
     trackerPriceValue: "€244.74",
-    productKicker: "实时库存 · 一眼看清",
+    productKicker: "近实时库存 · 通常约每 10 分钟刷新",
     productTitle: "能不能送、<br />现在能不能买，<br />一眼看清。",
     productBody: "配送国家、现货与预售、商家、型号和价格都在同一个视图里。少一点搜索，多一点抢到现货的把握。",
     finaleKicker: "夜色降临 · 清凉仍在",
@@ -180,6 +183,7 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     authErrorTooMany: "尝试次数太多，请重新发送验证码。",
     authErrorEmailFailed: "验证码邮件暂时发送失败，请稍后再试。",
     authErrorGeneric: "登录服务暂时不可用，请稍后再试。",
+    authRestoreError: "暂时无法恢复之前的登录状态。你仍可以重新登录，或稍后再试。",
     nicknameTitle: "我们该如何称呼你？",
     nicknameSubtitle: "只需要一个昵称。它会用于你的头像和之后的个性化提示。",
     nicknameLabel: "昵称",
@@ -215,19 +219,19 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     storyHeatKicker: "Oud appartement in Parijs · 34 °C binnen",
     storyHeatTitle: "Het raam staat open.<br />De hitte blijft hangen.",
     storyHeatBody: "De ventilator verplaatst alleen de benauwde lucht, terwijl de oude stenen muren de warmte tot lang na zonsondergang blijven afgeven. Tijdens zo’n hittegolf is een airco geen luxe meer, maar essentieel om echt tot rust te komen.",
-    storyAlertKicker: "Voorraadmelding · net iets sneller",
-    storyAlertTitle: "Anderen refreshten nog.<br />Jij had al besteld.",
-    storyAlertBody: "Die mail met ‘weer op voorraad’ kwam bij jou net wat eerder binnen. Aanklikken, bestellen, betalen — twee dagen later stond de mobiele airco al bij het raam.",
+    storyAlertKicker: "Voorraadmelding · snel op de hoogte",
+    storyAlertTitle: "Niet eindeloos refreshen.<br />Handel zodra voorraad verschijnt.",
+    storyAlertBody: "Zodra een scan nieuwe voorraad vindt, sturen we de melding zo snel mogelijk naar je inbox. Aanklikken, bestellen, betalen — twee dagen later stond de mobiele airco al bij het raam.",
     storyReliefKicker: "Airco thuis · 24 °C binnen",
     storyReliefTitle: "Het wordt niet alleen<br />de kamer die afkoelt.",
     storyReliefBody: "Toen de koele lucht over de vloer trok, zakte de spanning van je schouders. De ventilator is met pensioen, en het raam blijft open — nu juist omdat het ’s avonds lekker afkoelt.",
     roomTempLabel: "Binnentemperatuur",
     stepFourAlertKicker: "Achter die airco · Airco Tracker",
     stepFourAlertTitle: "Geen geluk.<br />Wel radar.",
-    stepFourAlertBody: "46 Europese winkels, elke 10 minuten een scan, en alleen voorraad die echt naar jouw land kan worden bezorgd — pre-orders en lange levertijden tellen niet mee. Die ene mail was voorraad dat anderen nog niet hadden gezien.",
+    stepFourAlertBody: "46 Europese winkels, normaal ongeveer elke 10 minuten een scan, met resultaten gefilterd op jouw bezorgland. Pre-orders en lange levertijden staan apart en tellen niet als op voorraad; meldingen komen uit de recentste geslaagde scan.",
     trackerAlertStatus: "Zojuist ontvangen",
     trackerAlertSubject: "1 mobiele airco weer op voorraad",
-    trackerOverviewLabel: "Voorbeeld van live voorraad",
+    trackerOverviewLabel: "Voorbeeld van bijna-realtime voorraad · normaal circa elke 10 minuten ververst",
     trackerCountryLabel: "Bezorgland",
     trackerCountryValue: "Frankrijk",
     trackerAvailabilityLabel: "Voorraadstatus",
@@ -238,7 +242,7 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     trackerModelValue: "Tristar AT-5468",
     trackerPriceLabel: "Prijs",
     trackerPriceValue: "€ 244,74",
-    productKicker: "Realtime voorraad · in één oogopslag",
+    productKicker: "Bijna-realtime voorraad · normaal circa elke 10 minuten ververst",
     productTitle: "Bezorging, status<br />en prijs.<br />Alles in één beeld.",
     productBody: "Bezorgland, voorraad en pre-orders, winkel, model en prijs staan in één overzicht. Minder zoeken, meer kans om echte voorraad op tijd te vinden.",
     finaleKicker: "De avond valt · de kamer blijft koel",
@@ -270,6 +274,7 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     authErrorTooMany: "Te veel pogingen. Vraag een nieuwe code aan.",
     authErrorEmailFailed: "De verificatiemail kon niet worden verstuurd. Probeer het later opnieuw.",
     authErrorGeneric: "Inloggen is tijdelijk niet beschikbaar. Probeer het later opnieuw.",
+    authRestoreError: "Je eerdere sessie kon tijdelijk niet worden hersteld. Je kunt opnieuw inloggen of het later nog eens proberen.",
     nicknameTitle: "Hoe mogen we je noemen?",
     nicknameSubtitle: "Alleen een bijnaam. Die gebruiken we voor je avatar en latere persoonlijke meldingen.",
     nicknameLabel: "Bijnaam",
@@ -305,19 +310,19 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     storyHeatKicker: "Old Paris apartment · 34°C indoors",
     storyHeatTitle: "The window is open.<br />The heat won’t leave.",
     storyHeatBody: "The fan only stirs the heavy air, while old stone walls keep releasing the day’s heat long after sunset. In a heatwave like this, air conditioning is no longer a luxury. It is what finally makes rest possible.",
-    storyAlertKicker: "Stock alert · one step ahead",
-    storyAlertTitle: "They were still refreshing.<br />You had already ordered.",
-    storyAlertBody: "That “back in stock” email reached you before everyone else. Open, order, pay — two days later the portable AC was humming by the window.",
+    storyAlertKicker: "Stock alert · know sooner",
+    storyAlertTitle: "Stop refreshing.<br />Act when stock appears.",
+    storyAlertBody: "When a scan finds newly available stock, we send an email as soon as possible. Open, order, pay — two days later the portable AC was humming by the window.",
     storyReliefKicker: "AC delivered · 24°C indoors",
     storyReliefTitle: "It isn’t only the room<br />that cools down.",
     storyReliefBody: "As the cool air rolled across the floor, the day’s tension finally left your shoulders. The fan is retired, and the window stays open — this time because the evening is pleasant.",
     roomTempLabel: "Indoor temperature",
     stepFourAlertKicker: "Behind that AC · Airco Tracker",
     stepFourAlertTitle: "Not luck.<br />Radar.",
-    stepFourAlertBody: "46 European retailers, a scan every 10 minutes, and only stock that can actually be delivered to your country — pre-orders and multi-week lead times don’t count. That email was stock nobody else had seen yet.",
+    stepFourAlertBody: "46 European retailers, normally scanned about every 10 minutes, with results filtered for your delivery country. Pre-orders and long lead times are shown separately and never counted as in stock; alerts come from the latest successful scan.",
     trackerAlertStatus: "Just received",
     trackerAlertSubject: "1 portable AC back in stock",
-    trackerOverviewLabel: "Live stock preview",
+    trackerOverviewLabel: "Near-real-time stock preview · normally refreshed about every 10 minutes",
     trackerCountryLabel: "Delivery country",
     trackerCountryValue: "France",
     trackerAvailabilityLabel: "Availability",
@@ -328,9 +333,9 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     trackerModelValue: "Tristar AT-5468",
     trackerPriceLabel: "Price",
     trackerPriceValue: "€244.74",
-    productKicker: "Live stock · at a glance",
+    productKicker: "Near-real-time stock · normally refreshed about every 10 minutes",
     productTitle: "Delivery, availability<br />and price.<br />Clear at a glance.",
-    productBody: "Delivery country, in-stock and pre-order status, retailer, model and price all live in one view. Less searching, a better chance of catching genuine stock.",
+    productBody: "Delivery country, in-stock and pre-order status, retailer, model and price all appear in one view. Less searching, a better chance of catching genuine stock.",
     finaleKicker: "Blue hour · comfort restored",
     subscribeTitle: "A cooler summer starts<br />with one less refresh.",
     subscribeBody: "Choose the Heatwave Alerts Pass or Heatwave Radar Pass and make one secure Stripe payment for 90 days of stock tracking.",
@@ -360,6 +365,7 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     authErrorTooMany: "Too many attempts. Please request a new code.",
     authErrorEmailFailed: "The verification email could not be sent. Please try again later.",
     authErrorGeneric: "Login is temporarily unavailable. Please try again later.",
+    authRestoreError: "We could not restore your previous session. You can sign in again or try later.",
     nicknameTitle: "What should we call you?",
     nicknameSubtitle: "Just a nickname. We use it for your avatar and future personalized alerts.",
     nicknameLabel: "Nickname",
@@ -395,19 +401,19 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     storyHeatKicker: "Appartement ancien à Paris · 34 °C à l’intérieur",
     storyHeatTitle: "La fenêtre est ouverte.<br />La chaleur, elle, reste.",
     storyHeatBody: "Le ventilateur ne fait que brasser un air étouffant, tandis que les vieux murs restituent encore la chaleur bien après le coucher du soleil. Dans une telle canicule, la climatisation n’est plus un luxe : elle devient essentielle pour vraiment se reposer.",
-    storyAlertKicker: "Alerte stock · un temps d’avance",
-    storyAlertTitle: "Les autres rafraîchissaient encore.<br />Vous aviez déjà commandé.",
-    storyAlertBody: "Cet e-mail « de retour en stock » est arrivé chez vous avant tout le monde. Ouvrir, commander, payer — deux jours plus tard, le climatiseur mobile soufflait déjà près de la fenêtre.",
+    storyAlertKicker: "Alerte stock · informé rapidement",
+    storyAlertTitle: "Plus besoin d’actualiser sans cesse.<br />Agissez dès qu’un stock apparaît.",
+    storyAlertBody: "Lorsqu’un balayage détecte un nouveau stock, nous envoyons l’alerte par e-mail dès que possible. Ouvrir, commander, payer — deux jours plus tard, le climatiseur mobile soufflait déjà près de la fenêtre.",
     storyReliefKicker: "Clim livrée · 24 °C à l’intérieur",
     storyReliefTitle: "Ce n’est pas seulement<br />la pièce qui se rafraîchit.",
     storyReliefBody: "Quand l’air frais a glissé sur le parquet, la tension de la journée a quitté vos épaules. Le ventilateur est à la retraite, et la fenêtre reste ouverte — cette fois parce que la soirée est douce.",
     roomTempLabel: "Température intérieure",
     stepFourAlertKicker: "Derrière cette clim · Airco Tracker",
     stepFourAlertTitle: "Pas de chance.<br />Un radar.",
-    stepFourAlertBody: "46 enseignes européennes, un balayage toutes les 10 minutes, et uniquement du stock réellement livrable dans votre pays — précommandes et longs délais exclus. Cet e-mail, c’était du stock que personne d’autre n’avait encore vu.",
+    stepFourAlertBody: "46 enseignes européennes, normalement balayées toutes les 10 minutes environ, avec des résultats filtrés selon votre pays de livraison. Les précommandes et longs délais sont affichés séparément et ne comptent jamais comme stock disponible ; les alertes proviennent du dernier balayage réussi.",
     trackerAlertStatus: "Reçue à l’instant",
     trackerAlertSubject: "1 climatiseur mobile de nouveau en stock",
-    trackerOverviewLabel: "Aperçu du stock en temps réel",
+    trackerOverviewLabel: "Aperçu quasi-temps réel · normalement actualisé toutes les 10 minutes environ",
     trackerCountryLabel: "Pays de livraison",
     trackerCountryValue: "France",
     trackerAvailabilityLabel: "Disponibilité",
@@ -418,7 +424,7 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     trackerModelValue: "Tristar AT-5468",
     trackerPriceLabel: "Prix",
     trackerPriceValue: "244,74 €",
-    productKicker: "Stock en temps réel · en un coup d’œil",
+    productKicker: "Stock en quasi-temps réel · normalement toutes les 10 minutes environ",
     productTitle: "Livraison, disponibilité<br />et prix.<br />Tout devient clair.",
     productBody: "Pays de livraison, stock et précommandes, magasin, modèle et prix sont réunis dans une seule vue. Moins de recherches, plus de chances de trouver un appareil réellement disponible.",
     finaleKicker: "L’heure bleue · la fraîcheur retrouvée",
@@ -450,6 +456,7 @@ const LANDING_COPY: Record<Lang, LandingCopy> = {
     authErrorTooMany: "Trop de tentatives. Demandez un nouveau code.",
     authErrorEmailFailed: "L’e-mail de vérification n’a pas pu être envoyé. Réessayez plus tard.",
     authErrorGeneric: "La connexion est temporairement indisponible. Réessayez plus tard.",
+    authRestoreError: "Impossible de restaurer votre session précédente pour le moment. Vous pouvez vous reconnecter ou réessayer plus tard.",
     nicknameTitle: "Comment devons-nous vous appeler ?",
     nicknameSubtitle: "Un simple pseudonyme suffit. Il servira pour votre avatar et vos futures alertes personnalisées.",
     nicknameLabel: "Pseudonyme",
@@ -492,17 +499,19 @@ export function LandingPage({ lang, setLang, t }: LandingPageProps) {
   const [nickname, setNickname] = useState("");
   const [nicknameError, setNicknameError] = useState("");
   const [savingNickname, setSavingNickname] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [authRestoreFailed, setAuthRestoreFailed] = useState(false);
   const emailInputRef = useRef<HTMLInputElement | null>(null);
   const nicknameInputRef = useRef<HTMLInputElement | null>(null);
-  const menuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    document.title = `Airco Tracker · ${copy.pageTitle}`;
-    document
-      .querySelector('meta[name="description"]')
-      ?.setAttribute("content", copy.pageDescription);
-  }, [copy.pageDescription, copy.pageTitle]);
+    setPageMetadata({
+      pathname: "/",
+      lang,
+      indexable: true,
+      title: `Airco Tracker · ${copy.pageTitle}`,
+      description: copy.pageDescription,
+    });
+  }, [copy.pageDescription, copy.pageTitle, lang]);
 
   useEffect(() => {
     let ignore = false;
@@ -522,7 +531,9 @@ export function LandingPage({ lang, setLang, t }: LandingPageProps) {
           window.location.replace(`/ready?lang=${routeLanguage}`);
         }
       })
-      .catch(() => undefined)
+      .catch(() => {
+        if (!ignore) setAuthRestoreFailed(true);
+      })
       .finally(() => {
         if (!ignore) setAuthReady(true);
       });
@@ -530,29 +541,6 @@ export function LandingPage({ lang, setLang, t }: LandingPageProps) {
       ignore = true;
     };
   }, []);
-
-  useEffect(() => {
-    const dialogOpen = loginOpen || nicknameOpen;
-    document.body.classList.toggle("landing-dialog-open", dialogOpen);
-    if (loginOpen) emailInputRef.current?.focus();
-    if (nicknameOpen) nicknameInputRef.current?.focus();
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setLoginOpen(false);
-    };
-    if (dialogOpen) window.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.body.classList.remove("landing-dialog-open");
-      window.removeEventListener("keydown", onKeyDown);
-    };
-  }, [loginOpen, nicknameOpen]);
-
-  useEffect(() => {
-    const onPointerDown = (event: PointerEvent) => {
-      if (!menuRef.current?.contains(event.target as Node)) setMenuOpen(false);
-    };
-    if (menuOpen) window.addEventListener("pointerdown", onPointerDown);
-    return () => window.removeEventListener("pointerdown", onPointerDown);
-  }, [menuOpen]);
 
   useEffect(() => {
     if (codeCooldownSeconds <= 0) return undefined;
@@ -604,6 +592,7 @@ export function LandingPage({ lang, setLang, t }: LandingPageProps) {
     setVerifyingCode(true);
     try {
       const result = await verifyAuthCode(email, code, lang);
+      setAuthRestoreFailed(false);
       setUser(result.user);
       setCoolingPreview(true);
       setLoginOpen(false);
@@ -644,9 +633,7 @@ export function LandingPage({ lang, setLang, t }: LandingPageProps) {
     }
   };
 
-  const handleLogout = async () => {
-    setMenuOpen(false);
-    await logout().catch(() => undefined);
+  const handleLoggedOut = () => {
     setUser(null);
     setNicknameOpen(false);
     setLoginOpen(false);
@@ -665,26 +652,7 @@ export function LandingPage({ lang, setLang, t }: LandingPageProps) {
         <div className="landing-nav-actions">
           <LanguageSwitcher lang={lang} setLang={setLang} />
           {user?.nickname ? (
-            <div className="landing-account" ref={menuRef}>
-              <button
-                className="landing-avatar-button"
-                type="button"
-                aria-label={copy.accountMenu}
-                aria-expanded={menuOpen}
-                onClick={() => setMenuOpen((open) => !open)}
-              >
-                {userInitials(user.nickname, user.email)}
-              </button>
-              {menuOpen && (
-                <div className="landing-account-menu" role="menu">
-                  <p>{copy.signedInAs.replace("{email}", user.email)}</p>
-                  <a role="menuitem" href={`/profile?lang=${lang}`}>{copy.profile}</a>
-                  <button role="menuitem" className="landing-account-logout" type="button" onClick={handleLogout}>
-                    {copy.logout}
-                  </button>
-                </div>
-              )}
-            </div>
+            <AccountMenu user={user} lang={lang} onLogout={handleLoggedOut} />
           ) : (
             <button className="landing-nav-cta" type="button" onClick={openLogin} disabled={!authReady}>
               {copy.primaryCta}
@@ -695,28 +663,20 @@ export function LandingPage({ lang, setLang, t }: LandingPageProps) {
 
       <LandingCinema copy={copy} showSubscribeNotice={coolingPreview} onCta={openLogin} />
 
-      <footer className="landing-footer">
-        <span>
-          <a href={`/privacy.html?lang=${lang}`} target="_blank" rel="noopener noreferrer">{t("legal_privacy_link")}</a>
-          {" · "}
-          <a href={`/terms.html?lang=${lang}`} target="_blank" rel="noopener noreferrer">{t("legal_terms_link")}</a>
-          {" · "}
-          <a href={`/imprint.html?lang=${lang}`} target="_blank" rel="noopener noreferrer">{t("legal_imprint_link")}</a>
-          {" · "}
-          <a href={`/affiliate-disclosure.html?lang=${lang}`} target="_blank" rel="noopener noreferrer">{t("legal_affiliate_link")}</a>
-        </span>
-        <span>{copy.productName}</span>
-      </footer>
+      {authRestoreFailed && (
+        <p className="landing-toast" role="status" aria-live="polite">{copy.authRestoreError}</p>
+      )}
+
+      <LegalFooter lang={lang} />
 
       {loginOpen && (
-        <div className="landing-login-backdrop" onMouseDown={closeLogin}>
-          <section
-            className="landing-login-card"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="landing-login-title"
-            onMouseDown={(event) => event.stopPropagation()}
-          >
+        <AccessibleDialog
+          className="landing-login-card"
+          labelledBy="landing-login-title"
+          describedBy="landing-login-description"
+          initialFocusRef={emailInputRef}
+          onClose={closeLogin}
+        >
             <button className="landing-login-close" type="button" onClick={closeLogin} aria-label={copy.closeLogin}>
               ×
             </button>
@@ -727,7 +687,7 @@ export function LandingPage({ lang, setLang, t }: LandingPageProps) {
             <div className="landing-login-copy">
               <p className="landing-kicker">{copy.primaryCta}</p>
               <h2 id="landing-login-title">{copy.loginTitle}</h2>
-              <p>{copy.loginSubtitle}</p>
+              <p id="landing-login-description">{copy.loginSubtitle}</p>
             </div>
             <form className="landing-login-form" onSubmit={handleVerifyCode}>
               <label className="landing-login-field">
@@ -760,8 +720,8 @@ export function LandingPage({ lang, setLang, t }: LandingPageProps) {
                   {sendingCode ? copy.sendCodeBusy : codeCooldownSeconds > 0 ? `${codeCooldownSeconds}s` : copy.sendCode}
                 </button>
               </label>
-              {loginMessage && <p className="landing-login-message">{loginMessage}</p>}
-              {loginError && <p className="landing-login-error">{loginError}</p>}
+              {loginMessage && <p className="landing-login-message" role="status" aria-live="polite">{loginMessage}</p>}
+              {loginError && <p className="landing-login-error" role="alert">{loginError}</p>}
               <button className="landing-login-submit" type="submit" disabled={sendingCode || verifyingCode}>
                 {verifyingCode ? copy.loginBusy : copy.loginSubmit}
               </button>
@@ -781,18 +741,17 @@ export function LandingPage({ lang, setLang, t }: LandingPageProps) {
               <a href={`/privacy.html?lang=${lang}`} target="_blank" rel="noopener noreferrer">{t("legal_privacy_link")}</a>
             </p>
             <p className="landing-login-preview">{copy.loginPreviewNotice}</p>
-          </section>
-        </div>
+        </AccessibleDialog>
       )}
 
       {nicknameOpen && (
-        <div className="landing-login-backdrop">
-          <section
-            className="landing-login-card landing-nickname-card"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="landing-nickname-title"
-          >
+        <AccessibleDialog
+          className="landing-login-card landing-nickname-card"
+          labelledBy="landing-nickname-title"
+          describedBy="landing-nickname-description"
+          initialFocusRef={nicknameInputRef}
+          onClose={() => undefined}
+        >
             <div className="landing-login-brand" aria-hidden="true">
               <AircoLogoMark className="landing-logo-mark" />
               <span>{copy.productName}</span>
@@ -800,7 +759,7 @@ export function LandingPage({ lang, setLang, t }: LandingPageProps) {
             <div className="landing-login-copy">
               <p className="landing-kicker">{copy.signedInAs.replace("{email}", user?.email ?? "")}</p>
               <h2 id="landing-nickname-title">{copy.nicknameTitle}</h2>
-              <p>{copy.nicknameSubtitle}</p>
+              <p id="landing-nickname-description">{copy.nicknameSubtitle}</p>
             </div>
             <form className="landing-login-form" onSubmit={handleNicknameSubmit}>
               <label className="landing-login-field">
@@ -816,13 +775,12 @@ export function LandingPage({ lang, setLang, t }: LandingPageProps) {
                   required
                 />
               </label>
-              {nicknameError && <p className="landing-login-error">{nicknameError}</p>}
+              {nicknameError && <p className="landing-login-error" role="alert">{nicknameError}</p>}
               <button className="landing-login-submit" type="submit" disabled={savingNickname}>
                 {savingNickname ? copy.nicknameSaving : copy.nicknameSubmit}
               </button>
             </form>
-          </section>
-        </div>
+        </AccessibleDialog>
       )}
     </main>
   );

@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en" class="no-js">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Withdraw from an Airco Tracker purchase and request a refund">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <meta name="googlebot" content="noindex,nofollow,noarchive">
+  <link rel="icon" href="/favicon.svg">
+  <script src="/withdrawal-boot.js"></script>
+  <link rel="stylesheet" href="/legal.css">
+  <title>Withdrawal · Airco Tracker</title>
+</head>
+<body>
+  <div class="legal-shell">
+    <header class="legal-header">
+      <a class="legal-brand" href="/"><img src="/favicon.svg" alt=""><span>Airco Tracker</span></a>
+      <nav class="legal-languages" aria-label="Language"><a data-lang="en" href="/withdrawal.html?lang=en">EN</a><a data-lang="nl" href="/withdrawal.html?lang=nl">NL</a><a data-lang="fr" href="/withdrawal.html?lang=fr">FR</a><a data-lang="zh" href="/withdrawal.html?lang=zh">中文</a></nav>
+    </header>
+    <main class="legal-card">
+      <p class="legal-eyebrow" data-copy="eyebrow">Consumer withdrawal</p>
+      <h1 data-copy="title">Withdraw and request a refund</h1>
+      <p class="legal-lead" data-copy="lead">Within 14 days of purchase, use this secure two-step form for a full refund. It also works when you are signed out.</p>
+      <p class="legal-warning" data-copy="policy">Immediate service does not remove the 14-day full-refund promise in our voluntary policy.</p>
+      <noscript>
+        <section class="legal-section withdrawal-noscript" aria-labelledby="withdrawal-noscript-en">
+          <div class="withdrawal-noscript-copy" lang="en">
+            <h1 id="withdrawal-noscript-en">Withdraw without JavaScript</h1>
+            <p>JavaScript is unavailable, but your withdrawal right is unaffected. Within 14 days of purchase, email an unambiguous withdrawal statement or the EU model form to <a data-withdrawal-email href="mailto:{{withdrawalEmailAttribute}}">{{withdrawalEmailText}}</a>. Include your name, account email, order reference and purchase date. You can copy the model wording from the <a href="/terms.html?lang=en">Terms</a>.</p>
+          </div>
+          <div class="withdrawal-noscript-copy" lang="nl">
+            <h1 id="withdrawal-noscript-nl">Herroepen zonder JavaScript</h1>
+            <p>JavaScript is niet beschikbaar, maar je herroepingsrecht blijft ongewijzigd. Mail binnen 14 dagen na aankoop een ondubbelzinnige verklaring of het Europese modelformulier naar <a data-withdrawal-email href="mailto:{{withdrawalEmailAttribute}}">{{withdrawalEmailText}}</a>. Vermeld je naam, account-e-mail, bestelreferentie en aankoopdatum. De modeltekst staat in de <a href="/terms.html?lang=nl">voorwaarden</a>.</p>
+          </div>
+          <div class="withdrawal-noscript-copy" lang="fr">
+            <h1 id="withdrawal-noscript-fr">Se rétracter sans JavaScript</h1>
+            <p>JavaScript n’est pas disponible, mais votre droit de rétractation reste intact. Dans les 14 jours suivant l’achat, envoyez une déclaration dénuée d’ambiguïté ou le formulaire type européen à <a data-withdrawal-email href="mailto:{{withdrawalEmailAttribute}}">{{withdrawalEmailText}}</a>. Indiquez votre nom, l’e-mail du compte, la référence de commande et la date d’achat. Le modèle figure dans les <a href="/terms.html?lang=fr">Conditions</a>.</p>
+          </div>
+          <div class="withdrawal-noscript-copy" lang="zh">
+            <h1 id="withdrawal-noscript-zh">在不启用 JavaScript 时撤回</h1>
+            <p>JavaScript 当前不可用，但不影响你的撤回权。请在购买后 14 天内，将明确的撤回声明或欧盟示范表格发送至 <a data-withdrawal-email href="mailto:{{withdrawalEmailAttribute}}">{{withdrawalEmailText}}</a>，并注明姓名、账户邮箱、订单编号和购买日期。你可以从<a href="/terms.html?lang=zh">服务条款</a>复制示范文本。</p>
+          </div>
+        </section>
+      </noscript>
+      <form class="withdrawal-form" id="withdrawal-form">
+        <label><span data-copy="consumerName">Consumer name</span><input id="withdrawal-name" type="text" autocomplete="name" maxlength="200" required></label>
+        <label><span data-copy="email">Account email (only needed when signed out)</span><input id="withdrawal-email" type="email" autocomplete="email"></label>
+        <label><span data-copy="order">Order reference from your confirmation email</span><input id="withdrawal-order" type="text" autocomplete="off" placeholder="cs_test_… / cs_live_…"></label>
+        <label><span data-copy="code">Verification code (only needed when signed out)</span><span class="withdrawal-row"><input id="withdrawal-code" inputmode="numeric" maxlength="6" autocomplete="one-time-code"><button id="withdrawal-code-button" type="button" data-copy="send">Send code</button></span></label>
+        <label class="withdrawal-confirmation-consent"><input id="withdrawal-electronic-confirmation" type="checkbox" required><span data-copy="electronicConfirmation">I explicitly request an electronic confirmation of this withdrawal at my account email.</span></label>
+        <button id="withdrawal-preview-button" type="submit" data-copy="review">Review withdrawal</button>
+        <p class="withdrawal-message" id="withdrawal-message" role="status"></p>
+      </form>
+      <section class="withdrawal-summary" id="withdrawal-summary" hidden>
+        <h2 data-copy="confirmTitle">Confirm withdrawal</h2>
+        <p id="withdrawal-summary-text"></p>
+        <button class="legal-button legal-button--primary" id="withdrawal-confirm-button" type="button" data-copy="confirm">Confirm and request full refund</button>
+      </section>
+      <section class="legal-section"><h2 data-copy="modelTitle">EU model withdrawal form</h2><p data-copy="model">You can alternatively send an unambiguous statement or the model form in our Terms by email. The online form is optional and does not replace your statutory right to use the model form.</p></section>
+      <div class="legal-actions"><a class="legal-button" id="withdrawal-terms" href="/terms.html" data-copy="terms">Terms and model form</a><a class="legal-button" id="withdrawal-home" href="/" data-copy="home">Back home</a></div>
+    </main>
+  </div>
+  <script src="/legal-seo.js" defer></script>
+  <script src="/withdrawal.js" defer></script>
+</body>
+</html>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   SUPPORTED_DELIVERY_COUNTRIES,
   SUPPORTED_LANGUAGE_PREFERENCES,
@@ -22,6 +22,8 @@ import {
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import type { Lang } from "./i18n";
 import { AircoLogoMark } from "./AircoLogoMark";
+import { AccessibleDialog } from "./AccessibleDialog";
+import { LegalFooter } from "./LegalFooter";
 
 type ProfileCopy = {
   productName: string;
@@ -432,6 +434,12 @@ export function ProfilePage({ lang, setLang }: ProfilePageProps) {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  const nicknameInputRef = useRef<HTMLInputElement | null>(null);
+  const emailInputRef = useRef<HTMLInputElement | null>(null);
+  const languageOptionRef = useRef<HTMLButtonElement | null>(null);
+  const countryOptionRef = useRef<HTMLButtonElement | null>(null);
+  const countryConfirmCancelRef = useRef<HTMLButtonElement | null>(null);
+  const deleteCancelRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     let ignore = false;
@@ -462,14 +470,6 @@ export function ProfilePage({ lang, setLang }: ProfilePageProps) {
       .querySelector('meta[name="description"]')
       ?.setAttribute("content", copy.pageDescription);
   }, [copy.pageDescription, copy.title]);
-
-  useEffect(() => {
-    document.body.classList.toggle(
-      "landing-dialog-open",
-      nicknameModalOpen || emailModalOpen || languageModalOpen || countryModalOpen || countryConfirmOpen || deleteModalOpen,
-    );
-    return () => document.body.classList.remove("landing-dialog-open");
-  }, [countryConfirmOpen, countryModalOpen, deleteModalOpen, emailModalOpen, languageModalOpen, nicknameModalOpen]);
 
   useEffect(() => {
     if (emailCodeCooldownSeconds <= 0) return undefined;
@@ -640,7 +640,7 @@ export function ProfilePage({ lang, setLang }: ProfilePageProps) {
 
       <section className="profile-card">
         {loading ? (
-          <p className="profile-loading">{copy.loading}</p>
+          <p className="profile-loading" role="status" aria-live="polite">{copy.loading}</p>
         ) : user ? (
           <>
             <div className="profile-card-header">
@@ -675,7 +675,7 @@ export function ProfilePage({ lang, setLang }: ProfilePageProps) {
                     <span>{user.emailAlertsEnabled ? copy.emailAlertsEnabled : copy.emailAlertsDisabled}</span>
                     <span>{user.emailAlertsEnabled ? copy.emailAlertsDisable : copy.emailAlertsEnable}</span>
                   </button>
-                  {emailAlertsError && <p className="landing-login-error profile-inline-error">{emailAlertsError}</p>}
+                  {emailAlertsError && <p className="landing-login-error profile-inline-error" role="alert">{emailAlertsError}</p>}
                 </dd>
               </div>
               <div>
@@ -747,30 +747,32 @@ export function ProfilePage({ lang, setLang }: ProfilePageProps) {
         </div>
       </section>
 
+      <LegalFooter lang={lang} />
+
       {nicknameModalOpen && user && (
-        <div className="landing-login-backdrop" onMouseDown={() => setNicknameModalOpen(false)}>
-          <section
-            className="landing-login-card profile-preference-card"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="profile-nickname-title"
-            onMouseDown={(event) => event.stopPropagation()}
-          >
+        <AccessibleDialog
+          className="landing-login-card profile-preference-card"
+          labelledBy="profile-nickname-title"
+          describedBy="profile-nickname-description"
+          initialFocusRef={nicknameInputRef}
+          onClose={() => setNicknameModalOpen(false)}
+        >
             <div className="landing-login-copy">
               <p className="landing-kicker">{copy.nickname}</p>
               <h2 id="profile-nickname-title">{copy.nicknameModalTitle}</h2>
-              <p>{copy.nicknameModalBody}</p>
+              <p id="profile-nickname-description">{copy.nicknameModalBody}</p>
             </div>
             <label className="landing-login-field profile-single-field">
               <span>{copy.nickname}</span>
               <input
+                ref={nicknameInputRef}
                 value={nicknameDraft}
                 placeholder={copy.nicknamePlaceholder}
                 maxLength={40}
                 onChange={(event) => setNicknameDraft(event.target.value)}
               />
             </label>
-            {nicknameError && <p className="landing-login-error">{nicknameError}</p>}
+            {nicknameError && <p className="landing-login-error" role="alert">{nicknameError}</p>}
             <div className="profile-modal-actions">
               <button className="landing-secondary-button" type="button" disabled={savingNickname} onClick={() => setNicknameModalOpen(false)}>
                 {copy.cancel}
@@ -779,27 +781,26 @@ export function ProfilePage({ lang, setLang }: ProfilePageProps) {
                 {savingNickname ? copy.saving : copy.nicknameSave}
               </button>
             </div>
-          </section>
-        </div>
+        </AccessibleDialog>
       )}
 
       {emailModalOpen && user && (
-        <div className="landing-login-backdrop" onMouseDown={() => setEmailModalOpen(false)}>
-          <section
-            className="landing-login-card profile-preference-card"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="profile-email-title"
-            onMouseDown={(event) => event.stopPropagation()}
-          >
+        <AccessibleDialog
+          className="landing-login-card profile-preference-card"
+          labelledBy="profile-email-title"
+          describedBy="profile-email-description"
+          initialFocusRef={emailInputRef}
+          onClose={() => setEmailModalOpen(false)}
+        >
             <div className="landing-login-copy">
               <p className="landing-kicker">{copy.email}</p>
               <h2 id="profile-email-title">{copy.emailModalTitle}</h2>
-              <p>{copy.emailModalBody}</p>
+              <p id="profile-email-description">{copy.emailModalBody}</p>
             </div>
             <label className="landing-login-field profile-single-field">
               <span>{copy.email}</span>
               <input
+                ref={emailInputRef}
                 type="email"
                 inputMode="email"
                 autoComplete="email"
@@ -824,8 +825,8 @@ export function ProfilePage({ lang, setLang }: ProfilePageProps) {
                 {sendingEmailCode ? copy.sendCodeBusy : emailCodeCooldownSeconds > 0 ? `${emailCodeCooldownSeconds}s` : copy.sendCode}
               </button>
             </label>
-            {emailMessage && <p className="landing-login-message">{emailMessage}</p>}
-            {emailError && <p className="landing-login-error">{emailError}</p>}
+            {emailMessage && <p className="landing-login-message" role="status" aria-live="polite">{emailMessage}</p>}
+            {emailError && <p className="landing-login-error" role="alert">{emailError}</p>}
             <div className="profile-modal-actions">
               <button className="landing-secondary-button" type="button" disabled={savingEmail} onClick={() => setEmailModalOpen(false)}>
                 {copy.cancel}
@@ -834,27 +835,26 @@ export function ProfilePage({ lang, setLang }: ProfilePageProps) {
                 {savingEmail ? copy.saving : copy.emailSave}
               </button>
             </div>
-          </section>
-        </div>
+        </AccessibleDialog>
       )}
 
       {languageModalOpen && user && (
-        <div className="landing-login-backdrop" onMouseDown={() => setLanguageModalOpen(false)}>
-          <section
-            className="landing-login-card profile-preference-card"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="profile-language-title"
-            onMouseDown={(event) => event.stopPropagation()}
-          >
+        <AccessibleDialog
+          className="landing-login-card profile-preference-card"
+          labelledBy="profile-language-title"
+          describedBy="profile-language-description"
+          initialFocusRef={languageOptionRef}
+          onClose={() => setLanguageModalOpen(false)}
+        >
             <div className="landing-login-copy">
               <p className="landing-kicker">{copy.languagePreference}</p>
               <h2 id="profile-language-title">{copy.languageModalTitle}</h2>
-              <p>{copy.languageModalBody}</p>
+              <p id="profile-language-description">{copy.languageModalBody}</p>
             </div>
             <div className="profile-option-list">
               {SUPPORTED_LANGUAGE_PREFERENCES.map((language) => (
                 <button
+                  ref={language === user.languagePreference ? languageOptionRef : undefined}
                   key={language}
                   className={`profile-option${language === user.languagePreference ? " profile-option--active" : ""}`}
                   type="button"
@@ -866,28 +866,27 @@ export function ProfilePage({ lang, setLang }: ProfilePageProps) {
                 </button>
               ))}
             </div>
-            {preferenceError && <p className="landing-login-error">{preferenceError}</p>}
-          </section>
-        </div>
+            {preferenceError && <p className="landing-login-error" role="alert">{preferenceError}</p>}
+        </AccessibleDialog>
       )}
 
       {countryModalOpen && user && (
-        <div className="landing-login-backdrop" onMouseDown={() => setCountryModalOpen(false)}>
-          <section
-            className="landing-login-card profile-preference-card"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="profile-country-title"
-            onMouseDown={(event) => event.stopPropagation()}
-          >
+        <AccessibleDialog
+          className="landing-login-card profile-preference-card"
+          labelledBy="profile-country-title"
+          describedBy="profile-country-description"
+          initialFocusRef={countryOptionRef}
+          onClose={() => setCountryModalOpen(false)}
+        >
             <div className="landing-login-copy">
               <p className="landing-kicker">{copy.country}</p>
               <h2 id="profile-country-title">{copy.countryModalTitle}</h2>
-              <p>{copy.countryModalBody}</p>
+              <p id="profile-country-description">{copy.countryModalBody}</p>
             </div>
             <div className="profile-option-list">
               {SUPPORTED_DELIVERY_COUNTRIES.map((country) => (
                 <button
+                  ref={country === selectedCountry ? countryOptionRef : undefined}
                   key={country}
                   className={`profile-option${country === selectedCountry ? " profile-option--active" : ""}`}
                   type="button"
@@ -906,62 +905,57 @@ export function ProfilePage({ lang, setLang }: ProfilePageProps) {
                 {copy.countryOk}
               </button>
             </div>
-          </section>
-        </div>
+        </AccessibleDialog>
       )}
 
       {countryConfirmOpen && (
-        <div className="landing-login-backdrop" onMouseDown={() => setCountryConfirmOpen(false)}>
-          <section
-            className="landing-login-card profile-preference-card"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="profile-country-confirm-title"
-            onMouseDown={(event) => event.stopPropagation()}
-          >
+        <AccessibleDialog
+          className="landing-login-card profile-preference-card"
+          labelledBy="profile-country-confirm-title"
+          describedBy="profile-country-confirm-description"
+          initialFocusRef={countryConfirmCancelRef}
+          onClose={() => setCountryConfirmOpen(false)}
+        >
             <div className="landing-login-copy">
               <p className="landing-kicker">{pendingCountry ? countryLabel(pendingCountry, copy) : copy.country}</p>
               <h2 id="profile-country-confirm-title">{copy.countryConfirmTitle}</h2>
-              <p>{copy.countryConfirmBody}</p>
+              <p id="profile-country-confirm-description">{copy.countryConfirmBody}</p>
             </div>
-            {preferenceError && <p className="landing-login-error">{preferenceError}</p>}
+            {preferenceError && <p className="landing-login-error" role="alert">{preferenceError}</p>}
             <div className="profile-modal-actions">
-              <button className="landing-secondary-button" type="button" disabled={savingPreference} onClick={() => setCountryConfirmOpen(false)}>
+              <button ref={countryConfirmCancelRef} className="landing-secondary-button" type="button" disabled={savingPreference} onClick={() => setCountryConfirmOpen(false)}>
                 {copy.cancel}
               </button>
               <button className="landing-primary-button" type="button" disabled={savingPreference} onClick={confirmCountryChange}>
                 {savingPreference ? copy.saving : copy.countryConfirm}
               </button>
             </div>
-          </section>
-        </div>
+        </AccessibleDialog>
       )}
 
       {deleteModalOpen && user && (
-        <div className="landing-login-backdrop" onMouseDown={() => setDeleteModalOpen(false)}>
-          <section
-            className="landing-login-card profile-preference-card"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="profile-delete-title"
-            onMouseDown={(event) => event.stopPropagation()}
-          >
+        <AccessibleDialog
+          className="landing-login-card profile-preference-card"
+          labelledBy="profile-delete-title"
+          describedBy="profile-delete-description"
+          initialFocusRef={deleteCancelRef}
+          onClose={() => setDeleteModalOpen(false)}
+        >
             <div className="landing-login-copy">
               <p className="landing-kicker">{user.email}</p>
               <h2 id="profile-delete-title">{copy.deleteAccountTitle}</h2>
-              <p>{copy.deleteAccountBody}</p>
+              <p id="profile-delete-description">{copy.deleteAccountBody}</p>
             </div>
-            {deleteError && <p className="landing-login-error">{deleteError}</p>}
+            {deleteError && <p className="landing-login-error" role="alert">{deleteError}</p>}
             <div className="profile-modal-actions">
-              <button className="landing-secondary-button" type="button" disabled={deletingAccount} onClick={() => setDeleteModalOpen(false)}>
+              <button ref={deleteCancelRef} className="landing-secondary-button" type="button" disabled={deletingAccount} onClick={() => setDeleteModalOpen(false)}>
                 {copy.cancel}
               </button>
               <button className="profile-delete-confirm-button" type="button" disabled={deletingAccount} onClick={handleDeleteAccount}>
                 {deletingAccount ? copy.deletingAccount : copy.deleteAccountConfirm}
               </button>
             </div>
-          </section>
-        </div>
+        </AccessibleDialog>
       )}
     </main>
   );
@@ -986,9 +980,10 @@ function subscriptionCardSummary(user: UserProfile, copy: ProfileCopy, lang: Lan
 
 function paymentSummary(user: UserProfile, copy: ProfileCopy): string {
   if (user.paymentMethod === "card") {
+    if (!user.paymentBrand || !user.paymentLast4) return copy.noPaymentMethod;
     return copy.cardPayment
-      .replace("{brand}", user.paymentBrand || "VISA")
-      .replace("{last4}", user.paymentLast4 || "4242");
+      .replace("{brand}", user.paymentBrand)
+      .replace("{last4}", user.paymentLast4);
   }
   if (user.paymentMethod === "ideal") {
     return copy.idealPayment.replace("{bank}", user.paymentBrand || "iDEAL");

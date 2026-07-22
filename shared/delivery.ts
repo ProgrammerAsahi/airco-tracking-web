@@ -49,6 +49,26 @@ export function visibleSiteEntries(
   );
 }
 
+export type DestinationInventoryConfidence = "verified" | "partial" | "unavailable";
+
+/**
+ * Derive confidence from only the retailers that can serve the requested
+ * destination. The producer's top-level confidence is intentionally global;
+ * using it on a country page lets an unrelated outage in another country
+ * produce a false warning (or hide a real one).
+ */
+export function destinationInventoryConfidence(
+  sites: Record<string, SiteInventory>,
+  destinationCountry: string,
+): DestinationInventoryConfidence {
+  const relevant = visibleSiteEntries(sites, destinationCountry);
+  const verified = relevant.filter(([, site]) => !site.stale && site.counts_toward_totals !== false);
+  if (verified.length === 0) return "unavailable";
+  return relevant.some(([, site]) => site.stale || site.counts_toward_totals === false)
+    ? "partial"
+    : "verified";
+}
+
 function deliveryTokenMatchesDestination(token: string, destination: string): boolean {
   const normalised = token.trim().toLowerCase();
   if (normalised === destination) return true;

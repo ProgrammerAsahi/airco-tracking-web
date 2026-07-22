@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /profile
+Disallow: /ready
+Disallow: /deliver-to/
+Disallow: /unsubscribe
+Disallow: /withdrawal.html
+
+Sitemap: https://airco-tracker.eu/sitemap.xml

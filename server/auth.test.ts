@@ -3,6 +3,7 @@ import type { IncomingMessage } from "node:http";
 import test from "node:test";
 import {
   AuthService,
+  AuthHttpError,
   AlertRecipientProjectionStore,
   TableAuthStore,
   alertRecipientEntity,
@@ -11,8 +12,12 @@ import {
   createVerificationHash,
   generateVerificationCode,
   legacyUserId,
+  legalRetentionEntity,
+  legalRetentionUntil,
+  purchaseConfirmationEmailMessage,
   verifyVerificationHash,
   verificationEmailMessage,
+  withdrawalConfirmationEmailMessage,
   type StoredUserProfile,
 } from "./auth.js";
 import {
@@ -28,6 +33,20 @@ import {
 } from "../shared/auth.js";
 import { createAlertUnsubscribeToken } from "./unsubscribe.js";
 
+const TEST_CODE_PEPPER = "test-only-auth-code-pepper-at-least-32-characters";
+const TEST_CODE_PEPPER_VERSION = "test-v1";
+
+function authOptions<T extends Record<string, unknown>>(options: T = {} as T): T & {
+  verificationCodePepper: string;
+  verificationCodePepperVersion: string;
+} {
+  return {
+    verificationCodePepper: TEST_CODE_PEPPER,
+    verificationCodePepperVersion: TEST_CODE_PEPPER_VERSION,
+    ...options,
+  };
+}
+
 function testUser(overrides: Partial<StoredUserProfile> = {}): StoredUserProfile {
   return {
     userId: "95bc3d32-8f2e-4cf0-a924-731efb4ebcf2",
@@ -42,11 +61,26 @@ function testUser(overrides: Partial<StoredUserProfile> = {}): StoredUserProfile
     entitlementPurchasedAt: "2026-07-09T00:00:00.000Z",
     passReceipts: [{
       id: "pi_existing",
+      checkoutSessionId: "cs_test_existing",
       kind: "purchase",
       tier: "radar",
       baseReceiptId: null,
       purchasedAt: "2026-07-09T00:00:00.000Z",
       expiresAt: "2099-01-01T00:00:00.000Z",
+      amountEurCents: 1000,
+      checkoutLocale: "en",
+      termsVersion: "2026-07-22",
+      privacyVersion: "2026-07-22",
+      acceptedAt: "2026-07-09T00:00:00.000Z",
+      immediatePerformanceRequested: true,
+      purchaseConfirmationSentAt: null,
+      withdrawalConfirmationSentAt: null,
+      withdrawalRequestedAt: null,
+      withdrawalReference: null,
+      withdrawalConsumerName: null,
+      withdrawalElectronicConfirmationAcceptedAt: null,
+      stripeRefundId: null,
+      stripeRefundStatus: null,
       status: "active",
       paymentBrand: "VISA",
       paymentLast4: "4242",
@@ -275,6 +309,89 @@ test("localizes every verification-email text field and HTML language", () => {
   }
 });
 
+test("purchase confirmations preserve exact VAT status, legal versions, and the EU withdrawal form", () => {
+  const common = {
+    orderReference: "cs_test_order",
+    tier: "radar" as const,
+    amountEurCents: 3000,
+    purchasedAt: "2026-07-16T12:00:00.000Z",
+    expiresAt: "2026-10-14T12:00:00.000Z",
+    termsVersion: "2026-07-22",
+    privacyVersion: "2026-07-22",
+    immediatePerformanceRequested: true,
+    withdrawalDeadline: "2026-07-30T12:00:00.000Z",
+    withdrawalUrl: "https://airco-tracker.eu/withdrawal.html?lang=en",
+    termsUrl: "https://airco-tracker.eu/terms.html?lang=en",
+    privacyUrl: "https://airco-tracker.eu/privacy.html?lang=en",
+    operatorName: "Airco Tracker Operator",
+    operatorAddress: "Example Street 1, Amsterdam",
+    contactEmail: "support@airco-tracker.eu",
+    withdrawalEmail: "withdrawal@airco-tracker.eu",
+    vatStatus: "not_registered" as const,
+    vatId: null,
+  };
+  const expected = {
+    en: [/No VAT charged/, /EU model withdrawal form/, /no automatic renewal/i, /near-real-time inventory access, normally refreshed about every 10 minutes/i],
+    nl: [/Geen btw in rekening gebracht/, /EU-modelformulier voor herroeping/, /geen automatische verlenging/i, /bijna-realtime voorraadtoegang, normaal ongeveer elke 10 minuten ververst/i],
+    fr: [/Aucune TVA facturée/, /Formulaire type UE de rétractation/, /sans renouvellement automatique/i, /stock en quasi-temps réel, normalement actualisé toutes les 10 minutes environ/i],
+    zh: [/未收取增值税/, /欧盟示范撤回表/, /不会自动续费/, /近实时库存访问，通常约每 10 分钟刷新/],
+  } as const;
+  for (const lang of ["en", "nl", "fr", "zh"] as const) {
+    const message = purchaseConfirmationEmailMessage("sender@example.test", "buyer@example.test", lang, common);
+    const durable = `${message.content.plainText}\n${message.content.html}`;
+    for (const pattern of expected[lang]) assert.match(durable, pattern);
+    assert.match(durable, /2026-07-22/);
+    assert.match(durable, /withdrawal@airco-tracker\.eu/);
+    assert.equal(message.headers?.["X-Airco-Delivery-Key"], "purchase-cs_test_order");
+  }
+});
+
+test("withdrawal confirmations itemize a base pass and linked upgrade with the combined total", () => {
+  const message = withdrawalConfirmationEmailMessage("sender@example.test", "buyer@example.test", "en", {
+    orderReference: "cs_base",
+    refundReference: "WD-ABC12345",
+    requestedAt: "2026-07-20T12:00:00.000Z",
+    consumerName: "Test Consumer",
+    confirmationEmail: "buyer@example.test",
+    amountEurCents: 3000,
+    refundedItems: [
+      { orderReference: "cs_base", kind: "purchase", amountEurCents: 1500 },
+      { orderReference: "cs_upgrade", kind: "upgrade", amountEurCents: 1500 },
+    ],
+    status: "succeeded",
+    operatorName: "Airco Tracker Operator",
+    contactEmail: "support@airco-tracker.eu",
+  });
+  const durable = `${message.content.plainText}\n${message.content.html}`;
+  assert.match(durable, /Pass cs_base: €15\.00/);
+  assert.match(durable, /Radar upgrade cs_upgrade: €15\.00/);
+  assert.match(durable, /Consumer name: Test Consumer/);
+  assert.match(durable, /Confirmation sent to: buyer@example\.test/);
+  assert.match(durable, /Total refund: €30\.00/);
+  assert.match(durable, /Stripe status: Completed/);
+  assert.doesNotMatch(durable, /Stripe status: succeeded/);
+  assert.equal(message.headers?.["X-Airco-Delivery-Key"], "withdrawal-WD-ABC12345");
+});
+
+test("withdrawal confirmations localize a pending Stripe refund status", () => {
+  const expected = { en: "Pending", nl: "In behandeling", fr: "En attente", zh: "处理中" } as const;
+  for (const lang of ["en", "nl", "fr", "zh"] as const) {
+    const message = withdrawalConfirmationEmailMessage("sender@example.test", "buyer@example.test", lang, {
+      orderReference: "cs_base",
+      refundReference: "WD-PENDING",
+      requestedAt: "2026-07-20T12:00:00.000Z",
+      consumerName: "Test Consumer",
+      confirmationEmail: "buyer@example.test",
+      amountEurCents: 1500,
+      refundedItems: [{ orderReference: "cs_base", kind: "purchase", amountEurCents: 1500 }],
+      status: "pending",
+      operatorName: "Airco Tracker Operator",
+      contactEmail: "support@airco-tracker.eu",
+    });
+    assert.match(`${message.content.plainText}\n${message.content.html}`, new RegExp(expected[lang]));
+  }
+});
+
 test("validates nicknames with minimal stored profile data", () => {
   assert.deepEqual(validateNickname("  Asahi   Lee  "), { ok: true, nickname: "Asahi Lee" });
   assert.deepEqual(validateNickname("李开复"), { ok: true, nickname: "李开复" });
@@ -334,14 +451,51 @@ test("generates and verifies six-digit verification codes without storing plaint
   const code = generateVerificationCode();
   assert.match(code, /^\d{6}$/);
   const salt = "test-salt";
-  const hash = createVerificationHash("User@Example.com", "123456", salt);
-  assert.equal(hash, createVerificationHash("user@example.com", "123456", salt));
-  assert.equal(verifyVerificationHash("user@example.com", "123456", salt, hash), true);
-  assert.equal(verifyVerificationHash("user@example.com", "000000", salt, hash), false);
+  const hash = createVerificationHash("User@Example.com", "123456", salt, TEST_CODE_PEPPER, TEST_CODE_PEPPER_VERSION);
+  assert.equal(hash, createVerificationHash("user@example.com", "123456", salt, TEST_CODE_PEPPER, TEST_CODE_PEPPER_VERSION));
+  assert.equal(verifyVerificationHash("user@example.com", "123456", salt, hash, TEST_CODE_PEPPER, TEST_CODE_PEPPER_VERSION), true);
+  assert.equal(verifyVerificationHash("user@example.com", "000000", salt, hash, TEST_CODE_PEPPER, TEST_CODE_PEPPER_VERSION), false);
+  assert.notEqual(
+    hash,
+    createVerificationHash("user@example.com", "123456", salt, `${TEST_CODE_PEPPER}-rotated`, "test-v2"),
+  );
+});
+
+test("fails closed when the verification-code HMAC pepper or version is absent", () => {
+  assert.throws(() => new AuthService(), /HMAC pepper/);
+  assert.throws(
+    () => new AuthService({ verificationCodePepper: TEST_CODE_PEPPER }),
+    /pepper version/,
+  );
+});
+
+test("safely invalidates verification rows from the retired unpeppered SHA-256 format", async () => {
+  const auth = new AuthService(authOptions({ exposeDevCode: true }));
+  const store = (auth as unknown as {
+    store: {
+      putCode(record: Record<string, unknown>, expectedEtag: null): Promise<unknown>;
+      getCode(email: string): Promise<unknown>;
+    };
+  }).store;
+  await store.putCode({
+    email: "legacy-code@example.test",
+    codeHash: "0".repeat(64),
+    salt: "legacy-salt",
+    expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    attempts: 0,
+    lastSentAt: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
+  }, null);
+
+  await assert.rejects(
+    auth.verifyCode("legacy-code@example.test", "123456", "en"),
+    (error: unknown) => error instanceof AuthHttpError && error.code === "invalid_or_expired_code",
+  );
+  assert.equal(await store.getCode("legacy-code@example.test"), null);
 });
 
 test("fails closed without logging an auth code when ACS is not configured", async () => {
-  const auth = new AuthService();
+  const auth = new AuthService(authOptions());
   const infoMessages: unknown[][] = [];
   const errorMessages: unknown[][] = [];
   const originalInfo = console.info;
@@ -365,6 +519,140 @@ test("fails closed without logging an auth code when ACS is not configured", asy
   assert.equal(errorMessages.length, 1);
   assert.equal(JSON.stringify(errorMessages).includes("secure@example.test"), false);
   assert.equal(JSON.stringify(errorMessages).match(/\b\d{6}\b/), null);
+});
+
+test("counts failed verification sends against every hourly budget", async () => {
+  const auth = new AuthService(authOptions({
+    emailCodeBudgetPerHour: 10,
+    ipCodeBudgetPerHour: 10,
+    globalCodeBudgetPerHour: 1,
+  }));
+  const originalError = console.error;
+  console.error = () => {};
+  try {
+    await assert.rejects(auth.requestCode("first-failure@example.test", "en"), (error: unknown) => (
+      error instanceof AuthHttpError && error.code === "email_send_failed"
+    ));
+    await assert.rejects(auth.requestCode("second-failure@example.test", "en"), (error: unknown) => (
+      error instanceof AuthHttpError
+      && error.code === "global_code_budget_exhausted"
+      && error.status === 429
+      && Boolean(error.retryAfterSeconds)
+    ));
+  } finally {
+    console.error = originalError;
+  }
+});
+
+test("enforces distinct per-email and per-IP budgets before attempting email delivery", async () => {
+  const originalError = console.error;
+  console.error = () => {};
+  try {
+    const emailLimited = new AuthService(authOptions({
+      emailCodeBudgetPerHour: 2,
+      ipCodeBudgetPerHour: 20,
+      globalCodeBudgetPerHour: 20,
+    }));
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      await assert.rejects(emailLimited.requestCode("email-limit@example.test", "en", `198.51.100.${attempt + 1}`));
+    }
+    await assert.rejects(
+      emailLimited.requestCode("email-limit@example.test", "en", "198.51.100.3"),
+      (error: unknown) => error instanceof AuthHttpError && error.code === "email_code_budget_exhausted",
+    );
+
+    const ipLimited = new AuthService(authOptions({
+      emailCodeBudgetPerHour: 20,
+      ipCodeBudgetPerHour: 2,
+      globalCodeBudgetPerHour: 20,
+    }));
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      await assert.rejects(ipLimited.requestCode(`ip-limit-${attempt}@example.test`, "en", "203.0.113.8"));
+    }
+    await assert.rejects(
+      ipLimited.requestCode("ip-limit-final@example.test", "en", "203.0.113.8"),
+      (error: unknown) => error instanceof AuthHttpError && error.code === "ip_code_budget_exhausted",
+    );
+  } finally {
+    console.error = originalError;
+  }
+});
+
+test("uses HMAC identifiers rather than plaintext email or IP in durable budget keys", async () => {
+  const auth = new AuthService(authOptions());
+  const observed: Array<[string, string]> = [];
+  const store = (auth as unknown as {
+    store: { consumeCodeSendBudget(scope: string, identifier: string): Promise<void> };
+  }).store;
+  store.consumeCodeSendBudget = async (scope, identifier) => {
+    observed.push([scope, identifier]);
+  };
+  const originalError = console.error;
+  console.error = () => {};
+  try {
+    await assert.rejects(auth.requestCode("Private.User@Example.test", "en", "198.51.100.42"));
+  } finally {
+    console.error = originalError;
+  }
+  assert.deepEqual(observed.map(([scope]) => scope), ["email", "ip", "global"]);
+  assert.match(observed[0]![1], /^[0-9a-f]{64}$/);
+  assert.match(observed[1]![1], /^[0-9a-f]{64}$/);
+  assert.equal(observed[2]![1], "all");
+  assert.equal(JSON.stringify(observed).includes("private.user@example.test"), false);
+  assert.equal(JSON.stringify(observed).includes("198.51.100.42"), false);
+});
+
+test("table-backed code budgets use ETag CAS across concurrent service replicas", async () => {
+  class FakeBudgetTable {
+    private readonly entities = new Map<string, Record<string, any>>();
+    private version = 0;
+
+    async getEntity(partitionKey: string, rowKey: string) {
+      await Promise.resolve();
+      const entity = this.entities.get(`${partitionKey}|${rowKey}`);
+      if (!entity) throw Object.assign(new Error("not found"), { statusCode: 404 });
+      return { ...entity };
+    }
+
+    async createEntity(entity: Record<string, any>) {
+      await Promise.resolve();
+      const key = `${entity.partitionKey}|${entity.rowKey}`;
+      if (this.entities.has(key)) throw Object.assign(new Error("conflict"), { statusCode: 409 });
+      this.entities.set(key, { ...entity, etag: `budget-${++this.version}` });
+      return {};
+    }
+
+    async updateEntity(entity: Record<string, any>, _mode: string, options: { etag: string }) {
+      await Promise.resolve();
+      const key = `${entity.partitionKey}|${entity.rowKey}`;
+      const current = this.entities.get(key);
+      if (!current || current.etag !== options.etag) {
+        throw Object.assign(new Error("precondition"), { statusCode: 412 });
+      }
+      this.entities.set(key, { ...entity, etag: `budget-${++this.version}` });
+      return {};
+    }
+
+    currentCount(): number {
+      return Number([...this.entities.values()][0]?.count ?? 0);
+    }
+  }
+
+  const codes = new FakeBudgetTable();
+  const replicas = [Object.create(TableAuthStore.prototype), Object.create(TableAuthStore.prototype)] as TableAuthStore[];
+  for (const replica of replicas) Object.assign(replica as object, { codes });
+  const attempts = Array.from({ length: 12 }, (_, index) => (
+    replicas[index % replicas.length]!.consumeCodeSendBudget("global", "all", 1_750_000_000_000, 3600, 7)
+  ));
+  const settled = await Promise.allSettled(attempts);
+
+  assert.equal(settled.filter((result) => result.status === "fulfilled").length, 7);
+  assert.equal(settled.filter((result) => (
+    result.status === "rejected"
+    && result.reason instanceof AuthHttpError
+    && result.reason.code === "global_code_budget_exhausted"
+  )).length, 5);
+  assert.equal(codes.currentCount(), 7);
 });
 
 test("creates stable UUID identifiers and deterministic legacy backfills", () => {
@@ -783,6 +1071,120 @@ test("commits account deletion even when projection cleanup is deferred", async 
   assert.equal(await store.getUser(original.email), null);
 });
 
+test("retains only a pseudonymous minimum legal ledger before deleting a paid account", async () => {
+  const original = testUser({
+    entitlementTier: "radar",
+    entitlementStatus: "active",
+    entitlementExpiresAt: "2026-07-10T00:00:00.000Z",
+    passReceipts: testUser().passReceipts.map((receipt) => ({ ...receipt, expiresAt: "2026-07-10T00:00:00.000Z" })),
+  });
+  const users = new FakeUsersTable([original]);
+  const { store } = tableStoreForTest(users);
+  const retentionUntil = "2033-07-22T00:00:00.000Z";
+
+  await store.retainLegalRecords(original, retentionUntil);
+  await store.deleteUser(original.email, { userId: original.userId });
+
+  const retained = [...users.entities.values()].find((entity) => entity.recordType === "legal-retention");
+  assert.ok(retained);
+  assert.equal(retained.retentionUntil, retentionUntil);
+  assert.equal(retained.stripeCustomerId, original.stripeCustomerId);
+  assert.equal(retained.receiptsJson.includes("pi_existing"), true);
+  assert.equal(JSON.stringify(retained).includes(original.email), false);
+  assert.equal(JSON.stringify(retained).includes(original.nickname ?? "Test User"), false);
+  assert.equal(JSON.stringify(retained).includes(original.paymentLast4 ?? "4242"), false);
+  assert.equal("userId" in retained, false);
+  assert.equal(users.entities.has(`id:${original.userId}`), false);
+  assert.equal(users.entities.has(`email:${encodedEmail(original.email)}`), false);
+});
+
+test("legal retention retries are idempotent, extend a deadline, and never shorten it", async () => {
+  const original = testUser();
+  const users = new FakeUsersTable([original]);
+  const { store } = tableStoreForTest(users);
+
+  await store.retainLegalRecords(original, "2033-01-01T00:00:00.000Z");
+  const first = [...users.entities.values()].find((entity) => entity.recordType === "legal-retention");
+  assert.ok(first);
+  const retainedAt = first.retainedAt;
+
+  await store.retainLegalRecords(original, "2033-01-01T00:00:00.000Z");
+  await store.retainLegalRecords(original, "2036-01-01T00:00:00.000Z");
+  await store.retainLegalRecords(original, "2034-01-01T00:00:00.000Z");
+
+  const retained = [...users.entities.values()].find((entity) => entity.recordType === "legal-retention");
+  assert.ok(retained);
+  assert.equal(retained.retentionUntil, "2036-01-01T00:00:00.000Z");
+  assert.equal(retained.retainedAt, retainedAt);
+});
+
+test("refuses to discard paid legal evidence unless the retention write succeeded", async () => {
+  const original = testUser({
+    entitlementExpiresAt: "2026-07-10T00:00:00.000Z",
+    passReceipts: testUser().passReceipts.map((receipt) => ({ ...receipt, expiresAt: "2026-07-10T00:00:00.000Z" })),
+  });
+  const users = new FakeUsersTable([original]);
+  const { store } = tableStoreForTest(users);
+
+  await assert.rejects(
+    store.deleteUser(original.email, { userId: original.userId }),
+    (error: unknown) => error instanceof Error && error.message === "legal_retention_required",
+  );
+  assert.equal(users.entities.has(`id:${original.userId}`), true);
+});
+
+test("legal retention projection excludes direct login and unnecessary profile data", () => {
+  const entity = legalRetentionEntity(testUser(), "2033-07-22T00:00:00.000Z", "2026-07-22T00:00:00.000Z");
+  const serialized = JSON.stringify(entity);
+  assert.equal(serialized.includes("user@example.test"), false);
+  assert.equal(serialized.includes("Test User"), false);
+  assert.equal(serialized.includes("4242"), false);
+  assert.equal(serialized.includes("deliveryCountry"), false);
+  assert.equal(serialized.includes("emailAlerts"), false);
+  assert.equal(entity.rowKey.includes(testUser().userId), false);
+});
+
+test("anchors seven- and ten-year legal retention to the latest retained evidence timestamp", () => {
+  const user = testUser({
+    passReceipts: testUser().passReceipts.map((receipt) => ({
+      ...receipt,
+      purchasedAt: "2026-01-01T00:00:00.000Z",
+      acceptedAt: "2026-01-01T00:00:00.000Z",
+      expiresAt: "2026-04-01T00:00:00.000Z",
+      withdrawalRequestedAt: "2026-04-03T12:00:00.000Z",
+      withdrawalElectronicConfirmationAcceptedAt: "2026-04-03T12:00:01.000Z",
+      withdrawalConfirmationSentAt: "2026-04-04T09:30:00.000Z",
+    })),
+  });
+
+  assert.equal(legalRetentionUntil(user, 7), "2033-04-04T09:30:00.000Z");
+  assert.equal(legalRetentionUntil(user, 10), "2036-04-04T09:30:00.000Z");
+});
+
+test("legal retention preserves past and future evidence boundaries without using deletion time", () => {
+  const past = testUser({
+    passReceipts: testUser().passReceipts.map((receipt) => ({
+      ...receipt,
+      purchasedAt: "2010-01-01T00:00:00.000Z",
+      acceptedAt: "2010-01-01T00:00:00.000Z",
+      expiresAt: "2010-04-01T00:00:00.000Z",
+    })),
+  });
+  const future = testUser({
+    passReceipts: testUser().passReceipts.map((receipt) => ({
+      ...receipt,
+      purchasedAt: "2026-01-01T00:00:00.000Z",
+      acceptedAt: "2026-01-01T00:00:00.000Z",
+      expiresAt: "2027-01-01T00:00:00.000Z",
+    })),
+  });
+
+  assert.equal(legalRetentionUntil(past, 7), "2017-04-01T00:00:00.000Z");
+  assert.equal(legalRetentionUntil(future, 7), "2034-01-01T00:00:00.000Z");
+  assert.throws(() => legalRetentionUntil({ ...future, passReceipts: [] }, 7), /anchor is missing/);
+  assert.throws(() => legalRetentionUntil(future, 8 as 7), /exactly 7 or 10/);
+});
+
 test("rechecks pass entitlement after a concurrent deletion race", async () => {
   const original = testUser({
     entitlementTier: "none",
@@ -838,7 +1240,7 @@ test("returns the committed email change when a derived projection write is temp
 });
 
 test("keeps the same userId through an email change in local memory auth", async () => {
-  const auth = new AuthService({ exposeDevCode: true });
+  const auth = new AuthService(authOptions({ exposeDevCode: true }));
   const firstCode = await auth.requestCode("first@example.test", "en");
   assert.ok(firstCode.devCode);
   const verified = await auth.verifyCode("first@example.test", firstCode.devCode, "en");
@@ -858,8 +1260,71 @@ test("keeps the same userId through an email change in local memory auth", async
   assert.equal((await auth.currentUser(request))?.email, "second@example.test");
 });
 
+test("account deletion is recoverable when external deletion succeeds before a local failure", async () => {
+  const auth = new AuthService(authOptions({ exposeDevCode: true, legalRecordRetentionYears: 7 as const }));
+  const code = await auth.requestCode("delete-retry@example.test", "en");
+  const verified = await auth.verifyCode("delete-retry@example.test", code.devCode, "en");
+  const request = {
+    headers: { cookie: `${auth.cookieName}=${verified.sessionToken}` },
+  } as IncomingMessage;
+  const user = await auth.attachStripeCustomer(request, "cus_delete_retry");
+  const purchasedAt = new Date(Date.now() - 60_000).toISOString();
+  await auth.applyStripePassPurchase({
+    userId: user.userId,
+    stripeCustomerId: "cus_delete_retry",
+    stripePaymentIntentId: "pi_delete_retry",
+    checkoutSessionId: "cs_delete_retry",
+    kind: "purchase",
+    baseReceiptId: null,
+    tier: "alerts",
+    purchasedAt,
+    expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
+    amountEurCents: 500,
+    checkoutLocale: "en",
+    termsVersion: "2026-07-22",
+    privacyVersion: "2026-07-22",
+    acceptedAt: purchasedAt,
+    immediatePerformanceRequested: true,
+    paymentBrand: "visa",
+    paymentLast4: "4242",
+  });
+  await auth.revokeStripePassEntitlement("cus_delete_retry", "pi_delete_retry", "refunded");
+
+  const store = (auth as unknown as {
+    store: {
+      deleteUser: (email: string, options?: { userId?: string }) => Promise<void>;
+      legalRetentions: Map<string, unknown>;
+    };
+  }).store;
+  const originalDelete = store.deleteUser.bind(store);
+  let failOnce = true;
+  store.deleteUser = async (email, options) => {
+    if (failOnce) {
+      failOnce = false;
+      throw new Error("local table temporarily unavailable");
+    }
+    await originalDelete(email, options);
+  };
+
+  // This happens before the external Stripe customer deletion. A failure here
+  // would therefore prevent the external side effect.
+  await auth.prepareAccountDeletion(request);
+  assert.equal(store.legalRetentions.size, 1);
+
+  // Simulate Stripe succeeding followed by a transient local-table failure.
+  await assert.rejects(auth.deleteAccount(request), /temporarily unavailable/);
+  assert.equal((await auth.currentUser(request))?.email, "delete-retry@example.test");
+
+  // Replaying the workflow reuses the same legal ledger and completes safely;
+  // Stripe customer deletion itself treats an already-missing customer as OK.
+  await auth.prepareAccountDeletion(request);
+  await auth.deleteAccount(request);
+  assert.equal(await auth.currentUser(request), null);
+  assert.equal(store.legalRetentions.size, 1);
+});
+
 test("binds sessions to immutable userId even if a stale session keeps a reused email", async () => {
-  const auth = new AuthService({ exposeDevCode: true });
+  const auth = new AuthService(authOptions({ exposeDevCode: true }));
   const firstCode = await auth.requestCode("reused@example.test", "en");
   const first = await auth.verifyCode("reused@example.test", firstCode.devCode, "en");
   const firstRequest = {
@@ -888,7 +1353,7 @@ test("binds sessions to immutable userId even if a stale session keeps a reused 
 });
 
 test("deduplicates pass receipts and falls back safely when an upgrade is refunded", async () => {
-  const auth = new AuthService({ exposeDevCode: true });
+  const auth = new AuthService(authOptions({ exposeDevCode: true }));
   const code = await auth.requestCode("passes@example.test", "en");
   const verified = await auth.verifyCode("passes@example.test", code.devCode, "en");
   const request = {
@@ -901,11 +1366,18 @@ test("deduplicates pass receipts and falls back safely when an upgrade is refund
     userId: customer.userId,
     stripeCustomerId: "cus_passes",
     stripePaymentIntentId: "pi_alerts",
+    checkoutSessionId: "cs_test_alerts",
     kind: "purchase" as const,
     baseReceiptId: null,
     tier: "alerts" as const,
     purchasedAt,
     expiresAt,
+    amountEurCents: 500,
+    checkoutLocale: "en" as const,
+    termsVersion: "2026-07-22",
+    privacyVersion: "2026-07-22",
+    acceptedAt: purchasedAt,
+    immediatePerformanceRequested: true as const,
     paymentBrand: "visa",
     paymentLast4: "4242",
   };
@@ -961,7 +1433,7 @@ test("deduplicates pass receipts and falls back safely when an upgrade is refund
 });
 
 test("toggles stock alert emails without changing pass access", async () => {
-  const auth = new AuthService({ exposeDevCode: true });
+  const auth = new AuthService(authOptions({ exposeDevCode: true }));
   const code = await auth.requestCode("alerts@example.test", "en");
   const verified = await auth.verifyCode("alerts@example.test", code.devCode, "en");
   const request = {
@@ -984,7 +1456,7 @@ test("toggles stock alert emails without changing pass access", async () => {
 
 test("one-click unsubscribe is idempotent and re-enabling invalidates the old link", async () => {
   const signingKey = "0123456789abcdef0123456789abcdef";
-  const auth = new AuthService({ exposeDevCode: true, unsubscribeSigningKey: signingKey });
+  const auth = new AuthService(authOptions({ exposeDevCode: true, unsubscribeSigningKey: signingKey }));
   const code = await auth.requestCode("one-click@example.test", "en");
   const verified = await auth.verifyCode("one-click@example.test", code.devCode, "en");
   const request = {
@@ -1013,7 +1485,7 @@ test("one-click unsubscribe is idempotent and re-enabling invalidates the old li
 
 test("changing email invalidates unsubscribe links sent to the previous address", async () => {
   const signingKey = "0123456789abcdef0123456789abcdef";
-  const auth = new AuthService({ exposeDevCode: true, unsubscribeSigningKey: signingKey });
+  const auth = new AuthService(authOptions({ exposeDevCode: true, unsubscribeSigningKey: signingKey }));
   const firstCode = await auth.requestCode("old-link@example.test", "en");
   const verified = await auth.verifyCode("old-link@example.test", firstCode.devCode, "en");
   const request = {
@@ -1036,7 +1508,7 @@ test("changing email invalidates unsubscribe links sent to the previous address"
 });
 
 test("serializes concurrent invalid OTP attempts with CAS", async () => {
-  const auth = new AuthService({ exposeDevCode: true, codeMaxAttempts: 3 });
+  const auth = new AuthService(authOptions({ exposeDevCode: true, codeMaxAttempts: 3 }));
   const issued = await auth.requestCode("attempts@example.test", "en");
   assert.ok(issued.devCode);
 
@@ -1053,7 +1525,7 @@ test("serializes concurrent invalid OTP attempts with CAS", async () => {
 });
 
 test("allows a verification code to create only one session under concurrent use", async () => {
-  const auth = new AuthService({ exposeDevCode: true });
+  const auth = new AuthService(authOptions({ exposeDevCode: true }));
   const issued = await auth.requestCode("one-time@example.test", "en");
   assert.ok(issued.devCode);
 

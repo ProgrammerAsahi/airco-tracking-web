@@ -5,7 +5,7 @@
   <a href="./SUBSCRIPTION_BILLING_TEST_PLAN.en.md"><img alt="English" src="https://img.shields.io/badge/TEST_PLAN-English-0969da"></a>
 </p>
 
-Last updated: 2026-07-17
+Last updated: 2026-07-22
 
 This document tracks end-to-end tests for the portal, login, one-time Stripe payments, 90-day entitlements, and realtime-inventory access control. Update the Chinese and English versions together whenever a scenario, status, or test note changes.
 
@@ -20,7 +20,7 @@ Status: ✅ passed · ❌ failed · 🚧 partial/fix pending · ⬜ not tested �
 - Webhook: Stripe destination `airco-tracker-pass-webhook` → `https://airco-tracker.eu/api/billing/webhook`
 - The webhook subscribes to exactly eight events: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `charge.refunded`, `refund.created`, `refund.updated`, `refund.failed`, `charge.dispute.created`, and `charge.dispute.closed`
 - Payment method: phase one enables cards only. Stripe Checkout hosts card entry; Airco Tracker never reads or stores full card numbers.
-- This remains Sandbox/test mode. Before accepting real payments, complete the compliance decisions and disclosures for VAT/tax, consumer withdrawal rights, refunds, terms/privacy, and checkout.
+- This remains Sandbox/test mode. The checkout-evidence, confirmation-email, online-withdrawal, full-refund, and fail-closed live-payment mechanisms are implemented. Real payments remain disabled until the operator, registration, VAT, address, and contact details have been verified and approved for production.
 
 | Product | Entitlement | Price | Validity | Stripe test Price ID |
 | --- | --- | ---: | ---: | --- |
@@ -29,6 +29,8 @@ Status: ✅ passed · ❌ failed · 🚧 partial/fix pending · ⬜ not tested �
 | Alerts → Radar upgrade | Adds realtime inventory; retains the original expiry | €5 one time | Original Alerts expiry | `price_1TtoG10XRx7WeBOsvsvaarrD` |
 
 Canonical entitlement state is expressed through `tier`, `status`, `purchasedAt`, `expiresAt`, and a minimal payment-receipt ledger. Stripe Customer, Checkout Session, and PaymentIntent identifiers must remain private server-side data and must not appear in the public profile or `alertrecipients` projection.
+
+Purchase and withdrawal confirmations use the same receipt ledger as a durable aggregate outbox: an unset `*ConfirmationSentAt` marker is pending work, and the marker is written only after the mail provider acknowledges delivery. Replays therefore provide at-least-once delivery (a duplicate is possible only when provider acceptance succeeds but the following CAS marker write fails). Every message carries a stable `X-Airco-Delivery-Key` for correlation. Consumer withdrawal is a two-phase state machine: the request/reference is committed before the idempotent Stripe refund, and refund webhooks can reconcile a remote success after any local write failure.
 
 ## P0: initial purchase and return
 
@@ -55,7 +57,9 @@ Canonical entitlement state is expressed through `tier`, `status`, `purchasedAt`
 | ⬜ | Exact expiry boundary | Access remains through the last instant before `expiresAt`; email projection and realtime access close at expiry | Not tested |
 | ⬜ | Repurchase after expiry | Either Pass can be purchased and receives a fresh 90-day window from the new payment time | Not tested |
 | ⬜ | Delete account with an active Pass | Server rejects deletion and clearly shows the expiry date | Not tested |
-| ⬜ | Delete with no Pass or after expiry | Account, session, and alert projection are removed; Stripe payment records are not falsely erased | Not tested |
+| ✅ | Delete with no Pass and no paid-order evidence | Login profile, indexes, session, and alert recipient projection are removed | Automated server test, 2026-07-22 |
+| ✅ | Delete after a paid Pass expires or is refunded | Before deletion, a separate pseudonymous legal ledger is durably written with `retentionUntil`; it contains only necessary contract/payment/refund/withdrawal evidence and excludes email, nickname, preferences, alert settings, card brand, and last four digits | Automated server test, 2026-07-22 |
+| ✅ | Stripe customer deletion succeeds but local deletion transiently fails | Retry is idempotent: the durable legal ledger is reused, the already-deleted Stripe customer is tolerated, and local account removal can finish without losing audit evidence | Automated server test, 2026-07-22 |
 
 ## P0: access control and preferences
 
@@ -68,6 +72,8 @@ Canonical entitlement state is expressed through `tier`, `status`, `purchasedAt`
 | ⬜ | Radar user changes country | Entitlement remains; route and retailer list change with delivery country | Not tested |
 | ⬜ | Temporary header language switch | Current UI changes immediately without overwriting the saved Profile preference | Not tested |
 | ⬜ | Save language in Profile | Profile, Ready, inventory, OTP/alert email, and Stripe locale agree | Not tested |
+| ✅ | Browser sends an authenticated unsafe request with a missing, same-site sibling, or cross-site `Origin` | Request fails closed; only an exact same-origin `Origin` is accepted | Automated request-security test, 2026-07-22 |
+| ✅ | Trusted non-browser client sends an authenticated unsafe request | Request is accepted only without browser Fetch Metadata and with `X-Airco-Api-Client: trusted-non-browser-v1` | Automated request-security test, 2026-07-22 |
 
 ## P0: webhooks, refunds, and disputes
 
@@ -87,6 +93,22 @@ Canonical entitlement state is expressed through `tier`, `status`, `purchasedAt`
 | ⬜ | Won `charge.dispute.closed` | Restore only the still-valid, correctly owned receipt without extending expiry | Not tested |
 | ⬜ | Failure/success/refund events arrive out of order | Receipt ledger converges to the final state and stale events cannot overwrite it | Not tested |
 | ⏸️ | Concurrent purchases in multiple tabs | Final state keeps only legitimate receipts; duplicate purchase is refunded or rejected | Boundary test deferred |
+
+## P0: consumer information, confirmation, and withdrawal
+
+| Status | Scenario | Expected result | Record |
+| --- | --- | --- | --- |
+| ✅ | Test/unknown live-key gate | Test keys work with sandbox configuration; restricted live and unknown key formats fail closed unless every verified legal field, production approval, and withdrawal signing key is present | Automated server test, 2026-07-22 |
+| ✅ | Checkout consent evidence | Terms/privacy versions, acceptance time, immediate-performance request, user UUID, product, amount, and duration are written to Checkout and PaymentIntent metadata without exposing the email address | Automated server test, 2026-07-22 |
+| ✅ | Durable purchase confirmation | Email contains the exact product, one-time amount, 90-day or upgrade duration, expiry, VAT status, operator/contact details, legal versions, service limitations, withdrawal deadline, online route, and EU model form | Four-language message tests, 2026-07-22 |
+| ✅ | Signed-out withdrawal verification | A signed-out customer must verify the account email by OTP before an eligible order can be previewed; responses do not expose account or order details before verification | Automated server tests, 2026-07-22 |
+| ✅ | Signed withdrawal token | Preview returns a short-lived HMAC token bound to the user and PaymentIntent; tampered or expired tokens cannot request a refund | Automated server tests, 2026-07-22 |
+| ⬜ | Production test-mode online withdrawal | Within 14 days, submit the public form while signed out; selected order is refunded, entitlement is recalculated immediately, and confirmation email arrives | Pending post-deploy test |
+| ⬜ | Base Alerts withdrawal after Radar upgrade | Base and linked upgrade are both fully refunded; confirmation itemizes both payments and their combined total; no orphan Radar entitlement remains | Pending post-deploy test |
+| ⬜ | Upgrade-only withdrawal | Upgrade is refunded, Radar access is removed, and the still-paid/unexpired Alerts entitlement remains | Pending post-deploy test |
+| ✅ | Repeated withdrawal confirmation | The same token/request remains idempotent and cannot create a second Stripe refund or duplicate entitlement transition | Fault-injection server test, 2026-07-22; production smoke still pending |
+| ⬜ | Request after 14-day deadline | Online flow refuses automatic withdrawal and presents the support/contact route without altering entitlement | Pending post-deploy test |
+| ✅ | Purchase/withdrawal mail outage | Stripe webhook or return sync retries the unsent confirmation; entitlement and refund state never depend on a misleading success email | Mail/provider-marker and refund-audit fault-injection server tests, 2026-07-22 |
 
 ## P1: payment failures and 3D Secure
 
@@ -128,4 +150,4 @@ Canonical entitlement state is expressed through `tier`, `status`, `purchasedAt`
 2. Clear or expire that test user, buy Radar directly, and verify the 90-day entitlement and realtime inventory.
 3. Test 3D Secure, declined cards, exact expiry, out-of-order webhooks, and concurrency.
 4. Separately verify legacy-entitlement migration when the three old subscriptions expire and prove stale events cannot overwrite Pass receipts.
-5. Complete VAT/tax, withdrawal, refund, terms/privacy, and checkout-disclosure work before evaluating Stripe live mode.
+5. Verify the final operator/registration/VAT/address/contact facts, obtain legal review where appropriate, populate the production environment, and explicitly approve the live-payment gate before evaluating Stripe live mode.

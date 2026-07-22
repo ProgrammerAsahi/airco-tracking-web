@@ -1,5 +1,6 @@
 import { userInitials, type DeliveryCountry, type PaidSubscriptionPlan, type UserProfile } from "../shared/auth";
 import type { Lang } from "./i18n";
+import type { CheckoutLegalAcceptance } from "../shared/legal";
 
 export type { DeliveryCountry, PaidSubscriptionPlan, UserProfile } from "../shared/auth";
 export { userInitials };
@@ -118,8 +119,44 @@ export async function unsubscribeEmailAlerts(token: string): Promise<void> {
   await parseJsonResponse<{ ok: true }>(response);
 }
 
-export async function createCheckoutSession(plan: PaidSubscriptionPlan, lang: Lang): Promise<CheckoutSessionResponse> {
-  return postJson<CheckoutSessionResponse>("/api/billing/create-checkout-session", { plan, lang });
+export async function createCheckoutSession(
+  plan: PaidSubscriptionPlan,
+  lang: Lang,
+  legal: CheckoutLegalAcceptance,
+): Promise<CheckoutSessionResponse> {
+  return postJson<CheckoutSessionResponse>("/api/billing/create-checkout-session", { plan, lang, legal });
+}
+
+export type WithdrawalPreview = {
+  token: string;
+  confirmationEmail: string;
+  orderReference: string;
+  tier: PaidSubscriptionPlan;
+  amountEurCents: number;
+  purchasedAt: string;
+  withdrawalDeadline: string;
+};
+
+export async function requestWithdrawalCode(email: string, lang: Lang): Promise<RequestCodeResponse> {
+  return postJson<RequestCodeResponse>("/api/billing/withdrawal/request-code", { email, lang });
+}
+
+export async function previewWithdrawal(values: {
+  email?: string;
+  code?: string;
+  orderReference?: string;
+  consumerName: string;
+  electronicConfirmationAccepted: boolean;
+}): Promise<WithdrawalPreview> {
+  return postJson<WithdrawalPreview>("/api/billing/withdrawal/preview", values);
+}
+
+export async function confirmWithdrawal(token: string): Promise<{
+  ok: true;
+  refundStatus: string;
+  withdrawalReference: string;
+}> {
+  return postJson("/api/billing/withdrawal/confirm", { token });
 }
 
 export async function syncCheckoutStatus(sessionId?: string | null): Promise<UserProfile> {

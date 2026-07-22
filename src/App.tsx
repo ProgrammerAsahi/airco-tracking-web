@@ -13,8 +13,16 @@ import { getCurrentUser, type UserProfile } from "./authClient";
 import { AircoLogoMark } from "./AircoLogoMark";
 import { UnsubscribePage } from "./UnsubscribePage";
 import { hasRealtimeStockAccess } from "../shared/auth";
-import { canonicalDeliveryPath, destinationCountryFromPath, visibleSiteEntries } from "../shared/delivery";
+import {
+  canonicalDeliveryPath,
+  destinationCountryFromPath,
+  destinationInventoryConfidence,
+  visibleSiteEntries,
+} from "../shared/delivery";
 import { productExternalUrl } from "../shared/inventory";
+import { parseRetailerHash } from "../shared/navigation";
+import { setPageMetadata } from "./metadata";
+import { LegalFooter, WithdrawalLink } from "./LegalFooter";
 import "./styles.css";
 
 const inventoryUrl = import.meta.env.VITE_INVENTORY_URL ?? "/api/inventory";
@@ -78,10 +86,10 @@ function destinationCountryName(country: string, lang: Lang): string {
 
 function destinationEyebrow(country: string, lang: Lang): string {
   const name = destinationCountryName(country, lang);
-  if (lang === "zh") return `${name} · 实时库存`;
-  if (lang === "nl") return `${name} · realtime voorraad`;
-  if (lang === "fr") return `${name} · stock en temps réel`;
-  return `${name} · live stock`;
+  if (lang === "zh") return `${name} · 近实时库存（通常约每 10 分钟刷新）`;
+  if (lang === "nl") return `${name} · bijna-realtime voorraad (normaal ongeveer elke 10 minuten ververst)`;
+  if (lang === "fr") return `${name} · stock en quasi-temps réel (normalement toutes les 10 minutes environ)`;
+  return `${name} · near-real-time stock (normally refreshed about every 10 minutes)`;
 }
 
 function metricLabel(t: Translator, key: string, count: number): string {
@@ -114,11 +122,17 @@ function siteHasPresale(site: SiteInventory): boolean {
   return presaleProductCount(site) > 0;
 }
 
+function siteCountsTowardTotals(site: SiteInventory): boolean {
+  return !site.stale && site.counts_toward_totals !== false;
+}
+
 function immediateProductCount(site: SiteInventory): number {
+  if (!siteCountsTowardTotals(site)) return 0;
   return site.immediate_product_count ?? site.products.filter((p) => !p.presale).length;
 }
 
 function presaleProductCount(site: SiteInventory): number {
+  if (!siteCountsTowardTotals(site)) return 0;
   return site.presale_product_count ?? site.products.filter((p) => p.presale).length;
 }
 
@@ -127,14 +141,7 @@ function siteDisplayName(siteKey: string, site: SiteInventory): string {
 }
 
 function selectedRetailFromHash(): SelectedRetailer | null {
-  const hash = window.location.hash;
-  if (!hash || hash === "#/") return null;
-  const [encodedKey, tab] = hash.slice(2).split("/");
-  if (!encodedKey) return null;
-  return {
-    key: decodeURIComponent(encodedKey),
-    tab: tab === "presale" ? "presale" : "immediate",
-  };
+  return parseRetailerHash(window.location.hash, "immediate", "presale");
 }
 
 function StoreCard({ siteKey, inventory, onSelect, presaleView, t }: { siteKey: string; inventory: SiteInventory; onSelect: (key: string, tab: InventoryTab) => void; presaleView: boolean; t: Translator }) {
@@ -222,7 +229,8 @@ function RetailerDetail({ siteKey, inventory, initialTab, onBack, t, lang }: { s
   const [activeTab, setActiveTab] = useState<InventoryTab>(initialTab);
 
   const { immediate, presale } = useMemo(() => {
-    const sorted = [...inventory.products].sort((a, b) => {
+    const countedProducts = siteCountsTowardTotals(inventory) ? inventory.products : [];
+    const sorted = [...countedProducts].sort((a, b) => {
       const priceA = a.price_eur ?? Number.MAX_SAFE_INTEGER;
       const priceB = b.price_eur ?? Number.MAX_SAFE_INTEGER;
       return priceA - priceB;
@@ -231,7 +239,7 @@ function RetailerDetail({ siteKey, inventory, initialTab, onBack, t, lang }: { s
       immediate: sorted.filter((p) => !p.presale),
       presale: sorted.filter((p) => p.presale),
     };
-  }, [inventory.products]);
+  }, [inventory]);
 
   useEffect(() => {
     if (initialTab === "presale" && presale.length > 0) {
@@ -300,7 +308,10 @@ function RetailerDetail({ siteKey, inventory, initialTab, onBack, t, lang }: { s
       )}
       <div className="detail-footer">
         <span>{t("detail_footer_disclaimer")}</span>
-        <a href={brand.url} target="_blank" rel="noopener noreferrer">{t("detail_visit_store", { name: brand.name })} ↗</a>
+        <span className="detail-footer-actions">
+          <WithdrawalLink lang={lang} className="detail-withdrawal-link" />
+          <a href={brand.url} target="_blank" rel="noopener noreferrer">{t("detail_visit_store", { name: brand.name })} ↗</a>
+        </span>
       </div>
     </div>
   );
@@ -341,12 +352,17 @@ function InventoryApp({ lang, setLang, t }: AppLocaleProps) {
   }, []);
 
   useEffect(() => {
-    const siteCount = snapshot ? visibleSiteEntries(snapshot.sites, destinationCountry).length : "…";
-    document.title = `Airco Tracker · ${t("section_title")}`;
-    document
-      .querySelector('meta[name="description"]')
-      ?.setAttribute("content", t("hero_description", { site_count: siteCount }).replace(/<br\s*\/?>/gi, " "));
-  }, [destinationCountry, snapshot, t]);
+    const siteCount = snapshot
+      ? visibleSiteEntries(snapshot.sites, destinationCountry).filter(([, site]) => siteCountsTowardTotals(site)).length
+      : "…";
+    setPageMetadata({
+      pathname: canonicalDeliveryPath(destinationCountry),
+      lang,
+      indexable: false,
+      title: `Airco Tracker · ${t("section_title")}`,
+      description: t("hero_description", { site_count: siteCount }).replace(/<br\s*\/?>/gi, " "),
+    });
+  }, [destinationCountry, lang, snapshot, t]);
 
   useEffect(() => {
     const syncDestinationFromPath = () => {
@@ -443,10 +459,12 @@ function InventoryApp({ lang, setLang, t }: AppLocaleProps) {
 
   const sites = useMemo(() => {
     if (!snapshot) return [];
-    return visibleSiteEntries(snapshot.sites, destinationCountry).sort(([keyA, siteA], [keyB, siteB]) => {
-      const stockDifference = (immediateProductCount(siteB) + presaleProductCount(siteB)) - (immediateProductCount(siteA) + presaleProductCount(siteA));
-      return stockDifference || siteDisplayName(keyA, siteA).localeCompare(siteDisplayName(keyB, siteB), "nl");
-    });
+    return visibleSiteEntries(snapshot.sites, destinationCountry)
+      .filter(([, site]) => siteCountsTowardTotals(site))
+      .sort(([keyA, siteA], [keyB, siteB]) => {
+        const stockDifference = (immediateProductCount(siteB) + presaleProductCount(siteB)) - (immediateProductCount(siteA) + presaleProductCount(siteA));
+        return stockDifference || siteDisplayName(keyA, siteA).localeCompare(siteDisplayName(keyB, siteB), "nl");
+      });
   }, [destinationCountry, snapshot]);
 
   const immediateSites = useMemo(
@@ -469,6 +487,9 @@ function InventoryApp({ lang, setLang, t }: AppLocaleProps) {
   );
 
   const displayedSites = overviewTab === "immediate" ? immediateSites : presaleSites;
+  const inventoryConfidence = snapshot
+    ? destinationInventoryConfidence(snapshot.sites, destinationCountry)
+    : undefined;
   const immediateCount = immediateSites.length;
   const presaleCount = presaleSites.length;
 
@@ -480,8 +501,8 @@ function InventoryApp({ lang, setLang, t }: AppLocaleProps) {
     if (!selectedRetailer || !snapshot) return undefined;
     const visibleSiteMap = new Map(sites);
     const direct = visibleSiteMap.get(selectedRetailer.key);
-    if (direct) return [selectedRetailer.key, direct] as const;
-    return sites.find(([siteKey, site]) => siteDisplayName(siteKey, site) === selectedRetailer.key);
+    if (direct && siteCountsTowardTotals(direct)) return [selectedRetailer.key, direct] as const;
+    return sites.find(([siteKey, site]) => siteCountsTowardTotals(site) && siteDisplayName(siteKey, site) === selectedRetailer.key);
   }, [selectedRetailer, sites, snapshot]);
 
   if (!accessChecked) {
@@ -536,6 +557,14 @@ function InventoryApp({ lang, setLang, t }: AppLocaleProps) {
           </div>
         </div>
 
+        <aside className="inventory-method-disclosure" aria-labelledby="inventory-ranking-title">
+          <p>{t("freshness_disclosure")}</p>
+          <details>
+            <summary id="inventory-ranking-title">{t("ranking_disclosure_title")}</summary>
+            <p>{t("ranking_disclosure_body")}</p>
+          </details>
+        </aside>
+
         <div className="overview-tabs">
           <button
             className={`overview-tab${overviewTab === "immediate" ? " overview-tab--active" : ""}`}
@@ -558,6 +587,12 @@ function InventoryApp({ lang, setLang, t }: AppLocaleProps) {
             {error.kind === "http" ? t("error_fetch", { status: error.status }) : t("error_generic")}
           </div>
         )}
+        {inventoryConfidence === "partial" && (
+          <div className="notice" role="status">{t("inventory_confidence_partial")}</div>
+        )}
+        {inventoryConfidence === "unavailable" && (
+          <div className="notice notice--error" role="status">{t("inventory_confidence_unavailable")}</div>
+        )}
         {!snapshot && !error && <div className="notice">{t("loading")}</div>}
         {snapshot && displayedSites.length === 0 && (
           <div className="notice">{overviewTab === "immediate" ? t("empty_immediate") : t("empty_presale")}</div>
@@ -571,10 +606,8 @@ function InventoryApp({ lang, setLang, t }: AppLocaleProps) {
         )}
       </section>
 
-      <footer className="page-footer">
-        <span>{t("page_footer_disclaimer")}</span>
-        <span>Airco Tracker · {destinationCountry.toUpperCase()}</span>
-      </footer>
+      <p className="page-footer-disclaimer">{t("page_footer_disclaimer")}</p>
+      <LegalFooter lang={lang} context={destinationCountry.toUpperCase()} />
 
       {selectedRetailer && selectedEntry && (
         <RetailerDetail siteKey={selectedEntry[0]} inventory={selectedEntry[1]} initialTab={selectedRetailer.tab} onBack={goBack} t={t} lang={lang} />
@@ -612,6 +645,11 @@ export default function App() {
     window.addEventListener("popstate", syncPathname);
     return () => window.removeEventListener("popstate", syncPathname);
   }, []);
+
+  useEffect(() => {
+    const indexable = pathname === "/" || pathname === "/subscribe";
+    setPageMetadata({ pathname, lang, indexable });
+  }, [lang, pathname]);
 
   if (isInventoryRoute(pathname)) {
     return <InventoryApp lang={lang} setLang={setLang} t={t} />;

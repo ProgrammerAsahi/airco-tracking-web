@@ -5,12 +5,16 @@ import { getCurrentUser, syncCheckoutStatus, type UserProfile } from "./authClie
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import type { Lang } from "./i18n";
 import { AircoLogoMark } from "./AircoLogoMark";
+import { setPageMetadata } from "./metadata";
+import { LegalFooter } from "./LegalFooter";
 
 type ReadyCopy = {
   productName: string;
   pageTitle: string;
   pageDescription: string;
   loading: string;
+  loadError: string;
+  retry: string;
   title: string;
   body: string;
   bodyPaused: string;
@@ -24,6 +28,8 @@ const READY_COPY: Record<Lang, ReadyCopy> = {
     pageTitle: "一切已就绪",
     pageDescription: "Airco Tracker 已准备好发送空调库存提醒。",
     loading: "正在读取通行证状态…",
+    loadError: "暂时无法读取你的账号和通行证状态。请检查网络后重试。",
+    retry: "重新加载",
     title: "一切已就绪",
     body: "一旦出现空调上架，我们会邮件通知您。",
     bodyPaused: "库存提醒邮件已暂停。你可以随时在账号页面重新开启。",
@@ -35,6 +41,8 @@ const READY_COPY: Record<Lang, ReadyCopy> = {
     pageTitle: "Alles staat klaar",
     pageDescription: "Airco Tracker staat klaar om je meldingen over nieuwe airco-voorraad te sturen.",
     loading: "Heatwave-pass laden…",
+    loadError: "Je account en Heatwave-pass konden niet worden geladen. Controleer je verbinding en probeer opnieuw.",
+    retry: "Opnieuw proberen",
     title: "Alles staat klaar",
     body: "Zodra er airco-voorraad verschijnt, sturen we je een e-mail.",
     bodyPaused: "Voorraadmeldingen per e-mail zijn gepauzeerd. Je kunt ze op elk moment weer inschakelen in je account.",
@@ -46,6 +54,8 @@ const READY_COPY: Record<Lang, ReadyCopy> = {
     pageTitle: "You are all set",
     pageDescription: "Airco Tracker is ready to send your portable AC stock alerts.",
     loading: "Loading Heatwave Pass…",
+    loadError: "We could not load your account and Heatwave Pass. Check your connection and try again.",
+    retry: "Try again",
     title: "You are all set.",
     body: "As soon as an air conditioner appears in stock, we’ll notify you by email.",
     bodyPaused: "Stock alert emails are paused. You can re-enable them at any time in your account.",
@@ -57,6 +67,8 @@ const READY_COPY: Record<Lang, ReadyCopy> = {
     pageTitle: "Tout est prêt",
     pageDescription: "Airco Tracker est prêt à vous envoyer des alertes de stock pour les climatiseurs mobiles.",
     loading: "Chargement du pass canicule…",
+    loadError: "Impossible de charger votre compte et votre pass canicule. Vérifiez votre connexion et réessayez.",
+    retry: "Réessayer",
     title: "Tout est prêt.",
     body: "Dès qu’un climatiseur sera disponible, nous vous préviendrons par e-mail.",
     bodyPaused: "Les alertes de stock par e-mail sont en pause. Vous pouvez les réactiver à tout moment depuis votre compte.",
@@ -74,10 +86,20 @@ export function ReadyPage({ lang, setLang }: ReadyPageProps) {
   const copy = READY_COPY[lang];
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
 
   useEffect(() => {
-    document.title = `${copy.pageTitle} · Airco Tracker`;
+    setPageMetadata({
+      pathname: "/ready",
+      lang,
+      indexable: false,
+      title: `${copy.pageTitle} · Airco Tracker`,
+      description: copy.pageDescription,
+    });
     let ignore = false;
+    setLoading(true);
+    setLoadError(false);
 
     async function loadUser() {
       const params = new URLSearchParams(window.location.search);
@@ -119,7 +141,7 @@ export function ReadyPage({ lang, setLang }: ReadyPageProps) {
         setUser(nextUser);
       })
       .catch(() => {
-        if (!ignore) window.location.replace(`/?lang=${lang}`);
+        if (!ignore) setLoadError(true);
       })
       .finally(() => {
         if (!ignore) setLoading(false);
@@ -127,13 +149,7 @@ export function ReadyPage({ lang, setLang }: ReadyPageProps) {
     return () => {
       ignore = true;
     };
-  }, [copy.pageTitle, lang, setLang]);
-
-  useEffect(() => {
-    document
-      .querySelector('meta[name="description"]')
-      ?.setAttribute("content", copy.pageDescription);
-  }, [copy.pageDescription]);
+  }, [copy.pageDescription, copy.pageTitle, lang, loadAttempt, setLang]);
 
   const inventoryUrl = user ? `/deliver-to/${user.deliveryCountry}?lang=${lang}` : `/deliver-to/fr?lang=${lang}`;
 
@@ -150,7 +166,7 @@ export function ReadyPage({ lang, setLang }: ReadyPageProps) {
         </div>
       </header>
 
-      <section className="ready-card">
+      <section className="ready-card" aria-busy={loading}>
         <div className="ready-visual" aria-hidden="true">
           <div className="ready-window" />
           <div className="ready-curtain ready-curtain--left" />
@@ -158,7 +174,14 @@ export function ReadyPage({ lang, setLang }: ReadyPageProps) {
           <div className="ready-breeze"><i /><i /><i /></div>
         </div>
         {loading ? (
-          <p className="profile-loading">{copy.loading}</p>
+          <p className="profile-loading" role="status" aria-live="polite">{copy.loading}</p>
+        ) : loadError ? (
+          <div className="ready-error" role="alert">
+            <p>{copy.loadError}</p>
+            <button className="landing-secondary-button" type="button" onClick={() => setLoadAttempt((attempt) => attempt + 1)}>
+              {copy.retry}
+            </button>
+          </div>
         ) : (
           <>
             <p className="landing-kicker">{copy.productName}</p>
@@ -175,6 +198,7 @@ export function ReadyPage({ lang, setLang }: ReadyPageProps) {
           </>
         )}
       </section>
+      <LegalFooter lang={lang} />
     </main>
   );
 }

@@ -7,6 +7,11 @@ import {
   type PaidSubscriptionPlan,
 } from "../shared/auth";
 import {
+  LEGAL_PRIVACY_VERSION,
+  LEGAL_TERMS_VERSION,
+  type CheckoutLegalAcceptance,
+} from "../shared/legal";
+import {
   AuthApiError,
   createCheckoutSession,
   getCurrentUser,
@@ -18,6 +23,9 @@ import {
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import type { Lang } from "./i18n";
 import { AircoLogoMark } from "./AircoLogoMark";
+import { AccessibleDialog } from "./AccessibleDialog";
+import { LegalFooter } from "./LegalFooter";
+import { getPublicLegalConfiguration, type VatStatus } from "./legalClient";
 
 type SubscriptionCopy = {
   productName: string;
@@ -52,6 +60,13 @@ type SubscriptionCopy = {
   completeChange: string;
   processing: string;
   sandboxNotice: string;
+  totalPriceNotice: string;
+  upgradeTotalPriceNotice: string;
+  acceptLegal: string;
+  immediatePerformance: string;
+  withdrawalPromise: string;
+  orderAndPay: string;
+  orderAndUpgrade: string;
   loginTitle: string;
   loginSubtitle: string;
   emailLabel: string;
@@ -100,6 +115,10 @@ type SubscriptionCopy = {
   faqStockA: string;
   faqCountryQ: string;
   faqCountryA: string;
+  vatIncluded: string;
+  vatNotCharged: string;
+  vatChecking: string;
+  vatUnavailable: string;
   error: string;
 };
 
@@ -107,25 +126,25 @@ const SUBSCRIPTION_COPY: Record<Lang, SubscriptionCopy> = {
   zh: {
     productName: "Airco Tracker",
     pageTitle: "热浪通行证",
-    pageDescription: "一次付费，获得 90 天 Airco Tracker 库存提醒或实时库存雷达访问权。",
+    pageDescription: "一次付费，获得 90 天 Airco Tracker 库存提醒或近实时库存雷达访问权（通常约每 10 分钟刷新）。",
     subscriptionPlansLabel: "热浪通行证列表",
     backHome: "返回首页",
     eyebrow: "90 天热浪通行证",
     title: "别再错过刚上线的空调库存。",
-    subtitle: "一次付费、不自动续费。选择邮件提醒，或者解锁 90 天实时库存雷达。",
+    subtitle: "一次付费、不自动续费。选择邮件提醒，或者解锁 90 天近实时库存雷达（通常约每 10 分钟刷新）。",
     days: "天",
     upgrade: "升级补差",
     alertsName: "Heatwave Alerts Pass",
-    alertsTagline: "适合只想收到上线邮件、不需要实时看库存的用户。",
+    alertsTagline: "适合只想收到上线邮件、不需要查看近实时库存的用户。",
     stockName: "Heatwave Radar Pass",
-    stockTagline: "适合正在热浪里抢空调、需要直接查看实时库存的用户。",
+    stockTagline: "适合正在热浪里抢空调、需要查看通常约每 10 分钟刷新库存的用户。",
     bestValue: "推荐",
     choose: "选择方案",
     currentPlan: "当前通行证",
     checkoutTitle: "确认购买通行证",
     checkoutBody: "下一步会跳转到 Stripe 安全结账页完成一次性信用卡付款。卡号不会经过 Airco Tracker 服务器。",
     changeCheckoutTitle: "升级到 Heatwave Radar Pass",
-    changeCheckoutBody: "支付 €5 差价后立即解锁实时库存；到期日沿用当前 Alerts Pass，不会自动续费。",
+    changeCheckoutBody: "支付 €5 差价后立即解锁近实时库存（通常约每 10 分钟刷新）；到期日沿用当前 Alerts Pass，不会自动续费。",
     paymentMethod: "支付方式",
     card: "信用卡",
     ideal: "iDEAL",
@@ -136,7 +155,14 @@ const SUBSCRIPTION_COPY: Record<Lang, SubscriptionCopy> = {
     completePayment: "前往 Stripe 安全支付",
     completeChange: "支付 €5 并立即升级",
     processing: "处理中…",
-    sandboxNotice: "当前先接入信用卡路径。iDEAL/Wero 可以在 Stripe 稳定后继续加入。",
+    sandboxNotice: "目前支持信用卡付款；更多付款方式将在后续加入。",
+    totalPriceNotice: "Stripe 将一次性收取 {price}；通行证有效 90 天，不自动续费，结账时不会再加收 Airco Tracker 费用。",
+    upgradeTotalPriceNotice: "Stripe 将一次性收取 {price}；Radar 权益立即生效并沿用当前到期日 {date}，不自动续费。",
+    acceptLegal: "我同意服务条款，并确认已阅读隐私政策。",
+    immediatePerformance: "我明确请求付款后立即开始提供数字服务。",
+    withdrawalPromise: "即使立即开始服务，我们的自愿政策仍保留购买后 14 天内全额退款。",
+    orderAndPay: "下单并支付 {price}",
+    orderAndUpgrade: "下单并支付 {price}，立即升级",
     loginTitle: "登录后继续购买",
     loginSubtitle: "输入邮箱获取验证码。登录成功后会继续打开你刚选择的支付选项。",
     emailLabel: "邮箱",
@@ -172,11 +198,11 @@ const SUBSCRIPTION_COPY: Record<Lang, SubscriptionCopy> = {
     nicknameError: "昵称需要 1–40 个字符，且至少包含一个文字或数字。",
     included: "Radar Pass 已包含",
     alertsFeature: "库存上线邮件提醒",
-    stockFeature: "实时库存页面访问",
+    stockFeature: "近实时库存页面访问（通常约每 10 分钟刷新）",
     deliveryFeature: "按配送国家筛选网站",
     presaleFeature: "现货/预售区分",
     cancellationFeature: "一次付费，有效 90 天，不自动续费",
-    noStockFeature: "不包含实时库存页面",
+    noStockFeature: "不包含近实时库存页面",
     compareTitle: "权益对比",
     faqTitle: "常见问题",
     faqCancelQ: "90 天后会自动扣费吗？",
@@ -184,22 +210,26 @@ const SUBSCRIPTION_COPY: Record<Lang, SubscriptionCopy> = {
     faqStockQ: "为什么收到提醒后商品可能已经没了？",
     faqStockA: "热浪期间库存变化非常快。我们会尽快提醒，但无法保证商家库存一定保留到你打开链接时。",
     faqCountryQ: "可以切换国家吗？",
-    faqCountryA: "可以，在个人资料里切换配送国家后，实时库存页面会自动展示对应国家的网站列表。",
+    faqCountryA: "可以，在个人资料里切换配送国家后，近实时库存页面会自动展示对应国家的网站列表。",
+    vatIncluded: "显示价格为应付总价，已包含增值税。",
+    vatNotCharged: "显示价格为应付总价；根据当前税务状态，依法不收取增值税。",
+    vatChecking: "正在核验增值税状态…",
+    vatUnavailable: "暂时无法确认增值税状态。为避免显示错误总价，正式付款已暂停，请稍后重试。",
     error: "通行证购买暂时无法完成，请稍后再试。",
   },
   nl: {
     productName: "Airco Tracker",
     pageTitle: "Heatwave-passen",
-    pageDescription: "Betaal één keer voor 90 dagen voorraadmeldingen of realtime voorraadtoegang.",
+    pageDescription: "Betaal één keer voor 90 dagen voorraadmeldingen of bijna-realtime voorraadtoegang (normaal ongeveer elke 10 minuten ververst).",
     subscriptionPlansLabel: "Heatwave-passen",
     backHome: "Terug naar home",
     eyebrow: "Heatwave-pass voor 90 dagen",
     title: "Mis geen nieuwe airco-voorraad meer.",
-    subtitle: "Eenmalige betaling, geen automatische verlenging. Kies e-mailmeldingen of ontgrendel 90 dagen realtime voorraad.",
+    subtitle: "Eenmalige betaling, geen automatische verlenging. Kies e-mailmeldingen of ontgrendel 90 dagen bijna-realtime voorraad (normaal ongeveer elke 10 minuten ververst).",
     days: "dagen",
     upgrade: "upgrade",
     alertsName: "Heatwave Alerts Pass",
-    alertsTagline: "Voor wie alleen e-mail wil ontvangen en geen realtime voorraadpagina nodig heeft.",
+    alertsTagline: "Voor wie alleen e-mail wil ontvangen en geen bijna-realtime voorraadpagina nodig heeft.",
     stockName: "Heatwave Radar Pass",
     stockTagline: "Voor wie tijdens een hittegolf direct wil zien waar voorraad beschikbaar is.",
     bestValue: "Aanbevolen",
@@ -208,7 +238,7 @@ const SUBSCRIPTION_COPY: Record<Lang, SubscriptionCopy> = {
     checkoutTitle: "Bevestig aankoop",
     checkoutBody: "Hierna ga je naar de beveiligde Stripe Checkout voor een eenmalige creditcardbetaling. Kaartgegevens raken onze server niet.",
     changeCheckoutTitle: "Upgrade naar Heatwave Radar Pass",
-    changeCheckoutBody: "Betaal €5 verschil en krijg direct realtime voorraadtoegang. De einddatum van je Alerts Pass blijft gelijk.",
+    changeCheckoutBody: "Betaal €5 verschil en krijg direct toegang tot bijna-realtime voorraad, normaal ongeveer elke 10 minuten ververst. De einddatum van je Alerts Pass blijft gelijk.",
     paymentMethod: "Betaalmethode",
     card: "Creditcard",
     ideal: "iDEAL",
@@ -219,7 +249,14 @@ const SUBSCRIPTION_COPY: Record<Lang, SubscriptionCopy> = {
     completePayment: "Naar veilige Stripe-betaling",
     completeChange: "Betaal €5 en upgrade",
     processing: "Bezig…",
-    sandboxNotice: "We koppelen nu eerst creditcardbetalingen. iDEAL/Wero kan daarna worden toegevoegd.",
+    sandboxNotice: "Betalen met creditcard wordt nu ondersteund; later voegen we meer betaalmethoden toe.",
+    totalPriceNotice: "Stripe brengt {price} één keer in rekening. De pass is 90 dagen geldig, wordt niet automatisch verlengd en Airco Tracker voegt bij het afrekenen geen extra kosten toe.",
+    upgradeTotalPriceNotice: "Stripe brengt {price} één keer in rekening. Radar start direct en loopt tot je huidige einddatum {date}, zonder automatische verlenging.",
+    acceptLegal: "Ik ga akkoord met de voorwaarden en bevestig dat ik de privacyverklaring heb gelezen.",
+    immediatePerformance: "Ik verzoek uitdrukkelijk dat de digitale dienst direct na betaling begint.",
+    withdrawalPromise: "Ook bij directe start blijft ons vrijwillige beleid 14 dagen volledige terugbetaling bieden.",
+    orderAndPay: "Bestellen en {price} betalen",
+    orderAndUpgrade: "Bestellen, {price} betalen en upgraden",
     loginTitle: "Log in om door te gaan",
     loginSubtitle: "Vul je e-mail in voor een code. Na het inloggen openen we direct de betaalopties voor je gekozen plan.",
     emailLabel: "E-mail",
@@ -255,11 +292,11 @@ const SUBSCRIPTION_COPY: Record<Lang, SubscriptionCopy> = {
     nicknameError: "Gebruik 1–40 tekens en minstens één letter of cijfer.",
     included: "Inbegrepen bij Radar Pass",
     alertsFeature: "E-mail bij nieuwe voorraad",
-    stockFeature: "Toegang tot realtime voorraad",
+    stockFeature: "Bijna-realtime voorraad (normaal ongeveer elke 10 minuten ververst)",
     deliveryFeature: "Winkels filteren op bezorgland",
     presaleFeature: "Op voorraad/pre-order gescheiden",
     cancellationFeature: "Eenmalig betalen, 90 dagen geldig, geen verlenging",
-    noStockFeature: "Geen realtime voorraadpagina",
+    noStockFeature: "Geen bijna-realtime voorraadpagina",
     compareTitle: "Vergelijk functies",
     faqTitle: "Veelgestelde vragen",
     faqCancelQ: "Wordt de pass na 90 dagen automatisch verlengd?",
@@ -267,22 +304,26 @@ const SUBSCRIPTION_COPY: Record<Lang, SubscriptionCopy> = {
     faqStockQ: "Waarom kan voorraad na een melding alweer weg zijn?",
     faqStockA: "Tijdens hittegolven verandert voorraad snel. We melden zo snel mogelijk, maar kunnen winkelvoorraad niet reserveren.",
     faqCountryQ: "Kan ik van land wisselen?",
-    faqCountryA: "Ja, in je profiel. Daarna toont de realtime pagina automatisch winkels voor dat land.",
+    faqCountryA: "Ja, in je profiel. Daarna toont de bijna-realtime pagina automatisch winkels voor dat land.",
+    vatIncluded: "De getoonde prijs is het totaalbedrag en is inclusief btw.",
+    vatNotCharged: "De getoonde prijs is het totaalbedrag; volgens de huidige fiscale status wordt wettelijk geen btw geheven.",
+    vatChecking: "Btw-status wordt gecontroleerd…",
+    vatUnavailable: "De btw-status kan nu niet worden bevestigd. Om een onjuist totaalbedrag te voorkomen is betalen tijdelijk uitgeschakeld. Probeer het later opnieuw.",
     error: "De pass kon niet worden gekocht. Probeer het later opnieuw.",
   },
   en: {
     productName: "Airco Tracker",
     pageTitle: "Heatwave passes",
-    pageDescription: "Pay once for 90 days of Airco Tracker stock alerts or realtime stock access.",
+    pageDescription: "Pay once for 90 days of Airco Tracker stock alerts or near-real-time stock access (normally refreshed about every 10 minutes).",
     subscriptionPlansLabel: "Heatwave passes",
     backHome: "Back home",
     eyebrow: "90-day Heatwave Pass",
     title: "Stop missing newly available AC stock.",
-    subtitle: "One payment, no automatic renewal. Choose email alerts or unlock the realtime stock radar for 90 days.",
+    subtitle: "One payment, no automatic renewal. Choose email alerts or unlock near-real-time stock for 90 days (normally refreshed about every 10 minutes).",
     days: "days",
     upgrade: "upgrade",
     alertsName: "Heatwave Alerts Pass",
-    alertsTagline: "For users who only want email alerts and do not need the realtime stock page.",
+    alertsTagline: "For users who only want email alerts and do not need the near-real-time stock page.",
     stockName: "Heatwave Radar Pass",
     stockTagline: "For users actively trying to buy an AC during a heatwave.",
     bestValue: "Recommended",
@@ -291,7 +332,7 @@ const SUBSCRIPTION_COPY: Record<Lang, SubscriptionCopy> = {
     checkoutTitle: "Confirm pass purchase",
     checkoutBody: "Next, you will be redirected to secure Stripe Checkout for a one-time card payment. Card details never touch Airco Tracker servers.",
     changeCheckoutTitle: "Upgrade to Heatwave Radar Pass",
-    changeCheckoutBody: "Pay the €5 difference to unlock realtime stock immediately. Your current Alerts Pass expiry date stays unchanged.",
+    changeCheckoutBody: "Pay the €5 difference to unlock near-real-time stock immediately, normally refreshed about every 10 minutes. Your current Alerts Pass expiry date stays unchanged.",
     paymentMethod: "Payment method",
     card: "Credit card",
     ideal: "iDEAL",
@@ -302,7 +343,14 @@ const SUBSCRIPTION_COPY: Record<Lang, SubscriptionCopy> = {
     completePayment: "Continue to secure Stripe payment",
     completeChange: "Pay €5 and upgrade",
     processing: "Processing…",
-    sandboxNotice: "We are wiring the card path first. iDEAL/Wero can be added after Stripe is stable.",
+    sandboxNotice: "Credit-card payments are currently supported; more payment methods will be added later.",
+    totalPriceNotice: "Stripe will charge {price} once. The pass lasts 90 days, does not auto-renew, and Airco Tracker adds no extra fee at checkout.",
+    upgradeTotalPriceNotice: "Stripe will charge {price} once. Radar starts immediately and keeps your current expiry of {date}, with no automatic renewal.",
+    acceptLegal: "I agree to the Terms and confirm that I have read the Privacy Notice.",
+    immediatePerformance: "I expressly request the digital service to begin immediately after payment.",
+    withdrawalPromise: "Even with immediate performance, our voluntary policy preserves a full refund for 14 days after purchase.",
+    orderAndPay: "Order and pay {price}",
+    orderAndUpgrade: "Order, pay {price} and upgrade",
     loginTitle: "Log in to continue",
     loginSubtitle: "Enter your email for a code. After login, we will open payment options for the plan you selected.",
     emailLabel: "Email",
@@ -338,11 +386,11 @@ const SUBSCRIPTION_COPY: Record<Lang, SubscriptionCopy> = {
     nicknameError: "Use 1–40 characters and include at least one letter or number.",
     included: "Included with Radar Pass",
     alertsFeature: "Email alerts when stock appears",
-    stockFeature: "Realtime stock page access",
+    stockFeature: "Near-real-time stock access (normally refreshed about every 10 minutes)",
     deliveryFeature: "Store filtering by delivery country",
     presaleFeature: "In-stock/pre-order separation",
     cancellationFeature: "One-time payment, valid 90 days, no auto-renewal",
-    noStockFeature: "No realtime stock page",
+    noStockFeature: "No near-real-time stock page",
     compareTitle: "Compare features",
     faqTitle: "FAQ",
     faqCancelQ: "Will the pass renew after 90 days?",
@@ -350,22 +398,26 @@ const SUBSCRIPTION_COPY: Record<Lang, SubscriptionCopy> = {
     faqStockQ: "Why can stock be gone after I receive an alert?",
     faqStockA: "Heatwave inventory moves very quickly. We notify as fast as possible, but stores do not reserve stock for us.",
     faqCountryQ: "Can I switch country?",
-    faqCountryA: "Yes, from Profile. The realtime page then automatically shows stores for that delivery country.",
+    faqCountryA: "Yes, from Profile. The near-real-time page then automatically shows stores for that delivery country.",
+    vatIncluded: "The displayed price is the total payable price and includes VAT.",
+    vatNotCharged: "The displayed price is the total payable price; VAT is legally not charged under the current tax status.",
+    vatChecking: "Checking VAT status…",
+    vatUnavailable: "We cannot confirm the VAT status right now. Formal payment is disabled to avoid showing an incorrect total. Please try again later.",
     error: "We could not complete the pass purchase. Please try again later.",
   },
   fr: {
     productName: "Airco Tracker",
     pageTitle: "Pass canicule",
-    pageDescription: "Payez une fois pour 90 jours d’alertes de stock ou d’accès au stock en temps réel.",
+    pageDescription: "Payez une fois pour 90 jours d’alertes ou d’accès au stock en quasi-temps réel (actualisé normalement toutes les 10 minutes environ).",
     subscriptionPlansLabel: "Pass canicule",
     backHome: "Retour à l’accueil",
     eyebrow: "Pass canicule de 90 jours",
     title: "Ne manquez plus aucun climatiseur remis en stock.",
-    subtitle: "Un seul paiement, sans renouvellement automatique. Choisissez les alertes par e-mail ou débloquez le radar en temps réel pendant 90 jours.",
+    subtitle: "Un seul paiement, sans renouvellement automatique. Choisissez les alertes par e-mail ou débloquez le stock en quasi-temps réel pendant 90 jours (actualisé normalement toutes les 10 minutes environ).",
     days: "jours",
     upgrade: "mise à niveau",
     alertsName: "Heatwave Alerts Pass",
-    alertsTagline: "Pour recevoir uniquement les alertes par e-mail, sans avoir besoin de la page de stock en temps réel.",
+    alertsTagline: "Pour recevoir uniquement les alertes par e-mail, sans avoir besoin de la page de stock en quasi-temps réel.",
     stockName: "Heatwave Radar Pass",
     stockTagline: "Pour les personnes qui cherchent activement un climatiseur pendant une canicule.",
     bestValue: "Recommandé",
@@ -374,7 +426,7 @@ const SUBSCRIPTION_COPY: Record<Lang, SubscriptionCopy> = {
     checkoutTitle: "Confirmer l’achat du pass",
     checkoutBody: "Vous serez redirigé vers Stripe Checkout pour un paiement unique par carte. Vos données de carte ne transitent jamais par les serveurs d’Airco Tracker.",
     changeCheckoutTitle: "Passer au Heatwave Radar Pass",
-    changeCheckoutBody: "Payez la différence de 5 € pour débloquer immédiatement le stock en temps réel. La date d’expiration de votre Alerts Pass reste inchangée.",
+    changeCheckoutBody: "Payez la différence de 5 € pour débloquer immédiatement le stock en quasi-temps réel, actualisé normalement toutes les 10 minutes environ. La date d’expiration de votre Alerts Pass reste inchangée.",
     paymentMethod: "Moyen de paiement",
     card: "Carte bancaire",
     ideal: "iDEAL",
@@ -385,7 +437,14 @@ const SUBSCRIPTION_COPY: Record<Lang, SubscriptionCopy> = {
     completePayment: "Continuer vers le paiement sécurisé Stripe",
     completeChange: "Payer 5 € et mettre à niveau",
     processing: "Traitement…",
-    sandboxNotice: "Le paiement par carte est disponible en premier. iDEAL/Wero pourra être ajouté une fois l’intégration Stripe stabilisée.",
+    sandboxNotice: "Le paiement par carte est actuellement pris en charge ; d’autres moyens de paiement seront ajoutés ultérieurement.",
+    totalPriceNotice: "Stripe débitera {price} une seule fois. Le pass dure 90 jours, sans renouvellement automatique, et Airco Tracker n’ajoute aucun frais lors du paiement.",
+    upgradeTotalPriceNotice: "Stripe débitera {price} une seule fois. Radar commence immédiatement et conserve votre échéance actuelle du {date}, sans renouvellement automatique.",
+    acceptLegal: "J’accepte les Conditions et confirme avoir lu la Politique de confidentialité.",
+    immediatePerformance: "Je demande expressément que le service numérique commence immédiatement après le paiement.",
+    withdrawalPromise: "Même en cas d’exécution immédiate, notre politique volontaire maintient un remboursement intégral pendant 14 jours après l’achat.",
+    orderAndPay: "Commander et payer {price}",
+    orderAndUpgrade: "Commander, payer {price} et mettre à niveau",
     loginTitle: "Connectez-vous pour continuer",
     loginSubtitle: "Saisissez votre e-mail pour recevoir un code. Après connexion, nous ouvrirons les options de paiement de la formule choisie.",
     emailLabel: "E-mail",
@@ -421,11 +480,11 @@ const SUBSCRIPTION_COPY: Record<Lang, SubscriptionCopy> = {
     nicknameError: "Utilisez 1 à 40 caractères et au moins une lettre ou un chiffre.",
     included: "Inclus avec le Radar Pass",
     alertsFeature: "Alertes par e-mail lors d’une remise en stock",
-    stockFeature: "Accès à la page de stock en temps réel",
+    stockFeature: "Stock en quasi-temps réel (actualisé normalement toutes les 10 minutes environ)",
     deliveryFeature: "Filtrage des magasins par pays de livraison",
     presaleFeature: "Séparation stock/précommande",
     cancellationFeature: "Paiement unique, valable 90 jours, sans renouvellement",
-    noStockFeature: "Pas d’accès à la page de stock en temps réel",
+    noStockFeature: "Pas d’accès à la page de stock en quasi-temps réel",
     compareTitle: "Comparer les fonctionnalités",
     faqTitle: "Questions fréquentes",
     faqCancelQ: "Le pass est-il renouvelé automatiquement après 90 jours ?",
@@ -433,7 +492,11 @@ const SUBSCRIPTION_COPY: Record<Lang, SubscriptionCopy> = {
     faqStockQ: "Pourquoi le produit peut-il être épuisé après une alerte ?",
     faqStockA: "Pendant une canicule, les stocks évoluent très vite. Nous vous prévenons au plus tôt, mais les magasins ne réservent pas les produits pour nous.",
     faqCountryQ: "Puis-je changer de pays ?",
-    faqCountryA: "Oui, depuis votre profil. La page en temps réel affiche alors automatiquement les magasins correspondant au pays de livraison choisi.",
+    faqCountryA: "Oui, depuis votre profil. La page en quasi-temps réel affiche alors automatiquement les magasins correspondant au pays de livraison choisi.",
+    vatIncluded: "Le prix affiché est le total à payer et comprend la TVA.",
+    vatNotCharged: "Le prix affiché est le total à payer ; selon la situation fiscale actuelle, la TVA n’est légalement pas facturée.",
+    vatChecking: "Vérification du statut TVA…",
+    vatUnavailable: "Le statut TVA ne peut pas être confirmé pour le moment. Le paiement réel est désactivé afin d’éviter d’afficher un total erroné. Réessayez plus tard.",
     error: "L’achat du pass n’a pas pu être finalisé. Réessayez plus tard.",
   },
 };
@@ -462,6 +525,12 @@ export function SubscriptionPage({ lang, setLang, t }: SubscriptionPageProps) {
   const [nickname, setNickname] = useState("");
   const [nicknameError, setNicknameError] = useState("");
   const [savingNickname, setSavingNickname] = useState(false);
+  const [legalAccepted, setLegalAccepted] = useState(false);
+  const [immediatePerformanceRequested, setImmediatePerformanceRequested] = useState(false);
+  const [vatState, setVatState] = useState<{ status: "loading" | "ready" | "error"; vatStatus: VatStatus | null }>({
+    status: "loading",
+    vatStatus: null,
+  });
   const emailInputRef = useRef<HTMLInputElement | null>(null);
   const nicknameInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -486,26 +555,28 @@ export function SubscriptionPage({ lang, setLang, t }: SubscriptionPageProps) {
   }, []);
 
   useEffect(() => {
+    const controller = new AbortController();
+    getPublicLegalConfiguration(controller.signal)
+      .then((configuration) => {
+        if (configuration.vatStatus === null) {
+          setVatState({ status: "error", vatStatus: null });
+          return;
+        }
+        setVatState({ status: "ready", vatStatus: configuration.vatStatus });
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setVatState({ status: "error", vatStatus: null });
+      });
+    return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
     document.title = `${copy.pageTitle} · Airco Tracker`;
     document
       .querySelector('meta[name="description"]')
       ?.setAttribute("content", copy.pageDescription);
   }, [copy.pageDescription, copy.pageTitle]);
-
-  useEffect(() => {
-    const dialogOpen = loginOpen || nicknameOpen;
-    document.body.classList.toggle("landing-dialog-open", dialogOpen);
-    if (loginOpen) emailInputRef.current?.focus();
-    if (nicknameOpen) nicknameInputRef.current?.focus();
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && loginOpen) setLoginOpen(false);
-    };
-    if (dialogOpen) window.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.body.classList.remove("landing-dialog-open");
-      window.removeEventListener("keydown", onKeyDown);
-    };
-  }, [loginOpen, nicknameOpen]);
 
   useEffect(() => {
     if (codeCooldownSeconds <= 0) return undefined;
@@ -523,7 +594,22 @@ export function SubscriptionPage({ lang, setLang, t }: SubscriptionPageProps) {
   );
   const checkoutTitle = isUpgrade ? copy.changeCheckoutTitle : copy.checkoutTitle;
   const checkoutBody = isUpgrade ? copy.changeCheckoutBody : copy.checkoutBody;
-  const checkoutActionLabel = isUpgrade ? copy.completeChange : copy.completePayment;
+  const checkoutPrice = selectedPlan
+    ? formatPlanPrice(isUpgrade ? 5 : SUBSCRIPTION_PLAN_DETAILS[selectedPlan].priceEur, lang)
+    : "";
+  const checkoutActionLabel = (isUpgrade ? copy.orderAndUpgrade : copy.orderAndPay)
+    .replace("{price}", checkoutPrice);
+  const totalPriceNotice = (isUpgrade ? copy.upgradeTotalPriceNotice : copy.totalPriceNotice)
+    .replace("{price}", checkoutPrice)
+    .replace("{date}", user?.entitlementExpiresAt ? formatSubscriptionDate(user.entitlementExpiresAt, lang) : "—");
+  const vatReady = vatState.status === "ready" && vatState.vatStatus !== null;
+  const vatMessage = vatState.status === "loading"
+    ? copy.vatChecking
+    : vatState.status === "ready" && vatState.vatStatus === "registered"
+      ? copy.vatIncluded
+      : vatState.status === "ready" && vatState.vatStatus === "not_registered"
+        ? copy.vatNotCharged
+        : copy.vatUnavailable;
 
   const scrollToCheckout = () => {
     window.setTimeout(() => document.getElementById("checkout")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
@@ -531,6 +617,8 @@ export function SubscriptionPage({ lang, setLang, t }: SubscriptionPageProps) {
 
   const choosePlan = (plan: PaidSubscriptionPlan) => {
     setSelectedPlan(plan);
+    setLegalAccepted(false);
+    setImmediatePerformanceRequested(false);
     setError("");
     if (!user) {
       setLoginError("");
@@ -604,11 +692,18 @@ export function SubscriptionPage({ lang, setLang, t }: SubscriptionPageProps) {
   };
 
   const completePayment = async () => {
-    if (!selectedPlan) return;
+    if (!selectedPlan || !legalAccepted || !immediatePerformanceRequested || !vatReady) return;
     setError("");
     setProcessing(true);
     try {
-      const checkout = await createCheckoutSession(selectedPlan, lang);
+      const legal: CheckoutLegalAcceptance = {
+        termsVersion: LEGAL_TERMS_VERSION,
+        privacyVersion: LEGAL_PRIVACY_VERSION,
+        termsAccepted: true,
+        privacyNoticeAcknowledged: true,
+        immediatePerformanceRequested: true,
+      };
+      const checkout = await createCheckoutSession(selectedPlan, lang, legal);
       window.location.href = checkout.url;
     } catch {
       setError(copy.error);
@@ -652,6 +747,9 @@ export function SubscriptionPage({ lang, setLang, t }: SubscriptionPageProps) {
               <div>
                 <p className="landing-kicker">{isStockPlan ? copy.stockName : copy.alertsName}</p>
                 <h2>{formatPlanPrice(details.priceEur, lang)}<span> / 90 {copy.days}</span></h2>
+                <p className={`subscription-vat-status${vatState.status === "error" ? " subscription-vat-status--error" : ""}`} role={vatState.status === "error" ? "alert" : undefined}>
+                  {vatMessage}
+                </p>
                 <p>{isStockPlan ? copy.stockTagline : copy.alertsTagline}</p>
               </div>
               <ul>
@@ -674,6 +772,10 @@ export function SubscriptionPage({ lang, setLang, t }: SubscriptionPageProps) {
             <p className="landing-kicker">{copy.paymentMethod}</p>
             <h2>{checkoutTitle}</h2>
             <p>{checkoutBody}</p>
+            <p className="checkout-total-notice">{totalPriceNotice}</p>
+            <p className={`subscription-vat-status${vatState.status === "error" ? " subscription-vat-status--error" : ""}`} role={vatState.status === "error" ? "alert" : "status"}>
+              {vatMessage}
+            </p>
             <p className="checkout-sandbox">{copy.sandboxNotice}</p>
           </div>
           <div className="checkout-summary">
@@ -685,8 +787,36 @@ export function SubscriptionPage({ lang, setLang, t }: SubscriptionPageProps) {
               {copy.card}
             </button>
           </div>
-          {error && <p className="landing-login-error">{error}</p>}
-          <button className="landing-primary-button landing-primary-button--large" type="button" disabled={processing} onClick={completePayment}>
+          <div className="checkout-legal-acceptance">
+            <label>
+              <input
+                type="checkbox"
+                checked={legalAccepted}
+                onChange={(event) => setLegalAccepted(event.target.checked)}
+              />
+              <span>
+                {copy.acceptLegal}{" "}
+                <a href={`/terms.html?lang=${lang}&version=${LEGAL_TERMS_VERSION}`} target="_blank" rel="noopener noreferrer">{t("legal_terms_link")}</a>
+                {" · "}
+                <a href={`/privacy.html?lang=${lang}&version=${LEGAL_PRIVACY_VERSION}`} target="_blank" rel="noopener noreferrer">{t("legal_privacy_link")}</a>
+              </span>
+            </label>
+            <label>
+              <input
+                type="checkbox"
+                checked={immediatePerformanceRequested}
+                onChange={(event) => setImmediatePerformanceRequested(event.target.checked)}
+              />
+              <span>{copy.immediatePerformance} {copy.withdrawalPromise}</span>
+            </label>
+          </div>
+          {error && <p className="landing-login-error" role="alert">{error}</p>}
+          <button
+            className="landing-primary-button landing-primary-button--large"
+            type="button"
+            disabled={processing || !legalAccepted || !immediatePerformanceRequested || !vatReady}
+            onClick={completePayment}
+          >
             {processing ? copy.processing : checkoutActionLabel}
           </button>
         </section>
@@ -718,15 +848,16 @@ export function SubscriptionPage({ lang, setLang, t }: SubscriptionPageProps) {
         </details>
       </section>
 
+      <LegalFooter lang={lang} />
+
       {loginOpen && (
-        <div className="landing-login-backdrop" onMouseDown={closeLogin}>
-          <section
-            className="landing-login-card"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="subscription-login-title"
-            onMouseDown={(event) => event.stopPropagation()}
-          >
+        <AccessibleDialog
+          className="landing-login-card"
+          labelledBy="subscription-login-title"
+          describedBy="subscription-login-description"
+          initialFocusRef={emailInputRef}
+          onClose={closeLogin}
+        >
             <button className="landing-login-close" type="button" onClick={closeLogin} aria-label={copy.closeLogin}>
               ×
             </button>
@@ -737,7 +868,7 @@ export function SubscriptionPage({ lang, setLang, t }: SubscriptionPageProps) {
             <div className="landing-login-copy">
               <p className="landing-kicker">{copy.choose}</p>
               <h2 id="subscription-login-title">{copy.loginTitle}</h2>
-              <p>{copy.loginSubtitle}</p>
+              <p id="subscription-login-description">{copy.loginSubtitle}</p>
             </div>
             <form className="landing-login-form" onSubmit={handleVerifyCode}>
               <label className="landing-login-field">
@@ -770,8 +901,8 @@ export function SubscriptionPage({ lang, setLang, t }: SubscriptionPageProps) {
                   {sendingCode ? copy.sendCodeBusy : codeCooldownSeconds > 0 ? `${codeCooldownSeconds}s` : copy.sendCode}
                 </button>
               </label>
-              {loginMessage && <p className="landing-login-message">{loginMessage}</p>}
-              {loginError && <p className="landing-login-error">{loginError}</p>}
+              {loginMessage && <p className="landing-login-message" role="status" aria-live="polite">{loginMessage}</p>}
+              {loginError && <p className="landing-login-error" role="alert">{loginError}</p>}
               <button className="landing-login-submit" type="submit" disabled={sendingCode || verifyingCode}>
                 {verifyingCode ? copy.loginBusy : copy.loginSubmit}
               </button>
@@ -791,18 +922,17 @@ export function SubscriptionPage({ lang, setLang, t }: SubscriptionPageProps) {
               <a href={`/privacy.html?lang=${lang}`} target="_blank" rel="noopener noreferrer">{t("legal_privacy_link")}</a>
             </p>
             <p className="landing-login-preview">{copy.loginPreviewNotice}</p>
-          </section>
-        </div>
+        </AccessibleDialog>
       )}
 
       {nicknameOpen && (
-        <div className="landing-login-backdrop">
-          <section
-            className="landing-login-card landing-nickname-card"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="subscription-nickname-title"
-          >
+        <AccessibleDialog
+          className="landing-login-card landing-nickname-card"
+          labelledBy="subscription-nickname-title"
+          describedBy="subscription-nickname-description"
+          initialFocusRef={nicknameInputRef}
+          onClose={() => setNicknameOpen(false)}
+        >
             <div className="landing-login-brand" aria-hidden="true">
               <AircoLogoMark className="landing-logo-mark" />
               <span>{copy.productName}</span>
@@ -810,7 +940,7 @@ export function SubscriptionPage({ lang, setLang, t }: SubscriptionPageProps) {
             <div className="landing-login-copy">
               <p className="landing-kicker">{email}</p>
               <h2 id="subscription-nickname-title">{copy.nicknameTitle}</h2>
-              <p>{copy.nicknameSubtitle}</p>
+              <p id="subscription-nickname-description">{copy.nicknameSubtitle}</p>
             </div>
             <form className="landing-login-form" onSubmit={handleNicknameSubmit}>
               <label className="landing-login-field">
@@ -826,13 +956,12 @@ export function SubscriptionPage({ lang, setLang, t }: SubscriptionPageProps) {
                   required
                 />
               </label>
-              {nicknameError && <p className="landing-login-error">{nicknameError}</p>}
+              {nicknameError && <p className="landing-login-error" role="alert">{nicknameError}</p>}
               <button className="landing-login-submit" type="submit" disabled={savingNickname}>
                 {savingNickname ? copy.nicknameSaving : copy.nicknameSubmit}
               </button>
             </form>
-          </section>
-        </div>
+        </AccessibleDialog>
       )}
     </main>
   );

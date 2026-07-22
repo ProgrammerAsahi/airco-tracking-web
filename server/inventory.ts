@@ -50,6 +50,14 @@ function isOptionalNonNegativeInteger(value: unknown): value is number | undefin
   return value === undefined || isNonNegativeInteger(value);
 }
 
+function isOptionalNullableNonNegativeInteger(value: unknown): value is number | null | undefined {
+  return value === undefined || value === null || isNonNegativeInteger(value);
+}
+
+function isOptionalBoolean(value: unknown): value is boolean | undefined {
+  return value === undefined || typeof value === "boolean";
+}
+
 function isDeliveryCoverageToken(value: unknown): value is string {
   return (
     typeof value === "string"
@@ -87,6 +95,10 @@ function isValidSite(name: string, candidate: unknown): candidate is SiteInvento
   if (!isNonNegativeInteger(candidate.available_product_count)) return false;
   if (!isOptionalNonNegativeInteger(candidate.immediate_product_count)) return false;
   if (!isOptionalNonNegativeInteger(candidate.presale_product_count)) return false;
+  if (candidate.freshness !== undefined && candidate.freshness !== "verified" && candidate.freshness !== "stale") return false;
+  if (!isOptionalBoolean(candidate.counts_toward_totals)) return false;
+  if (!isOptionalNullableNonNegativeInteger(candidate.stale_age_seconds)) return false;
+  if (!isOptionalBoolean(candidate.stale_too_old)) return false;
   if (!isOptionalNonEmptyString(candidate.country)) return false;
   if (!isOptionalNonEmptyString(candidate.site)) return false;
   if (!isOptionalNonEmptyString(candidate.site_id)) return false;
@@ -113,10 +125,16 @@ export function parseInventory(raw: string): InventorySnapshot {
   }
   if (
     !isNonNegativeInteger(value.site_count)
+    || !isOptionalNonNegativeInteger(value.verified_site_count)
     || !isNonNegativeInteger(value.stale_site_count)
     || !isNonNegativeInteger(value.available_product_count)
     || !isOptionalNonNegativeInteger(value.immediate_product_count)
     || !isOptionalNonNegativeInteger(value.presale_product_count)
+    || (value.inventory_confidence !== undefined
+      && value.inventory_confidence !== "verified"
+      && value.inventory_confidence !== "partial"
+      && value.inventory_confidence !== "unavailable")
+    || !isOptionalNonNegativeInteger(value.stale_diagnostic_max_age_seconds)
     || !isNonNegativeInteger(value.refresh_interval_seconds)
     || !isIsoTimestamp(value.updated_at)
   ) {
@@ -142,6 +160,10 @@ export function parseInventory(raw: string): InventorySnapshot {
   let availableProductCount = 0;
   let immediateProductCount = 0;
   let presaleProductCount = 0;
+  let verifiedSiteCount = 0;
+  const modernFreshnessContract = value.verified_site_count !== undefined
+    || value.inventory_confidence !== undefined
+    || siteEntries.some(([, site]) => (site as SiteInventory).counts_toward_totals !== undefined);
   for (const [siteKey, site] of siteEntries as [string, SiteInventory][]) {
     const displayName = site.site ?? siteKey.replace(/^[a-z]{2}:/i, "");
     const siteId = site.site_id ?? siteKey;
@@ -157,6 +179,17 @@ export function parseInventory(raw: string): InventorySnapshot {
     if (site.presale_product_count !== undefined && site.presale_product_count !== sitePresaleCount) {
       throw new Error(`presale_product_count mismatch for ${siteKey}`);
     }
+    if (modernFreshnessContract) {
+      if (site.counts_toward_totals === undefined || site.freshness === undefined) {
+        throw new Error(`missing freshness contract for ${siteKey}`);
+      }
+      if (site.counts_toward_totals !== !site.stale) {
+        throw new Error(`counts_toward_totals mismatch for ${siteKey}`);
+      }
+      if (site.freshness !== (site.stale ? "stale" : "verified")) {
+        throw new Error(`freshness mismatch for ${siteKey}`);
+      }
+    }
     for (const product of site.products) {
       if (product.site !== displayName) {
         throw new Error(`product site mismatch for ${siteKey}`);
@@ -168,9 +201,12 @@ export function parseInventory(raw: string): InventorySnapshot {
         throw new Error(`product country mismatch for ${siteKey}`);
       }
     }
-    availableProductCount += site.products.length;
-    immediateProductCount += siteImmediateCount;
-    presaleProductCount += sitePresaleCount;
+    if (!modernFreshnessContract || site.counts_toward_totals === true) {
+      availableProductCount += site.products.length;
+      immediateProductCount += siteImmediateCount;
+      presaleProductCount += sitePresaleCount;
+      verifiedSiteCount += 1;
+    }
   }
   if (value.available_product_count !== availableProductCount) {
     throw new Error(`available_product_count mismatch: expected ${availableProductCount}, got ${value.available_product_count}`);
@@ -180,6 +216,17 @@ export function parseInventory(raw: string): InventorySnapshot {
   }
   if (value.presale_product_count !== undefined && value.presale_product_count !== presaleProductCount) {
     throw new Error(`presale_product_count mismatch: expected ${presaleProductCount}, got ${value.presale_product_count}`);
+  }
+  if (modernFreshnessContract) {
+    if (value.verified_site_count !== verifiedSiteCount) {
+      throw new Error(`verified_site_count mismatch: expected ${verifiedSiteCount}, got ${String(value.verified_site_count)}`);
+    }
+    const expectedConfidence = verifiedSiteCount === 0
+      ? "unavailable"
+      : staleSiteCount > 0 ? "partial" : "verified";
+    if (value.inventory_confidence !== expectedConfidence) {
+      throw new Error(`inventory_confidence mismatch: expected ${expectedConfidence}, got ${String(value.inventory_confidence)}`);
+    }
   }
 
   return value as unknown as InventorySnapshot;

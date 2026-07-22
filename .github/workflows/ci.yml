@@ -30,14 +30,17 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Audit npm dependencies
-        continue-on-error: true
-        run: pnpm audit --prod
+        run: pnpm audit --prod --audit-level high
+
+      - name: Install browser for accessibility smoke tests
+        run: pnpm exec playwright install --with-deps chromium
 
       - name: Test and build
         run: |
           pnpm test
           pnpm typecheck
           pnpm build
+          pnpm test:e2e
           docker build --tag airco-tracking-web:test .
 
       - name: Compile Bicep templates

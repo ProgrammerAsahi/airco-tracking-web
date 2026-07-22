@@ -3,6 +3,7 @@ import { unsubscribeEmailAlerts } from "./authClient";
 import { AircoLogoMark } from "./AircoLogoMark";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import type { Lang } from "./i18n";
+import { LegalFooter } from "./LegalFooter";
 
 type UnsubscribeCopy = {
   productName: string;
@@ -23,7 +24,7 @@ const COPY: Record<Lang, UnsubscribeCopy> = {
     productName: "Airco Tracker",
     pageDescription: "管理 Airco Tracker 库存提醒邮件偏好。",
     title: "暂停库存提醒邮件？",
-    body: "这只会停止库存提醒邮件，不会缩短热浪通行证的有效期，也不会移除已有的实时库存权限。",
+    body: "这只会停止库存提醒邮件，不会缩短热浪通行证的有效期，也不会移除已有的近实时库存权限（通常约每 10 分钟刷新）。",
     confirm: "确认暂停邮件",
     working: "正在保存…",
     successTitle: "库存提醒邮件已暂停",
@@ -36,7 +37,7 @@ const COPY: Record<Lang, UnsubscribeCopy> = {
     productName: "Airco Tracker",
     pageDescription: "Beheer je voorkeur voor Airco Tracker-voorraadmeldingen per e-mail.",
     title: "Voorraadmeldingen per e-mail pauzeren?",
-    body: "Dit stopt alleen de voorraadmails. De einddatum van je Heatwave-pass en eventuele realtime voorraadtoegang blijven ongewijzigd.",
+    body: "Dit stopt alleen de voorraadmails. De einddatum van je Heatwave-pass en eventuele bijna-realtime voorraadtoegang (normaal ongeveer elke 10 minuten ververst) blijven ongewijzigd.",
     confirm: "E-mails pauzeren",
     working: "Opslaan…",
     successTitle: "Voorraadmails zijn gepauzeerd",
@@ -49,7 +50,7 @@ const COPY: Record<Lang, UnsubscribeCopy> = {
     productName: "Airco Tracker",
     pageDescription: "Manage your Airco Tracker stock alert email preference.",
     title: "Pause stock alert emails?",
-    body: "This only stops stock alert emails. It does not shorten your Heatwave Pass or remove existing realtime stock access.",
+    body: "This only stops stock alert emails. It does not shorten your Heatwave Pass or remove existing near-real-time stock access (normally refreshed about every 10 minutes).",
     confirm: "Pause alert emails",
     working: "Saving…",
     successTitle: "Stock alert emails are paused",
@@ -62,7 +63,7 @@ const COPY: Record<Lang, UnsubscribeCopy> = {
     productName: "Airco Tracker",
     pageDescription: "Gérez votre préférence pour les alertes de stock Airco Tracker par e-mail.",
     title: "Mettre les alertes de stock en pause ?",
-    body: "Cela suspend uniquement les alertes de stock par e-mail. La date d’expiration de votre pass canicule et votre éventuel accès au stock en temps réel restent inchangés.",
+    body: "Cela suspend uniquement les alertes de stock par e-mail. La date d’expiration de votre pass canicule et votre éventuel accès au stock en quasi-temps réel (actualisé normalement toutes les 10 minutes environ) restent inchangés.",
     confirm: "Suspendre les alertes",
     working: "Enregistrement…",
     successTitle: "Les alertes de stock sont en pause",
@@ -145,6 +146,7 @@ export function UnsubscribePage({ lang, setLang }: UnsubscribePageProps) {
           <a className="landing-secondary-button" href={`/?lang=${lang}`}>{copy.backHome}</a>
         )}
       </section>
+      <LegalFooter lang={lang} />
     </main>
   );
 }
