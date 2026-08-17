@@ -5,7 +5,7 @@
   <a href="./HANDOFF.md"><img alt="English" src="https://img.shields.io/badge/HANDOFF-English-0969da"></a>
 </p>
 
-最后更新：2026-07-17（Europe/Amsterdam）
+最后更新：2026-08-17（Europe/Amsterdam）
 
 当前状态、验证证据、blocker 或下一步变化时，必须同时更新本文件和 `HANDOFF.md`。不要记录 secrets、邮箱地址、access tokens、支付数据或不必要的个人信息。
 
@@ -16,6 +16,19 @@
 原周/月订阅已在生产替换为 €5 Heatwave Alerts Pass 和 €10 Heatwave Radar Pass；两者均一次性付费、有效 90 天且不自动续费。有效 Alerts Pass 可支付 €5 升级到 Radar，并保留原到期日。自动部署和安全 smoke 已通过；真实 Sandbox 购买、升级、退款、争议和到期场景仍需按下方人工矩阵验证。
 
 协调后的前后端设计为每个用户提供稳定 UUID，并维护一个最小化、32 分片的 `alertrecipients` 投影，供后端 Azure Service Bus 提醒流水线使用。Recipient 增长后，库存 scanner 不会为了每条库存事件扫描 canonical `users` Table。
+
+## 当前状态：生产环境已季节性下线（2026-08-17）
+
+炎热季结束，为节约订阅额度，整套 Azure 生产环境（含本应用）已于 2026-08-17 删除；网站已下线，运行时数据（用户、Pass 权益、会话）不可恢复。完整删除/重建说明见后端仓库 `~/airco-tracking/docs/REDEPLOY.zh.md`。
+
+要点：
+
+- 资源组 `airco-tracker-rg` 及全部资源已删除；`airco-tracking-web` Container App、web retention job、自定义域名证书均已不存在。
+- `infra/app.bicep` 中固化的两个 managed-certificate 名称指向已删除的证书；重建时必须按重建手册阶段 3 更新为新证书名，否则首个 application Bicep 部署会失败。
+- 环境删除期间触发 `deploy.yml` 的 push 会因 Azure 资源缺失而失败，属预期；纯 Markdown push 不会触发部署。
+- Stripe 侧（test mode 的 Prices、webhook endpoint `airco-tracker-pass-webhook`）不受 Azure 删除影响；域名未变，重建后 webhook 无需改动。
+
+下面各节描述的是下线前最后的生产状态与产品设计，作为重建参考保留。
 
 ## 仓库和生产
 
@@ -31,7 +44,7 @@
 - 成功的 deployment workflow runs：frontend `29691574367`、backend `29611560636`
 - Deployment workflow：`.github/workflows/deploy.yml`；纯 Markdown/docs push 不部署
 
-两个自定义 Web hostname 和现有 managed-certificate 名称都已写入 `infra/app.bicep`。不要删除这些 `customDomains`；否则 application Bicep 部署会清空绑定。
+两个自定义 Web hostname 和 managed-certificate 名称都已写入 `infra/app.bicep`。这些证书已随 2026-08-17 的环境删除而失效，重建时必须先更新为新建证书名（见上方"当前状态"）。在已有绑定的运行中环境上，不要删除这些 `customDomains`；否则 application Bicep 部署会清空绑定。
 
 ## 已实现的产品体验
 
@@ -118,7 +131,7 @@ Stripe Sandbox destination `airco-tracker-pass-webhook` 继续指向 `https://ai
 1. Google、Apple、Microsoft 登录按钮只是 UI placeholder；当前只有邮箱验证码登录可用。
 2. Billing 仍处于 Stripe test mode，且先支持信用卡。iDEAL/Wero 或其它支付方式需要单独的产品和合规评估。
 3. 部署/安全 baseline 已完成生产验证，但真实 Sandbox 购买、升级、退款/争议、精确到期、延迟/重复 webhook 和 legacy entitlement migration 场景仍列在 billing 测试文档中。
-4. 生产已经使用验证完成的 customer-managed `airco-tracker.eu` ACS sender；更高 quota 申请仍处于 Open。在 Azure 批准前继续保持一 worker/13 秒限制并逐步 warm up 域名。新 custom role `aircontrack-acs-email-sender` 下的首封真实 OTP 登录邮件仍需一次确认。
+4. 生产已经使用验证完成的 customer-managed `airco-tracker.eu` ACS sender；更高 quota 申请已随 2026-08-17 环境删除失效，重建后需要重新提交。重建并获批前继续保持一 worker/13 秒限制并逐步 warm up 域名。新 custom role `aircontrack-acs-email-sender` 下的首封真实 OTP 登录邮件仍需在重建后确认。
 5. Legal 页面：GDPR 内容已写好，但 `[TODO]` 经营者字段（法定名称、地址、隐私/联系邮箱、KvK、VAT 号、内容负责人、VAT 处理、退款政策确认、适用法律、争议管辖）必须在真实收款前填好并通过法律审查。合规备忘（避免重新推导）：在仅有严格必要会话 Cookie 和 localStorage 语言偏好的现状下不需要 cookie 同意横幅（若以后接入分析、Impact 追踪或任何营销像素需重新评估）；跨境 B2C 数字服务年销售额低于 €10,000 可按本国 VAT 申报、无需注册 OSS，Stripe Tax 可自动处理含税价；撤销权条款采用数字内容例外写法，退款条款为自愿 14 天全额退款（待经营者确认）；荷兰个人可通过 Het Juridisch Loket 获得免费法律咨询。VAT/OSS 与撤回权决策仍是退出 Stripe test mode 的前置条件。
 6. 目前没有 committed Playwright 视觉/无障碍回归套件，也没有针对连续 frontend/API 故障的独立生产告警。
 7. 建议对 landing footer 和登录同意区的 legal 链接做一次浏览器视觉 QA。定格影院落地页（进窗/出窗变焦、桌面渐显、温度徽章、tracker 屏通知 chip、拍点进度点）需要在桌面和窄屏、四种语言下各做一次视觉 QA。
@@ -138,4 +151,4 @@ pnpm typecheck
 pnpm build
 ```
 
-之后先验证当前 GitHub Actions variables、Azure resource names、Stripe test-mode 配置、生产响应和后端 projection contract。UI work 需要检查 1440×900 和一个窄屏断点；server/schema work 必须和 `~/airco-tracking` 协调。
+之后先验证当前 GitHub Actions variables、Azure resource names、Stripe test-mode 配置、生产响应和后端 projection contract。如果 Azure 环境仍处于已删除状态，先按 `~/airco-tracking/docs/REDEPLOY.zh.md` 完成重建再做生产验证。UI work 需要检查 1440×900 和一个窄屏断点；server/schema work 必须和 `~/airco-tracking` 协调。

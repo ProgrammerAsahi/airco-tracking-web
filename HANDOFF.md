@@ -5,7 +5,7 @@
   <a href="./HANDOFF.md"><img alt="English" src="https://img.shields.io/badge/HANDOFF-English-0969da"></a>
 </p>
 
-Last updated: 2026-07-17 (Europe/Amsterdam)
+Last updated: 2026-08-17 (Europe/Amsterdam)
 
 Update this English file and `HANDOFF.zh.md` together whenever current status, verification evidence, blockers, or next steps change. Do not record secrets, email addresses, access tokens, payment data, or unnecessary personal information.
 
@@ -16,6 +16,19 @@ Operate the public Airco Tracker portal, authenticated account experience, one-t
 The former weekly/monthly subscriptions have been replaced in production by a €5 Heatwave Alerts Pass and €10 Heatwave Radar Pass, each valid for 90 days without automatic renewal. An active Alerts Pass can be upgraded to Radar for €5 while retaining its original expiry. Automated deployment and security smoke checks have passed; real Sandbox purchase, upgrade, refund, dispute, and expiry scenarios still require the manual matrix below.
 
 The coordinated frontend/backend design uses a stable user UUID and a minimal, 32-shard `alertrecipients` projection for the backend Azure Service Bus alert pipeline. Recipient growth does not make the inventory scanner enumerate the canonical `users` table for every stock event.
+
+## Current status: production seasonally decommissioned (2026-08-17)
+
+With the hot season over, the entire Azure production environment (including this application) was deleted on 2026-08-17 to save subscription credit; the site is offline and runtime data (users, Pass entitlements, sessions) is unrecoverable. Full teardown/rebuild instructions live in the backend repository at `~/airco-tracking/docs/REDEPLOY.zh.md`.
+
+Key points:
+
+- Resource group `airco-tracker-rg` and all resources are deleted; the `airco-tracking-web` Container App, the web retention job, and the custom-domain certificates no longer exist.
+- The two managed-certificate names hard-coded in `infra/app.bicep` refer to deleted certificates; on rebuild they must be updated to the new certificate names per stage 3 of the rebuild runbook, otherwise the first application Bicep deployment fails.
+- While the environment is deleted, a push that triggers `deploy.yml` fails because the Azure resources are missing; that is expected. Markdown-only pushes do not deploy.
+- The Stripe side (test-mode Prices, webhook endpoint `airco-tracker-pass-webhook`) is unaffected by the Azure deletion; the domain is unchanged, so the webhook needs no change after a rebuild.
+
+The sections below describe the last pre-teardown production state and the product design, kept as rebuild reference.
 
 ## Repository and production
 
@@ -31,7 +44,7 @@ The coordinated frontend/backend design uses a stable user UUID and a minimal, 3
 - Successful deployment workflow runs: frontend `29691574367`, backend `29611560636`
 - Deployment workflow: `.github/workflows/deploy.yml`; Markdown/docs-only pushes do not deploy
 
-Both custom web hostnames and their existing managed-certificate names are declared in `infra/app.bicep`. Do not remove those `customDomains` entries: an application Bicep deployment would otherwise clear the bindings.
+Both custom web hostnames and their managed-certificate names are declared in `infra/app.bicep`. Those certificates were deleted with the environment on 2026-08-17 and must be replaced with the new certificate names on rebuild (see "Current status" above). On a live environment with existing bindings, do not remove those `customDomains` entries: an application Bicep deployment would otherwise clear the bindings.
 
 ## Implemented product experience
 
@@ -118,7 +131,7 @@ The current production release is deployed and verified:
 1. Google, Apple, and Microsoft login buttons are UI placeholders; only email-code login is functional.
 2. Billing remains in Stripe test mode and card-first. iDEAL/Wero or other payment methods require a separate product and compliance pass.
 3. The deployment/security baseline is production-verified, but real Sandbox purchase, upgrade, refund/dispute, exact-expiry, delayed/duplicate webhook, and legacy-entitlement migration scenarios remain open in the billing test plan.
-4. Production uses the verified customer-managed `airco-tracker.eu` ACS sender. A higher-quota request remains open; keep the current one-worker/13-second limit and gradual domain warm-up until Azure approves it. The first real OTP login email under the new `aircontrack-acs-email-sender` role still needs a one-time confirmation.
+4. Production used the verified customer-managed `airco-tracker.eu` ACS sender; the higher-quota request lapsed with the environment deletion on 2026-08-17 and must be re-filed after a rebuild. Keep the one-worker/13-second limit and gradual domain warm-up until Azure approves a new request. The first real OTP login email under the `aircontrack-acs-email-sender` role still needs a one-time confirmation after the rebuild.
 5. Legal pages: the GDPR content is written, but the `[TODO]` operator fields (legal name, address, privacy/contact emails, KvK, VAT number, responsible person, VAT treatment, refund-policy confirmation, governing law, dispute forum) must be filled and the pages legally reviewed before real payments. Compliance notes so they are not re-derived: no cookie-consent banner is needed while the site only uses the strictly necessary session cookie and the localStorage language preference (reassess if analytics, Impact tracking, or any marketing pixel is added); cross-border B2C digital sales below €10,000/year can use home-country VAT without OSS registration, and Stripe Tax can automate VAT-inclusive pricing; the drafted withdrawal clause uses the digital-content exception while the refund section offers a voluntary 14-day full refund pending operator confirmation; Het Juridisch Loket offers free legal advice for individuals in the Netherlands. VAT/OSS and withdrawal decisions remain prerequisites for leaving Stripe test mode.
 6. There is no committed Playwright visual/accessibility regression suite or dedicated production alert for repeated frontend/API failures.
 7. Browser visual QA of the landing-footer and login-consent legal links is recommended. The pinned-cinema landing (window dives, desk reveal, temperature badge, tracker-screen alert chip, beat dots) needs fresh desktop and narrow-viewport visual QA in all four languages.
@@ -138,4 +151,4 @@ pnpm typecheck
 pnpm build
 ```
 
-Then verify the current GitHub Actions variables, Azure resource names, Stripe test-mode configuration, production responses, and the backend projection contract before changing code. UI work should be checked at 1440×900 and a narrow breakpoint; server/schema work must be coordinated with `~/airco-tracking`.
+Then verify the current GitHub Actions variables, Azure resource names, Stripe test-mode configuration, production responses, and the backend projection contract before changing code. If the Azure environment is still deleted, rebuild it first via `~/airco-tracking/docs/REDEPLOY.zh.md` before any production verification. UI work should be checked at 1440×900 and a narrow breakpoint; server/schema work must be coordinated with `~/airco-tracking`.
